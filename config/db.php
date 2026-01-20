@@ -1,10 +1,10 @@
 <?php
 // config/db.php
 
-$host = '70.35.200.34'; // Or your IP: 70.35.200.34 if connecting remotely
+$host = '127.0.0.1'; // Or your IP: 70.35.200.34 if connecting remotely
 $db   = 'investor';
-$user = 'listaspeps';      // Replace with your actual database username
-$pass = 'Adsoft@2016';          // Replace with your actual database password
+$user = 'root';      // Replace with your actual database username
+$pass = '1234';          // Replace with your actual database password
 $charset = 'utf8mb4';
 
 $dsn = "mysql:host=$host;dbname=$db;charset=$charset";

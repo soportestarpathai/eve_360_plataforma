@@ -1,0 +1,25 @@
+# Archivos de configuración sensibles
+.env
+
+# Directorios de logs y caché
+logs/
+cache/
+
+# Archivos temporales
+*.log
+*.cache
+*.tmp
+
+# Sistema operativo
+.DS_Store
+Thumbs.db
+
+# IDEs
+.vscode/
+.idea/
+*.swp
+*.swo
+
+# PHP
+vendor/
+composer.lock

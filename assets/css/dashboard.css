@@ -1,0 +1,392 @@
+/* ============================================
+   Dashboard Styles - EVE 360
+   ============================================ */
+
+:root { 
+    /* Colores EVE 360 - Paleta Oficial */
+    --eve-blue-dark: #0B486B;
+    --eve-blue-deep: #0B3C8A;
+    --eve-blue-medium: #1B8FEA;
+    --eve-blue-light: #2ED1FF;
+    --eve-white: #FFFFFF;
+    --eve-gray-light: #C7CDD6;
+    --eve-bg-dark: #020814;
+    
+    /* Variables dinámicas (se sobrescriben desde index.php) */
+    --primary-color: #1B8FEA;
+    --bg-color: #F8F9FA;
+    --item-size: 110px;
+}
+
+body { 
+    background: linear-gradient(135deg, #F8F9FA 0%, #E9ECEF 100%);
+    overflow-x: hidden;
+    min-height: 100vh;
+}
+
+.dashboard-wrapper {
+    min-height: calc(100vh - 140px);
+    display: flex;
+    align-items: center;
+    position: relative;
+    z-index: 10;
+    padding: 2rem 0;
+    animation: fadeIn 0.6s ease-in;
+}
+
+/* --- TICKER --- */
+.news-ticker {
+    background: linear-gradient(135deg, var(--eve-blue-deep) 0%, var(--eve-blue-dark) 100%);
+    color: var(--eve-white);
+    height: 45px;
+    overflow: hidden;
+    position: relative;
+    display: flex;
+    align-items: center;
+    box-shadow: 0 4px 12px rgba(11, 60, 138, 0.3);
+    border-bottom: 3px solid var(--eve-blue-medium);
+}
+
+.ticker-track {
+    display: flex;
+    white-space: nowrap;
+    position: absolute;
+    will-change: transform;
+    /* La duración de la animación se define inline desde PHP */
+    animation: marquee 60s linear infinite; 
+}
+
+.ticker-item {
+    display: inline-flex;
+    align-items: center;
+    padding: 0 4rem;
+    font-size: 0.9rem;
+    font-weight: 500;
+}
+
+.ticker-item strong {
+    color: var(--eve-blue-light);
+    margin-left: 6px;
+    font-weight: 700;
+}
+
+@keyframes marquee {
+    0% { transform: translateX(100vw); }
+    100% { transform: translateX(-100%); }
+}
+
+.news-ticker:hover .ticker-track {
+    animation-play-state: paused;
+}
+
+/* --- WATERMARK --- */
+.watermark {
+    position: fixed;
+    top: 55%;
+    left: 0;
+    transform: translate(-30%, -50%);
+    font-size: 40vw;
+    font-weight: bold;
+    color: rgba(11, 72, 107, 0.04);
+    z-index: 0;
+    pointer-events: none;
+    font-family: 'Times New Roman', serif;
+    user-select: none;
+    white-space: nowrap;
+}
+
+/* --- LEFT MENU (Circular) --- */
+.menu-container {
+    position: relative;
+    height: 500px;
+    width: 100%;
+    display: flex;
+    justify-content: center;
+    align-items: center;
+    padding: 2rem;
+}
+
+.donut-center {
+    position: absolute;
+    width: 240px;
+    height: 240px;
+    border-radius: 50%;
+    border: 3px dashed var(--eve-blue-medium);
+    display: flex;
+    flex-direction: column;
+    justify-content: center;
+    align-items: center;
+    z-index: 5;
+    background: linear-gradient(135deg, rgba(255,255,255,0.95) 0%, rgba(255,255,255,0.85) 100%);
+    backdrop-filter: blur(10px);
+    box-shadow: 0 8px 25px rgba(11, 60, 138, 0.15);
+    transition: all 0.3s ease;
+}
+
+.donut-center:hover {
+    border-color: var(--eve-blue-light);
+    box-shadow: 0 12px 35px rgba(11, 60, 138, 0.25);
+    transform: scale(1.02);
+}
+
+.donut-center h5 {
+    color: var(--eve-blue-deep);
+    font-weight: 700;
+    margin: 0;
+    text-transform: uppercase;
+    text-align: center;
+    font-size: 0.95rem;
+    letter-spacing: 2px;
+}
+
+.donut-center .back-btn {
+    margin-top: 15px;
+    cursor: pointer;
+    font-size: 1.5rem;
+    color: var(--eve-gray-light);
+    transition: all 0.3s ease;
+}
+
+.donut-center .back-btn:hover {
+    color: var(--eve-blue-medium);
+    transform: scale(1.15) rotate(-180deg);
+}
+
+.menu-item {
+    position: absolute;
+    top: 50%;
+    left: 50%;
+    width: var(--item-size);
+    height: var(--item-size);
+    margin-left: calc(var(--item-size) / -2);
+    margin-top: calc(var(--item-size) / -2);
+    background: var(--eve-white);
+    border-radius: 50%;
+    box-shadow: 0 6px 20px rgba(11, 60, 138, 0.15);
+    display: flex;
+    flex-direction: column;
+    justify-content: center;
+    align-items: center;
+    text-decoration: none;
+    color: var(--eve-blue-deep);
+    cursor: pointer;
+    z-index: 20;
+    opacity: 0;
+    transform: scale(0.5);
+    transition: all 0.4s cubic-bezier(0.175, 0.885, 0.32, 1.275);
+    border: 2px solid transparent;
+}
+
+.menu-item:hover {
+    background: linear-gradient(135deg, var(--eve-blue-medium) 0%, var(--eve-blue-deep) 100%);
+    color: var(--eve-white);
+    box-shadow: 0 10px 30px rgba(27, 143, 234, 0.4);
+    z-index: 30;
+    transform: scale(1.1);
+    border-color: var(--eve-blue-light);
+}
+
+.menu-item i {
+    font-size: 1.8rem;
+    margin-bottom: 8px;
+    transition: transform 0.3s ease;
+}
+
+.menu-item:hover i {
+    transform: scale(1.2) rotate(5deg);
+}
+
+.menu-item span {
+    font-size: 0.75rem;
+    font-weight: 700;
+    text-align: center;
+    line-height: 1.2;
+    max-width: 90%;
+    padding: 0 4px;
+}
+
+/* --- RIGHT CHART --- */
+.chart-card {
+    background: linear-gradient(135deg, rgba(255, 255, 255, 0.98) 0%, rgba(255, 255, 255, 0.95) 100%);
+    border-radius: 20px;
+    box-shadow: 0 12px 40px rgba(11, 60, 138, 0.12);
+    padding: 2.5rem;
+    height: 100%;
+    display: flex;
+    flex-direction: column;
+    justify-content: center;
+    border: 1px solid rgba(199, 205, 214, 0.3);
+    transition: all 0.3s ease;
+}
+
+.chart-card:hover {
+    box-shadow: 0 15px 50px rgba(11, 60, 138, 0.18);
+    transform: translateY(-5px);
+}
+
+.chart-card h4 {
+    color: var(--eve-blue-deep);
+    font-weight: 700;
+    margin-bottom: 1.5rem;
+}
+
+.chart-card h4 i {
+    color: var(--eve-blue-medium);
+}
+
+/* --- ESTADOS VACÍOS --- */
+.empty-state {
+    padding: 3rem 1rem;
+}
+
+.empty-icon {
+    opacity: 0.5;
+}
+
+/* --- MEJORAS GENERALES --- */
+.row.gx-5 {
+    margin: 0;
+}
+
+.row.gx-5 > * {
+    padding-left: 1.5rem;
+    padding-right: 1.5rem;
+}
+
+/* Animación suave para carga */
+@keyframes fadeIn {
+    from {
+        opacity: 0;
+        transform: translateY(20px);
+    }
+    to {
+        opacity: 1;
+        transform: translateY(0);
+    }
+}
+
+/* --- RESPONSIVE DESIGN --- */
+@media (max-width: 1200px) {
+    .dashboard-wrapper {
+        padding: 1.5rem 0;
+    }
+    
+    .menu-container {
+        height: 450px;
+    }
+    
+    .chart-card {
+        padding: 2rem;
+        margin-top: 2rem;
+    }
+}
+
+@media (max-width: 992px) {
+    .dashboard-wrapper {
+        flex-direction: column;
+        height: auto;
+        padding-top: 1rem;
+    }
+    
+    .menu-container {
+        height: 400px;
+        margin-bottom: 2rem;
+    }
+    
+    .chart-card {
+        margin-top: 0;
+        height: auto;
+        min-height: 400px;
+    }
+}
+
+@media (max-width: 768px) {
+    .dashboard-wrapper {
+        padding: 1rem 0;
+    }
+    
+    .menu-container {
+        height: auto;
+        display: grid;
+        grid-template-columns: repeat(2, 1fr);
+        gap: 1rem;
+        padding: 1.5rem;
+    }
+    
+    .donut-center {
+        display: none;
+    }
+    
+    .menu-item {
+        position: relative;
+        top: auto;
+        left: auto;
+        margin: 0;
+        width: 100%;
+        height: 130px;
+        border-radius: 15px;
+        opacity: 1;
+        transform: none !important;
+        box-shadow: 0 4px 15px rgba(11, 60, 138, 0.1);
+    }
+    
+    .menu-item:hover {
+        transform: translateY(-3px) !important;
+    }
+    
+    .menu-item i {
+        font-size: 2rem;
+    }
+    
+    .menu-item span {
+        font-size: 0.85rem;
+    }
+    
+    .chart-card {
+        padding: 1.5rem;
+        border-radius: 15px;
+    }
+    
+    .watermark {
+        opacity: 0.03;
+        font-size: 30vw;
+    }
+    
+    .news-ticker {
+        height: 40px;
+    }
+    
+    .ticker-item {
+        font-size: 0.85rem;
+        padding: 0 3rem;
+    }
+    
+    .row.gx-5 > * {
+        padding-left: 1rem;
+        padding-right: 1rem;
+    }
+}
+
+@media (max-width: 576px) {
+    .menu-container {
+        grid-template-columns: 1fr;
+        gap: 0.75rem;
+        padding: 1rem;
+    }
+    
+    .menu-item {
+        height: 100px;
+    }
+    
+    .chart-card {
+        padding: 1.25rem;
+    }
+    
+    .chart-card h4 {
+        font-size: 1.25rem;
+    }
+    
+    .watermark {
+        display: none;
+    }
+}

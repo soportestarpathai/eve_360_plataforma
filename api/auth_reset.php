@@ -22,9 +22,10 @@ try {
     }
 
     // 2. Update Password and Clear Token
-    // Note: Using plain text based on your previous setup. Use password_hash() here if you upgrade later.
+    // Hash password using bcrypt (PASSWORD_DEFAULT)
+    $hash = password_hash($password, PASSWORD_DEFAULT);
     $update = $pdo->prepare("UPDATE usuarios SET login_password = ?, password_reset_token = NULL, password_reset_expires = NULL WHERE id_usuario = ?");
-    $update->execute([$password, $user['id_usuario']]);
+    $update->execute([$hash, $user['id_usuario']]);
 
     echo json_encode(['status' => 'success', 'message' => 'Contraseña actualizada']);
 
