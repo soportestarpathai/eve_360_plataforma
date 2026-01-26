@@ -2,6 +2,7 @@
 session_start();
 require_once '../config/db.php';
 require_once '../config/bitacora.php'; // Include Logger
+require_once '../config/pld_middleware.php'; // VAL-PLD-001: Bloqueo de operaciones PLD
 header('Content-Type: application/json');
 
 if (!isset($_SESSION['user_id'])) {
@@ -9,6 +10,9 @@ if (!isset($_SESSION['user_id'])) {
     echo json_encode(['status' => 'error', 'message' => 'Unauthorized']);
     exit;
 }
+
+// VAL-PLD-001: Bloquear confirmación PLD si no está habilitado
+requirePLDHabilitado($pdo, true);
 
 $id_usuario_actual = $_SESSION['user_id'];
 $data = json_decode(file_get_contents("php://input"), true);

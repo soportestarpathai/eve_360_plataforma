@@ -1,0 +1,337 @@
+/* Cliente Editar Page Styles */
+
+/* EVE 360 Color Variables */
+:root {
+    --eve-blue-dark: #0B486B;
+    --eve-blue-deep: #0B3C8A;
+    --eve-blue-medium: #1B8FEA;
+    --eve-blue-light: #2ED1FF;
+    --eve-white: #FFFFFF;
+    --eve-gray-light: #C7CDD6;
+    --eve-bg-light: #F8F9FA;
+}
+
+/* Wizard Container */
+.wizard-card { 
+    max-width: 1000px; 
+    margin: 2rem auto;
+    padding: 0 1rem;
+}
+
+/* Form Section */
+.form-section { 
+    background: var(--eve-white); 
+    padding: 2rem; 
+    border-radius: 12px; 
+    box-shadow: 0 4px 20px rgba(11, 60, 138, 0.1);
+    border: 1px solid rgba(199, 205, 214, 0.2);
+    margin-bottom: 1.5rem;
+}
+
+/* Section Title with Icon */
+.section-title { 
+    font-size: 1.25rem; 
+    font-weight: 700; 
+    color: var(--eve-blue-deep); 
+    border-bottom: 3px solid var(--eve-blue-medium); 
+    padding-bottom: 12px; 
+    margin-bottom: 1.5rem;
+    display: flex;
+    align-items: center;
+    gap: 10px;
+}
+
+.section-title i {
+    color: var(--eve-blue-medium);
+    font-size: 1.1rem;
+}
+
+/* Form Labels with Icons */
+.form-label {
+    font-weight: 600;
+    color: var(--eve-blue-deep);
+    margin-bottom: 0.5rem;
+    display: flex;
+    align-items: center;
+    gap: 6px;
+    font-size: 0.95rem;
+}
+
+.form-label i {
+    color: var(--eve-blue-medium);
+    font-size: 0.85rem;
+}
+
+/* Form Controls */
+.form-control,
+.form-select {
+    border: 1.5px solid rgba(199, 205, 214, 0.5);
+    border-radius: 8px;
+    padding: 0.625rem 0.75rem;
+    font-size: 0.95rem;
+}
+
+.form-control:focus,
+.form-select:focus {
+    border-color: var(--eve-blue-medium);
+    box-shadow: 0 0 0 0.2rem rgba(27, 143, 234, 0.15);
+}
+
+.form-control:disabled,
+.form-select:disabled {
+    background-color: var(--eve-bg-light);
+    opacity: 0.7;
+    cursor: not-allowed;
+}
+
+/* Buttons */
+.btn-primary {
+    background: linear-gradient(135deg, var(--eve-blue-medium) 0%, var(--eve-blue-deep) 100%);
+    border: 2px solid var(--eve-blue-light);
+    border-radius: 8px;
+    padding: 0.625rem 1.5rem;
+    font-weight: 600;
+    box-shadow: 0 4px 15px rgba(27, 143, 234, 0.3);
+    color: var(--eve-white);
+}
+
+.btn-primary:hover {
+    background: linear-gradient(135deg, var(--eve-blue-deep) 0%, var(--eve-blue-dark) 100%);
+    transform: translateY(-2px);
+    box-shadow: 0 6px 20px rgba(27, 143, 234, 0.4);
+}
+
+.btn-secondary {
+    background: var(--eve-gray-light);
+    border: 2px solid var(--eve-gray-light);
+    color: var(--eve-blue-deep);
+    border-radius: 8px;
+    padding: 0.625rem 1.5rem;
+    font-weight: 600;
+}
+
+.btn-success {
+    background: linear-gradient(135deg, #28a745 0%, #20c997 100%);
+    border: 2px solid #20c997;
+    border-radius: 8px;
+    padding: 0.625rem 1.5rem;
+    font-weight: 600;
+}
+
+.btn-outline-primary {
+    border: 2px solid var(--eve-blue-medium);
+    color: var(--eve-blue-medium);
+    border-radius: 8px;
+    font-weight: 600;
+}
+
+.btn-outline-primary:hover {
+    background: var(--eve-blue-medium);
+    color: var(--eve-white);
+}
+
+.btn-outline-success {
+    border: 2px solid #28a745;
+    color: #28a745;
+    border-radius: 8px;
+    font-weight: 600;
+}
+
+.btn-outline-success:hover {
+    background: #28a745;
+    color: var(--eve-white);
+}
+
+/* Dynamic List Items */
+.dynamic-list-item { 
+    display: flex; 
+    align-items: center; 
+    gap: 10px; 
+    margin-bottom: 12px; 
+    background: var(--eve-bg-light); 
+    padding: 12px; 
+    border-radius: 8px;
+    border-left: 4px solid var(--eve-blue-medium);
+    box-shadow: 0 2px 8px rgba(11, 60, 138, 0.05);
+}
+
+.dynamic-list-item .form-control, 
+.dynamic-list-item .form-select { 
+    flex: 1; 
+}
+
+.dynamic-list-item .btn-danger {
+    flex-shrink: 0;
+}
+
+/* Persona Specific */
+.persona-specific { 
+    display: none; /* Hidden by default */ 
+}
+
+/* Subsection Titles (for nested sections) */
+.subsection-title {
+    font-size: 1rem;
+    font-weight: 600;
+    color: var(--eve-blue-medium);
+    border-bottom: 2px solid var(--eve-blue-light);
+    padding-bottom: 8px;
+    margin-bottom: 1rem;
+    margin-top: 1.5rem;
+    display: flex;
+    align-items: center;
+    gap: 8px;
+}
+
+.subsection-title:first-of-type {
+    margin-top: 0;
+}
+
+.subsection-title i {
+    color: var(--eve-blue-medium);
+    font-size: 0.9rem;
+}
+
+/* HR Separators */
+hr {
+    border-top: 2px solid rgba(199, 205, 214, 0.3);
+    margin: 1.5rem 0;
+}
+
+/* Input Groups with Icons */
+.input-group-text {
+    background: linear-gradient(135deg, var(--eve-blue-medium) 0%, var(--eve-blue-deep) 100%);
+    color: var(--eve-white);
+    border: 1.5px solid var(--eve-blue-medium);
+    border-right: none;
+}
+
+.input-group .form-control {
+    border-left: none;
+}
+
+.input-group .form-control:focus {
+    border-left: 1.5px solid var(--eve-blue-medium);
+}
+
+/* Apoderado Specific Styles */
+.apoderado-specific {
+    display: none;
+}
+
+/* Responsive Design - Tablet (768px and below) */
+@media (max-width: 768px) {
+    .wizard-card {
+        margin: 1rem auto;
+        padding: 0 0.75rem;
+    }
+
+    .form-section {
+        padding: 1.5rem;
+        border-radius: 10px;
+    }
+
+    .section-title {
+        font-size: 1.1rem;
+        flex-wrap: wrap;
+    }
+
+    .dynamic-list-item {
+        flex-direction: column;
+        align-items: stretch;
+        gap: 8px;
+    }
+
+    .dynamic-list-item .btn-danger {
+        align-self: flex-end;
+    }
+}
+
+/* Responsive Design - Mobile (576px and below) */
+@media (max-width: 576px) {
+    .wizard-card {
+        margin: 0.75rem auto;
+        padding: 0 0.5rem;
+    }
+
+    .form-section {
+        padding: 1.25rem;
+        border-radius: 8px;
+    }
+
+    .section-title {
+        font-size: 1rem;
+        padding-bottom: 8px;
+        margin-bottom: 1.25rem;
+    }
+
+    .subsection-title {
+        font-size: 0.95rem;
+        margin-top: 1.25rem;
+    }
+
+    .form-label {
+        font-size: 0.875rem;
+    }
+
+    .form-control,
+    .form-select {
+        font-size: 0.9rem;
+        padding: 0.5rem 0.625rem;
+    }
+
+    .btn {
+        font-size: 0.9rem;
+        padding: 0.5rem 1.25rem;
+    }
+
+    .dynamic-list-item {
+        padding: 10px;
+        gap: 6px;
+    }
+
+    .text-end {
+        text-align: center !important;
+    }
+
+    .text-end .btn {
+        width: 100%;
+        margin-bottom: 0.5rem;
+    }
+
+    .text-end .btn:last-child {
+        margin-bottom: 0;
+    }
+}
+
+/* Extra Small Devices (480px and below) */
+@media (max-width: 480px) {
+    .wizard-card {
+        margin: 0.5rem auto;
+        padding: 0 0.25rem;
+    }
+
+    .form-section {
+        padding: 1rem;
+    }
+
+    .section-title {
+        font-size: 0.95rem;
+    }
+
+    .subsection-title {
+        font-size: 0.9rem;
+    }
+
+    .form-label {
+        font-size: 0.8rem;
+    }
+
+    .form-label i {
+        font-size: 0.75rem;
+    }
+
+    .section-title i {
+        font-size: 0.9rem;
+    }
+}

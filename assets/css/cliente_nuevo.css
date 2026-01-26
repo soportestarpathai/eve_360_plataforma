@@ -1,0 +1,861 @@
+/* Cliente Nuevo Page Styles */
+
+/* EVE 360 Color Variables */
+:root {
+    --eve-blue-dark: #0B486B;
+    --eve-blue-deep: #0B3C8A;
+    --eve-blue-medium: #1B8FEA;
+    --eve-blue-light: #2ED1FF;
+    --eve-white: #FFFFFF;
+    --eve-gray-light: #C7CDD6;
+    --eve-bg-light: #F8F9FA;
+}
+
+/* Wizard Container */
+.wizard-card { 
+    max-width: 1000px; 
+    margin: 2rem auto;
+    padding: 0 1rem;
+}
+
+/* Step Navigation */
+.step { 
+    display: none; 
+}
+
+.step.active { 
+    display: block;
+    animation: fadeIn 0.3s ease-in;
+}
+
+@keyframes fadeIn {
+    from { opacity: 0; transform: translateY(10px); }
+    to { opacity: 1; transform: translateY(0); }
+}
+
+/* Form Section */
+.form-section { 
+    background: var(--eve-white); 
+    padding: 2rem; 
+    border-radius: 12px; 
+    box-shadow: 0 4px 20px rgba(11, 60, 138, 0.1);
+    border: 1px solid rgba(199, 205, 214, 0.2);
+    margin-bottom: 1.5rem;
+}
+
+/* Section Title with Icon */
+.section-title { 
+    font-size: 1.25rem; 
+    font-weight: 700; 
+    color: var(--eve-blue-deep); 
+    border-bottom: 3px solid var(--eve-blue-medium); 
+    padding-bottom: 12px; 
+    margin-bottom: 1.5rem;
+    display: flex;
+    align-items: center;
+    gap: 10px;
+}
+
+.section-title i {
+    color: var(--eve-blue-medium);
+    font-size: 1.1rem;
+}
+
+/* Form Labels with Icons */
+.form-label {
+    font-weight: 600;
+    color: var(--eve-blue-deep);
+    margin-bottom: 0.5rem;
+    display: flex;
+    align-items: center;
+    gap: 6px;
+    font-size: 0.95rem;
+}
+
+.form-label i {
+    color: var(--eve-blue-medium);
+    font-size: 0.85rem;
+}
+
+/* Form Controls */
+.form-control,
+.form-select {
+    border: 1.5px solid rgba(199, 205, 214, 0.5);
+    border-radius: 8px;
+    padding: 0.625rem 0.75rem;
+    font-size: 0.95rem;
+}
+
+.form-control:focus,
+.form-select:focus {
+    border-color: var(--eve-blue-medium);
+    box-shadow: 0 0 0 0.2rem rgba(27, 143, 234, 0.15);
+}
+
+/* Input Groups with Icons */
+.input-group-text {
+    background: linear-gradient(135deg, var(--eve-blue-medium) 0%, var(--eve-blue-deep) 100%);
+    color: var(--eve-white);
+    border: 1.5px solid var(--eve-blue-medium);
+    border-right: none;
+}
+
+.input-group .form-control {
+    border-left: none;
+}
+
+.input-group .form-control:focus {
+    border-left: 1.5px solid var(--eve-blue-medium);
+}
+
+/* Buttons */
+.btn-primary {
+    background: linear-gradient(135deg, var(--eve-blue-medium) 0%, var(--eve-blue-deep) 100%);
+    border: 2px solid var(--eve-blue-light);
+    border-radius: 8px;
+    padding: 0.625rem 1.5rem;
+    font-weight: 600;
+    box-shadow: 0 4px 15px rgba(27, 143, 234, 0.3);
+    color: var(--eve-white);
+}
+
+.btn-primary:hover {
+    background: linear-gradient(135deg, var(--eve-blue-deep) 0%, var(--eve-blue-dark) 100%);
+    transform: translateY(-2px);
+    box-shadow: 0 6px 20px rgba(27, 143, 234, 0.4);
+}
+
+.btn-secondary {
+    background: var(--eve-gray-light);
+    border: 2px solid var(--eve-gray-light);
+    color: var(--eve-blue-deep);
+    border-radius: 8px;
+    padding: 0.625rem 1.5rem;
+    font-weight: 600;
+}
+
+.btn-success {
+    background: linear-gradient(135deg, #28a745 0%, #20c997 100%);
+    border: 2px solid #20c997;
+    border-radius: 8px;
+    padding: 0.625rem 1.5rem;
+    font-weight: 600;
+}
+
+.btn-warning {
+    background: linear-gradient(135deg, #ffc107 0%, #ff9800 100%);
+    border: 2px solid #ff9800;
+    color: #000;
+    border-radius: 8px;
+    font-weight: 600;
+}
+
+.btn-outline-primary {
+    border: 2px solid var(--eve-blue-medium);
+    color: var(--eve-blue-medium);
+    border-radius: 8px;
+    font-weight: 600;
+}
+
+.btn-outline-primary:hover {
+    background: var(--eve-blue-medium);
+    color: var(--eve-white);
+}
+
+.btn-outline-success {
+    border: 2px solid #28a745;
+    color: #28a745;
+    border-radius: 8px;
+    font-weight: 600;
+}
+
+.btn-outline-success:hover {
+    background: #28a745;
+    color: var(--eve-white);
+}
+
+/* Navigation Buttons */
+.step-navigation {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    margin-top: 2rem;
+    padding-top: 1.5rem;
+    border-top: 2px solid rgba(199, 205, 214, 0.3);
+    gap: 1rem;
+}
+
+.step-navigation .btn {
+    min-width: 140px;
+}
+
+/* Dynamic List Items */
+.dynamic-list-item { 
+    display: flex; 
+    align-items: center; 
+    gap: 10px; 
+    margin-bottom: 12px; 
+    background: var(--eve-bg-light); 
+    padding: 12px; 
+    border-radius: 8px;
+    border-left: 4px solid var(--eve-blue-medium);
+    box-shadow: 0 2px 8px rgba(11, 60, 138, 0.05);
+}
+
+.dynamic-list-item .form-control, 
+.dynamic-list-item .form-select { 
+    flex: 1; 
+}
+
+.dynamic-list-item .btn-danger {
+    flex-shrink: 0;
+}
+
+/* Persona Specific */
+.persona-specific { 
+    display: none; /* Hidden by default */ 
+}
+
+/* Subsection Titles (for Step 3) */
+.subsection-title {
+    font-size: 1rem;
+    font-weight: 600;
+    color: var(--eve-blue-medium);
+    border-bottom: 2px solid var(--eve-blue-light);
+    padding-bottom: 8px;
+    margin-bottom: 1rem;
+    margin-top: 1.5rem;
+    display: flex;
+    align-items: center;
+    gap: 8px;
+}
+
+.subsection-title:first-of-type {
+    margin-top: 0;
+}
+
+.subsection-title i {
+    color: var(--eve-blue-medium);
+    font-size: 0.9rem;
+}
+
+/* HR Separators */
+hr {
+    border-top: 2px solid rgba(199, 205, 214, 0.3);
+    margin: 1.5rem 0;
+}
+
+/* Alerts */
+.alert {
+    border-radius: 10px;
+    padding: 1rem 1.25rem;
+}
+
+.alert-warning {
+    background: linear-gradient(135deg, rgba(255, 193, 7, 0.15) 0%, rgba(255, 152, 0, 0.1) 100%);
+    border: 2px solid #ffc107;
+    color: #856404;
+}
+
+/* Form Check Radio/Checkbox */
+.form-check {
+    padding: 0.75rem;
+    background: var(--eve-bg-light);
+    border-radius: 8px;
+    margin-bottom: 0.5rem;
+    border: 1px solid rgba(199, 205, 214, 0.3);
+}
+
+.form-check-input:checked {
+    background-color: var(--eve-blue-medium);
+    border-color: var(--eve-blue-medium);
+}
+
+.form-check-label {
+    font-weight: 500;
+    color: var(--eve-blue-deep);
+    cursor: pointer;
+}
+
+/* Validation Status Alert */
+.validation-status-alert {
+    background: linear-gradient(135deg, rgba(27, 143, 234, 0.1) 0%, rgba(11, 60, 138, 0.1) 100%);
+    border: 2px solid var(--eve-blue-medium);
+    border-radius: 12px;
+    padding: 1rem 1.5rem;
+    margin-bottom: 1.5rem;
+}
+
+.validation-status-alert strong {
+    color: var(--eve-blue-deep);
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    margin-bottom: 0.5rem;
+}
+
+.validation-status-alert strong i {
+    color: var(--eve-blue-medium);
+}
+
+#validationStatus { 
+    font-weight: 600; 
+    margin-right: 15px;
+    display: inline-flex;
+    align-items: center;
+    gap: 6px;
+}
+
+.text-ok { 
+    color: #28a745; 
+}
+
+.text-risk { 
+    color: #dc3545; 
+}
+
+.text-warning { 
+    color: #ffc107; 
+}
+
+/* Modal Styles */
+#pldModal .modal-dialog {
+    display: flex;
+    align-items: center;
+    min-height: calc(100% - 1rem);
+    margin: 1rem auto;
+    max-width: 750px;
+}
+
+#pldModal .modal-dialog-centered {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+}
+
+#pldModal .modal-content {
+    border-radius: 12px;
+    border: 1px solid rgba(199, 205, 214, 0.3);
+    box-shadow: 0 8px 32px rgba(11, 60, 138, 0.2);
+}
+
+/* Modal Header - EVE 360 Blue Style */
+#pldModal .modal-header {
+    background: linear-gradient(135deg, var(--eve-blue-deep) 0%, var(--eve-blue-dark) 100%);
+    color: var(--eve-white);
+    border-radius: 12px 12px 0 0;
+    padding: 1.5rem 1.75rem;
+    border-bottom: 3px solid var(--eve-blue-light);
+}
+
+#pldModal .modal-header.bg-light {
+    background: linear-gradient(135deg, var(--eve-blue-deep) 0%, var(--eve-blue-dark) 100%) !important;
+    color: var(--eve-white) !important;
+}
+
+#pldModal .modal-title {
+    font-weight: 700;
+    font-size: 1.25rem;
+    display: flex;
+    align-items: center;
+    gap: 12px;
+}
+
+#pldModal .modal-title i {
+    font-size: 1.5rem;
+}
+
+/* PLD Results Alert */
+#pldResults .alert-warning {
+    background: linear-gradient(135deg, rgba(220, 53, 69, 0.15) 0%, rgba(200, 35, 51, 0.1) 100%);
+    border: 2px solid #dc3545;
+    border-left: 5px solid #dc3545;
+    border-radius: 10px;
+    color: #721c24;
+    padding: 1.25rem 1.5rem;
+    margin-bottom: 1.5rem;
+    box-shadow: 0 4px 12px rgba(220, 53, 69, 0.2);
+}
+
+#pldResults .alert-warning i {
+    color: #dc3545;
+    font-size: 1.25rem;
+}
+
+#pldResults .alert-warning strong {
+    color: #721c24;
+    font-size: 1rem;
+}
+
+/* Hits Container */
+#hitsContainer {
+    border: 2px solid rgba(199, 205, 214, 0.3);
+    border-radius: 10px;
+    background: #fff;
+    max-height: 400px;
+    overflow-y: auto;
+    padding: 1rem;
+    box-shadow: inset 0 2px 8px rgba(0, 0, 0, 0.05);
+}
+
+#hitsContainer::-webkit-scrollbar {
+    width: 8px;
+}
+
+#hitsContainer::-webkit-scrollbar-track {
+    background: #f1f1f1;
+    border-radius: 4px;
+}
+
+#hitsContainer::-webkit-scrollbar-thumb {
+    background: var(--eve-blue-medium);
+    border-radius: 4px;
+}
+
+#hitsContainer::-webkit-scrollbar-thumb:hover {
+    background: var(--eve-blue-deep);
+}
+
+/* Hit Row - Red Alert Design */
+.hit-row {
+    border: 2px solid rgba(220, 53, 69, 0.3);
+    background: linear-gradient(135deg, rgba(255, 255, 255, 1) 0%, rgba(255, 248, 248, 0.8) 100%);
+    padding: 1.25rem;
+    cursor: pointer;
+    transition: all 0.3s ease;
+    border-left: 5px solid #dc3545;
+    border-radius: 10px;
+    margin-bottom: 1rem;
+    box-shadow: 0 2px 8px rgba(220, 53, 69, 0.1);
+    position: relative;
+    overflow: hidden;
+}
+
+.hit-row::before {
+    content: '';
+    position: absolute;
+    top: 0;
+    left: 0;
+    width: 5px;
+    height: 100%;
+    background: #dc3545;
+    transition: width 0.3s ease;
+    z-index: 1;
+}
+
+.hit-row:hover {
+    background: linear-gradient(135deg, rgba(255, 248, 248, 1) 0%, rgba(255, 240, 240, 0.9) 100%);
+    border-color: #dc3545;
+    border-left-width: 8px;
+    transform: translateX(5px);
+    box-shadow: 0 4px 16px rgba(220, 53, 69, 0.25);
+}
+
+.hit-row:hover::before {
+    width: 8px;
+}
+
+.hit-row .form-check {
+    margin: 0;
+    padding: 0;
+    padding-left: 1rem;
+    background: transparent;
+    border: none;
+    position: relative;
+    z-index: 5;
+}
+
+.hit-row .form-check-input {
+    width: 1.25rem;
+    height: 1.25rem;
+    margin-right: 0.75rem;
+    margin-top: 0.25rem;
+    margin-left: 0.5rem;
+    border: 2px solid #dc3545;
+    cursor: pointer;
+    position: relative;
+    z-index: 10;
+}
+
+.hit-row .form-check-input:checked {
+    background-color: #dc3545;
+    border-color: #dc3545;
+    box-shadow: 0 0 0 0.2rem rgba(220, 53, 69, 0.25);
+}
+
+.hit-row .form-check-label {
+    cursor: pointer;
+    width: 100%;
+}
+
+.hit-row .fw-bold {
+    color: #721c24;
+    font-size: 1.1rem;
+    margin-bottom: 0.5rem;
+    display: flex;
+    align-items: center;
+    gap: 8px;
+}
+
+.hit-row .fw-bold i {
+    color: #dc3545;
+    font-size: 1rem;
+}
+
+.hit-row .small {
+    color: #6c757d;
+    font-size: 0.875rem;
+    line-height: 1.6;
+    display: flex;
+    flex-wrap: wrap;
+    gap: 12px;
+    align-items: center;
+}
+
+.hit-row .small span {
+    display: inline-flex;
+    align-items: center;
+    gap: 4px;
+    padding: 0.25rem 0.5rem;
+    border-radius: 4px;
+    background: rgba(220, 53, 69, 0.1);
+    color: #721c24;
+    font-weight: 600;
+}
+
+.hit-row .badge {
+    font-size: 0.875rem;
+    padding: 0.375rem 0.75rem;
+    font-weight: 700;
+    border-radius: 6px;
+}
+
+.hit-row .badge.bg-danger {
+    background: linear-gradient(135deg, #dc3545 0%, #c82333 100%) !important;
+    box-shadow: 0 2px 6px rgba(220, 53, 69, 0.3);
+}
+
+.hit-row .badge.bg-warning {
+    background: linear-gradient(135deg, #ffc107 0%, #ff9800 100%) !important;
+    color: #000 !important;
+    box-shadow: 0 2px 6px rgba(255, 193, 7, 0.3);
+}
+
+/* None Selection Option - Different Color (Blue/Gray) */
+#pldResults .form-check.border {
+    border: 2px dashed #6c757d !important;
+    background: linear-gradient(135deg, rgba(108, 117, 125, 0.05) 0%, rgba(255, 255, 255, 1) 100%) !important;
+    border-radius: 10px;
+    padding: 1.25rem !important;
+    margin-top: 1rem;
+    position: relative;
+}
+
+#pldResults .form-check.border::before {
+    content: '';
+    position: absolute;
+    top: 0;
+    left: 0;
+    width: 5px;
+    height: 100%;
+    background: #6c757d;
+    border-radius: 10px 0 0 10px;
+}
+
+#pldResults .form-check.border:hover {
+    background: linear-gradient(135deg, rgba(108, 117, 125, 0.1) 0%, rgba(255, 255, 255, 1) 100%) !important;
+    border-style: solid !important;
+    border-color: #5a6268 !important;
+    transform: translateX(3px);
+    box-shadow: 0 4px 12px rgba(108, 117, 125, 0.2);
+}
+
+#pldResults .form-check.border:hover::before {
+    width: 8px;
+}
+
+#pldResults .form-check.border .form-check-input {
+    border-color: #6c757d;
+    margin-left: 0.5rem;
+    position: relative;
+    z-index: 10;
+}
+
+#pldResults .form-check.border .form-check-input:checked {
+    background-color: #6c757d;
+    border-color: #6c757d;
+    box-shadow: 0 0 0 0.2rem rgba(108, 117, 125, 0.25);
+}
+
+#pldResults .form-check.border .form-check-label {
+    color: #495057;
+    font-size: 1rem;
+    margin-left: 0.5rem;
+}
+
+#pldResults .form-check.border .text-muted {
+    color: #6c757d !important;
+    font-size: 0.875rem;
+    margin-left: 0.5rem;
+}
+
+/* Clean Results (No Coincidences) */
+#pldClean {
+    padding: 3rem 2rem;
+    background: linear-gradient(135deg, rgba(40, 167, 69, 0.05) 0%, rgba(255, 255, 255, 1) 100%);
+    border-radius: 12px;
+    border: 2px solid #28a745;
+}
+
+#pldClean i {
+    color: #28a745;
+    filter: drop-shadow(0 4px 8px rgba(40, 167, 69, 0.3));
+}
+
+#pldClean h5 {
+    color: #155724;
+    font-weight: 700;
+    margin-top: 1rem;
+}
+
+#pldClean p {
+    color: #6c757d;
+    font-size: 1rem;
+}
+
+/* Modal Footer */
+#pldModal .modal-footer {
+    border-top: 1px solid rgba(199, 205, 214, 0.3);
+    padding: 1rem 1.5rem;
+    background: #f8f9fa;
+}
+
+#pldModal .modal-footer .btn-primary {
+    background: linear-gradient(135deg, var(--eve-blue-medium) 0%, var(--eve-blue-deep) 100%);
+    border: 2px solid var(--eve-blue-light);
+    color: var(--eve-white);
+    font-weight: 700;
+    padding: 0.625rem 1.5rem;
+    box-shadow: 0 4px 12px rgba(27, 143, 234, 0.3);
+}
+
+#pldModal .modal-footer .btn-primary:hover {
+    background: linear-gradient(135deg, var(--eve-blue-deep) 0%, var(--eve-blue-dark) 100%);
+    transform: translateY(-2px);
+    box-shadow: 0 6px 16px rgba(27, 143, 234, 0.4);
+}
+
+#pldModal .modal-footer .btn-success {
+    background: linear-gradient(135deg, #28a745 0%, #20c997 100%);
+    border: 2px solid #28a745;
+    font-weight: 700;
+    box-shadow: 0 4px 12px rgba(40, 167, 69, 0.3);
+}
+
+/* Loading State */
+#pldLoading {
+    padding: 3rem 2rem;
+}
+
+#pldLoading i {
+    color: var(--eve-blue-medium);
+    filter: drop-shadow(0 4px 8px rgba(27, 143, 234, 0.3));
+}
+
+#pldLoading p {
+    color: var(--eve-blue-deep);
+    font-weight: 600;
+    margin-top: 1rem;
+    font-size: 1.1rem;
+}
+
+/* PLD Modal Title Icon - Keep Blue */
+#pldModal .modal-title i {
+    color: var(--eve-white);
+}
+
+/* Step Indicator (Optional enhancement) */
+.step-indicator {
+    display: flex;
+    justify-content: center;
+    gap: 1rem;
+    margin-bottom: 2rem;
+    flex-wrap: wrap;
+}
+
+.step-indicator-item {
+    display: flex;
+    align-items: center;
+    gap: 0.5rem;
+    padding: 0.5rem 1rem;
+    border-radius: 20px;
+    background: var(--eve-bg-light);
+    color: var(--eve-gray-light);
+    font-size: 0.875rem;
+    font-weight: 600;
+    border: 2px solid transparent;
+}
+
+.step-indicator-item.active {
+    background: linear-gradient(135deg, var(--eve-blue-medium) 0%, var(--eve-blue-deep) 100%);
+    color: var(--eve-white);
+    border-color: var(--eve-blue-light);
+}
+
+.step-indicator-item.completed {
+    background: #28a745;
+    color: var(--eve-white);
+}
+
+/* Responsive Design - Tablet (768px and below) */
+@media (max-width: 768px) {
+    .wizard-card {
+        margin: 1rem auto;
+        padding: 0 0.75rem;
+    }
+
+    .form-section {
+        padding: 1.5rem;
+        border-radius: 10px;
+    }
+
+    .section-title {
+        font-size: 1.1rem;
+        flex-wrap: wrap;
+    }
+
+    .step-navigation {
+        flex-direction: column;
+        gap: 0.75rem;
+    }
+
+    .step-navigation .btn {
+        width: 100%;
+        min-width: unset;
+    }
+
+    .dynamic-list-item {
+        flex-direction: column;
+        align-items: stretch;
+        gap: 8px;
+    }
+
+    .dynamic-list-item .btn-danger {
+        align-self: flex-end;
+    }
+
+    .validation-status-alert {
+        flex-direction: column;
+        align-items: flex-start;
+        gap: 1rem;
+        padding: 1rem;
+    }
+
+    .validation-status-alert .btn {
+        width: 100%;
+    }
+
+    #pldModal .modal-dialog {
+        margin: 0.5rem;
+        max-width: calc(100% - 1rem);
+    }
+}
+
+/* Responsive Design - Mobile (576px and below) */
+@media (max-width: 576px) {
+    .wizard-card {
+        margin: 0.75rem auto;
+        padding: 0 0.5rem;
+    }
+
+    .form-section {
+        padding: 1.25rem;
+        border-radius: 8px;
+    }
+
+    .section-title {
+        font-size: 1rem;
+        padding-bottom: 8px;
+        margin-bottom: 1.25rem;
+    }
+
+    .form-label {
+        font-size: 0.875rem;
+    }
+
+    .form-control,
+    .form-select {
+        font-size: 0.9rem;
+        padding: 0.5rem 0.625rem;
+    }
+
+    .btn {
+        font-size: 0.9rem;
+        padding: 0.5rem 1.25rem;
+    }
+
+    .step-navigation {
+        flex-direction: column;
+        gap: 0.5rem;
+    }
+
+    .dynamic-list-item {
+        padding: 10px;
+        gap: 6px;
+    }
+
+    .validation-status-alert {
+        padding: 0.875rem;
+    }
+
+    .step-indicator {
+        gap: 0.5rem;
+        margin-bottom: 1.5rem;
+    }
+
+    .step-indicator-item {
+        font-size: 0.75rem;
+        padding: 0.375rem 0.75rem;
+    }
+
+    #pldModal .modal-dialog {
+        margin: 0.25rem;
+    }
+
+    #pldModal .modal-header {
+        padding: 1rem;
+    }
+
+    #pldModal .modal-body {
+        padding: 1rem;
+    }
+
+    .hit-row {
+        padding: 12px;
+    }
+}
+
+/* Extra Small Devices (480px and below) */
+@media (max-width: 480px) {
+    .wizard-card {
+        margin: 0.5rem auto;
+        padding: 0 0.25rem;
+    }
+
+    .form-section {
+        padding: 1rem;
+    }
+
+    .section-title {
+        font-size: 0.95rem;
+    }
+
+    .form-label {
+        font-size: 0.8rem;
+    }
+
+    .step-navigation .btn {
+        font-size: 0.85rem;
+        padding: 0.5rem 1rem;
+    }
+}

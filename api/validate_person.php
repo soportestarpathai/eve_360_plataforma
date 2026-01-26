@@ -1,6 +1,7 @@
 <?php
 session_start();
-require_once '../config/db.php'; 
+require_once '../config/db.php';
+require_once '../config/pld_middleware.php';
 header('Content-Type: application/json');
 
 if (!isset($_SESSION['user_id'])) {
@@ -8,6 +9,9 @@ if (!isset($_SESSION['user_id'])) {
     echo json_encode(['status' => 'error', 'message' => 'Unauthorized']);
     exit;
 }
+
+// VAL-PLD-001: Bloquear consultas PLD si no está habilitado
+requirePLDHabilitado($pdo, true);
 
 // --- 1. CHECK LIMIT (Read Only) ---
 $currentMonth = date('Y-m');
@@ -32,14 +36,41 @@ try {
 }
 
 // Get POST data
-$data = json_decode(file_get_contents("php://input"), true);
+$rawInput = file_get_contents("php://input");
+$data = json_decode($rawInput, true);
+
+// Validate JSON parsing
+if (json_last_error() !== JSON_ERROR_NONE || !is_array($data)) {
+    http_response_code(400);
+    echo json_encode(['status' => 'error', 'message' => 'Invalid JSON data']);
+    exit;
+}
 
 $nombre = cleanString(trim($data['nombre'] ?? ''));
 $paterno = cleanString(trim($data['paterno'] ?? ''));
 $materno = cleanString(trim($data['materno'] ?? ''));
 $tipo_persona_input = $data['tipo_persona'] ?? ''; 
 $id_cliente = $data['id_cliente'] ?? null; 
-$save_history = $data['save_history'] ?? false; 
+$save_history = $data['save_history'] ?? false;
+
+// Validate required fields before API call
+if ($tipo_persona_input === 'fisica') {
+    if (empty($nombre) || empty($paterno)) {
+        http_response_code(400);
+        echo json_encode(['status' => 'error', 'message' => 'Nombre y Apellido Paterno son requeridos para persona física']);
+        exit;
+    }
+} else if ($tipo_persona_input === 'moral') {
+    if (empty($nombre) || strlen($nombre) < 3) {
+        http_response_code(400);
+        echo json_encode(['status' => 'error', 'message' => 'Razón Social es requerida (mínimo 3 caracteres) para persona moral']);
+        exit;
+    }
+} else {
+    http_response_code(400);
+    echo json_encode(['status' => 'error', 'message' => 'Tipo de persona inválido o no especificado']);
+    exit;
+} 
 
 function cleanString($str) {
     $str = mb_strtolower($str, 'UTF-8');

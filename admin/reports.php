@@ -38,9 +38,9 @@ $reports = $pdo->query("SELECT * FROM cat_tipos_reporte ORDER BY nombre ASC")->f
     </button>
 </div>
 
-<?php if($message): ?>
+    <?php if($message): ?>
     <div class="alert alert-<?= $msgType ?> alert-dismissible fade show" role="alert">
-        <?= $message ?>
+        <?= htmlspecialchars($message) ?>
         <button type="button" class="btn-close" data-bs-dismiss="alert"></button>
     </div>
 <?php endif; ?>
@@ -62,9 +62,9 @@ $reports = $pdo->query("SELECT * FROM cat_tipos_reporte ORDER BY nombre ASC")->f
                 <?php else: ?>
                     <?php foreach($reports as $r): ?>
                     <tr>
-                        <td class="ps-4 fw-bold"><?= htmlspecialchars($r['nombre']) ?></td>
-                        <td><span class="badge bg-secondary font-monospace"><?= htmlspecialchars($r['codigo']) ?></span></td>
-                        <td class="text-muted small"><?= htmlspecialchars($r['descripcion']) ?></td>
+                        <td class="ps-4 fw-bold"><?= htmlspecialchars($r['nombre'] ?? '') ?></td>
+                        <td><span class="badge bg-secondary font-monospace"><?= htmlspecialchars($r['codigo'] ?? '') ?></span></td>
+                        <td class="text-muted small"><?= htmlspecialchars($r['descripcion'] ?? '') ?></td>
                         <td class="text-end pe-4">
                             <button class="btn btn-sm btn-outline-primary me-1" onclick='openModal("edit", <?= json_encode($r) ?>)'>
                                 <i class="fa-solid fa-pen"></i>
@@ -136,13 +136,12 @@ $reports = $pdo->query("SELECT * FROM cat_tipos_reporte ORDER BY nombre ASC")->f
             document.getElementById('modalTitle').innerText = 'Editar Reporte';
             document.getElementById('formAction').value = 'edit';
             document.getElementById('reportId').value = data.id_tipo_reporte;
-            document.getElementById('reportName').value = data.nombre;
-            document.getElementById('reportCode').value = data.codigo;
-            document.getElementById('reportDesc').value = data.descripcion;
+            document.getElementById('reportName').value = data.nombre || '';
+            document.getElementById('reportCode').value = data.codigo || '';
+            document.getElementById('reportDesc').value = data.descripcion || '';
         }
         modal.show();
     }
 </script>
 
-</body>
-</html>
+<?php include '../templates/footer.php'; ?>

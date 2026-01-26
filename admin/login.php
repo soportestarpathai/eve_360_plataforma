@@ -3,6 +3,15 @@ session_start();
 require_once '../config/db.php';
 
 $error = "";
+$adminEmail = "";
+
+// Get admin email from database
+try {
+    $stmt = $pdo->query("SELECT email FROM admin_access WHERE id = 1");
+    $adminEmail = $stmt->fetchColumn() ?: "No configurado";
+} catch (Exception $e) {
+    $adminEmail = "Error al cargar";
+}
 
 if ($_SERVER['REQUEST_METHOD'] === 'POST') {
     $code = $_POST['access_code'] ?? '';
@@ -64,7 +73,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
                 </button>
             </div>
             <p class="text-muted small text-center mt-3">
-                Se enviará una clave temporal a<br><strong>marco.zepeda@tecconsult.me</strong>
+                Se enviará una clave temporal a<br><strong><?= htmlspecialchars($adminEmail) ?></strong>
             </p>
         </div>
 

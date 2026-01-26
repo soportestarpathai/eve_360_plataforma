@@ -2,7 +2,8 @@
 session_start();
 require_once '../config/db.php'; // Change 1: Removed require bitacora/risk to check path
 require_once '../config/bitacora.php'; 
-require_once '../config/risk_engine.php'; 
+require_once '../config/risk_engine.php';
+require_once '../config/pld_middleware.php'; // VAL-PLD-001: Bloqueo de operaciones PLD
 header('Content-Type: application/json');
 
 if (!isset($_SESSION['user_id'])) {
@@ -10,6 +11,9 @@ if (!isset($_SESSION['user_id'])) {
     echo json_encode(['status' => 'error', 'message' => 'Unauthorized']);
     exit;
 }
+
+// VAL-PLD-001: Bloquear actualización de clientes si no está habilitado
+requirePLDHabilitado($pdo, true);
 
 $data = $_POST;
 $id_cliente = $data['id_cliente'] ?? 0;

@@ -388,4 +388,4 @@ $users = $stmt->fetchAll(PDO::FETCH_ASSOC);
     }
 </script>
 
-<?php include 'footer.php'; ?>
+<?php include '../templates/footer.php'; ?>

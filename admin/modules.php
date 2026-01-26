@@ -43,5 +43,4 @@ $modules = $pdo->query("SELECT * FROM config_modulos ORDER BY id_modulo")->fetch
     <?php endforeach; ?>
 </div>
 
-</body>
-</html>
+<?php include '../templates/footer.php'; ?>

@@ -1,0 +1,406 @@
+/* Check PLD Page Styles */
+
+/* EVE 360 Color Variables */
+:root {
+    --eve-blue-dark: #0B486B;
+    --eve-blue-deep: #0B3C8A;
+    --eve-blue-medium: #1B8FEA;
+    --eve-blue-light: #2ED1FF;
+}
+
+/* Container */
+.container {
+    padding: 1rem;
+    max-width: 1200px;
+    margin: 0 auto;
+}
+
+.check-card { 
+    max-width: 800px; 
+    margin: 2rem auto; 
+    background: #fff; 
+    padding: 2rem; 
+    border-radius: 12px; 
+    box-shadow: 0 4px 20px rgba(0,0,0,0.08); 
+}
+
+/* Header Section */
+.check-header {
+    display: flex;
+    align-items: center;
+    margin-bottom: 2rem;
+    gap: 1rem;
+}
+
+.check-header i {
+    font-size: 2rem;
+    color: var(--eve-blue-medium, #1B8FEA);
+    flex-shrink: 0;
+}
+
+.check-header-content h4 {
+    margin-bottom: 0.25rem;
+    font-size: 1.5rem;
+    color: var(--eve-blue-deep, #0B3C8A);
+}
+
+.check-header-content small {
+    font-size: 0.875rem;
+    color: #6c757d;
+}
+
+/* Form Section */
+.form-section-type {
+    margin-bottom: 1.5rem;
+    padding: 1rem;
+    background-color: #f8f9fa;
+    border-radius: 8px;
+    border: 1px solid #dee2e6;
+}
+
+.form-section-type .form-label {
+    font-size: 0.95rem;
+    margin-bottom: 0.75rem;
+}
+
+.radio-group {
+    display: flex;
+    gap: 1.5rem;
+    flex-wrap: wrap;
+}
+
+.radio-group .form-check {
+    display: flex;
+    align-items: center;
+    gap: 0.5rem;
+}
+
+/* Persona Fields */
+.persona-specific { 
+    display: none; 
+}
+
+.persona-fields-row {
+    margin-bottom: 1rem;
+}
+
+/* Result Box */
+.result-box { 
+    display: none; 
+    margin-top: 25px; 
+    padding: 20px; 
+    border-radius: 8px; 
+    animation: fadeIn 0.3s ease-in;
+}
+
+@keyframes fadeIn { 
+    from { 
+        opacity: 0; 
+        transform: translateY(10px); 
+    } 
+    to { 
+        opacity: 1; 
+        transform: translateY(0); 
+    } 
+}
+
+.result-box.safe { 
+    background-color: #d1e7dd; 
+    color: #0f5132; 
+    border: 1px solid #badbcc; 
+}
+
+.result-box.danger { 
+    background-color: #fff5f5; 
+    color: #b91c1c; 
+    border: 1px solid #fecaca; 
+}
+
+.result-header {
+    display: flex;
+    align-items: center;
+    margin-bottom: 1rem;
+    gap: 0.75rem;
+    flex-wrap: wrap;
+}
+
+.result-header h5 {
+    margin: 0;
+    font-size: 1.125rem;
+}
+
+.result-icon {
+    flex-shrink: 0;
+}
+
+.result-body {
+    margin-bottom: 1rem;
+}
+
+.search-id-display {
+    text-align: right;
+    margin-top: 1rem;
+    font-size: 0.875rem;
+    font-style: italic;
+}
+
+/* Hit Items */
+.hit-item { 
+    background: white; 
+    padding: 15px; 
+    border: 1px solid #e5e7eb; 
+    margin-bottom: 10px; 
+    border-radius: 8px;
+    border-left: 4px solid #dc3545;
+}
+
+.hit-item-header {
+    display: flex;
+    justify-content: space-between;
+    align-items: flex-start;
+    margin-bottom: 0.75rem;
+    gap: 1rem;
+}
+
+.hit-item-info {
+    flex: 1;
+    min-width: 0;
+}
+
+.hit-item-name {
+    font-weight: bold;
+    color: #212529;
+    font-size: 1.1rem;
+    margin-bottom: 0.25rem;
+}
+
+.hit-item-entity {
+    font-size: 0.875rem;
+    color: #6c757d;
+    margin-bottom: 0.25rem;
+}
+
+.hit-item-date {
+    font-size: 0.875rem;
+    color: #6c757d;
+}
+
+.hit-item-badge {
+    flex-shrink: 0;
+}
+
+.hit-item-footer {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    margin-top: 0.75rem;
+    padding-top: 0.75rem;
+    border-top: 1px solid #e5e7eb;
+    flex-wrap: wrap;
+    gap: 0.5rem;
+}
+
+.hit-badge { 
+    background: #fee2e2; 
+    color: #991b1b; 
+    font-size: 0.75rem; 
+    padding: 3px 8px; 
+    border-radius: 4px; 
+    font-weight: bold; 
+    text-transform: uppercase; 
+    display: inline-flex;
+    align-items: center;
+    gap: 0.25rem;
+}
+
+.hit-status {
+    font-size: 0.875rem;
+    color: #dc3545;
+    font-weight: bold;
+}
+
+/* Button */
+.btn-submit {
+    width: 100%;
+    padding: 0.75rem;
+    font-size: 1rem;
+    font-weight: 600;
+}
+
+/* Responsive Design - Tablet (768px and below) */
+@media (max-width: 768px) {
+    .container {
+        padding: 0.75rem;
+    }
+
+    .check-card {
+        margin: 1.5rem auto;
+        padding: 1.5rem;
+    }
+
+    .check-header {
+        margin-bottom: 1.5rem;
+    }
+
+    .check-header i {
+        font-size: 1.75rem;
+    }
+
+    .check-header-content h4 {
+        font-size: 1.25rem;
+    }
+
+    .check-header-content small {
+        font-size: 0.8rem;
+    }
+
+    .radio-group {
+        gap: 1rem;
+    }
+
+    .hit-item-header {
+        flex-direction: column;
+        align-items: flex-start;
+    }
+
+    .hit-item-badge {
+        width: 100%;
+        text-align: left;
+    }
+
+    .hit-item-footer {
+        flex-direction: column;
+        align-items: flex-start;
+    }
+}
+
+/* Responsive Design - Mobile (576px and below) */
+@media (max-width: 576px) {
+    .container {
+        padding: 0.5rem;
+    }
+
+    .check-card { 
+        margin: 1rem auto; 
+        padding: 1.25rem; 
+        border-radius: 8px;
+    }
+
+    .check-header {
+        flex-direction: column;
+        align-items: flex-start;
+        gap: 0.75rem;
+        margin-bottom: 1.25rem;
+    }
+
+    .check-header i {
+        font-size: 1.5rem;
+    }
+
+    .check-header-content h4 {
+        font-size: 1.125rem;
+    }
+
+    .check-header-content small {
+        font-size: 0.75rem;
+        display: block;
+    }
+
+    .form-section-type {
+        padding: 0.75rem;
+    }
+
+    .form-section-type .form-label {
+        font-size: 0.875rem;
+        margin-bottom: 0.5rem;
+    }
+
+    .radio-group {
+        flex-direction: column;
+        gap: 0.75rem;
+    }
+
+    .radio-group .form-check {
+        width: 100%;
+    }
+
+    .persona-fields-row .col-md-4 {
+        margin-bottom: 0.75rem;
+    }
+
+    .result-box {
+        padding: 1rem;
+        margin-top: 1.5rem;
+    }
+
+    .result-header {
+        flex-direction: column;
+        align-items: flex-start;
+        gap: 0.5rem;
+    }
+
+    .result-header h5 {
+        font-size: 1rem;
+    }
+
+    .search-id-display {
+        text-align: left;
+        font-size: 0.75rem;
+    }
+
+    .hit-item {
+        padding: 1rem;
+    }
+
+    .hit-item-name {
+        font-size: 1rem;
+    }
+
+    .hit-item-entity,
+    .hit-item-date {
+        font-size: 0.8rem;
+    }
+
+    .hit-badge {
+        font-size: 0.7rem;
+        padding: 2px 6px;
+    }
+
+    .hit-status {
+        font-size: 0.8rem;
+    }
+
+    .btn-submit {
+        padding: 0.625rem;
+        font-size: 0.95rem;
+    }
+}
+
+/* Extra Small Devices (480px and below) */
+@media (max-width: 480px) {
+    .container {
+        padding: 0.25rem;
+    }
+
+    .check-card {
+        margin: 0.5rem auto;
+        padding: 1rem;
+        border-radius: 6px;
+    }
+
+    .check-header-content h4 {
+        font-size: 1rem;
+    }
+
+    .check-header-content small {
+        font-size: 0.7rem;
+    }
+
+    .result-box {
+        padding: 0.75rem;
+    }
+
+    .hit-item {
+        padding: 0.75rem;
+    }
+}

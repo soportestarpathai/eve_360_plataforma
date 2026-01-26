@@ -1,0 +1,300 @@
+/* ============================================
+   Mi Cuenta Styles - EVE 360
+   ============================================ */
+
+:root {
+    --eve-blue-dark: #0B486B;
+    --eve-blue-deep: #0B3C8A;
+    --eve-blue-medium: #1B8FEA;
+    --eve-blue-light: #2ED1FF;
+    --eve-white: #FFFFFF;
+    --eve-gray-light: #C7CDD6;
+    --eve-bg-light: #F8F9FA;
+}
+
+.dashboard-wrapper {
+    min-height: calc(100vh - 140px);
+    padding: 2rem 1rem;
+}
+
+.page-header {
+    margin-bottom: 2rem;
+}
+
+.page-title {
+    color: var(--eve-blue-deep);
+    font-weight: 700;
+    font-size: 2rem;
+    margin-bottom: 0.5rem;
+    display: flex;
+    align-items: center;
+}
+
+.page-title i {
+    color: var(--eve-blue-medium);
+}
+
+.page-subtitle {
+    color: var(--eve-blue-deep);
+    font-size: 1rem;
+    margin: 0;
+    font-weight: 500;
+    opacity: 0.8;
+}
+
+/* Account Cards */
+.account-card {
+    background: linear-gradient(135deg, rgba(255, 255, 255, 0.98) 0%, rgba(255, 255, 255, 0.95) 100%);
+    border-radius: 20px;
+    box-shadow: 0 8px 32px rgba(11, 60, 138, 0.1);
+    border: 1px solid rgba(199, 205, 214, 0.3);
+    overflow: hidden;
+    height: 100%;
+    display: flex;
+    flex-direction: column;
+}
+
+.account-card-header {
+    background: linear-gradient(135deg, var(--eve-blue-deep) 0%, var(--eve-blue-medium) 100%);
+    padding: 1.5rem;
+    border-bottom: 2px solid rgba(255, 255, 255, 0.1);
+}
+
+.account-card-title {
+    color: var(--eve-white);
+    font-weight: 700;
+    font-size: 1.25rem;
+    margin: 0;
+    display: flex;
+    align-items: center;
+}
+
+.account-card-title i {
+    color: var(--eve-blue-light);
+}
+
+.account-card-body {
+    padding: 2rem;
+    flex: 1;
+}
+
+/* Form Styles */
+.form-group {
+    margin-bottom: 1.5rem;
+}
+
+.form-label {
+    color: var(--eve-blue-deep);
+    font-weight: 600;
+    font-size: 0.95rem;
+    margin-bottom: 0.75rem;
+    display: flex;
+    align-items: center;
+}
+
+.form-label i {
+    color: var(--eve-blue-medium);
+    width: 20px;
+}
+
+.form-control {
+    border: 2px solid rgba(199, 205, 214, 0.3);
+    border-radius: 10px;
+    padding: 0.75rem 1rem;
+    font-size: 0.95rem;
+    transition: all 0.2s ease;
+}
+
+.form-control:focus {
+    border-color: var(--eve-blue-medium);
+    box-shadow: 0 0 0 0.2rem rgba(27, 143, 234, 0.15);
+}
+
+.form-control:disabled {
+    background-color: var(--eve-bg-light);
+    opacity: 0.7;
+}
+
+.form-text {
+    font-size: 0.85rem;
+    margin-top: 0.5rem;
+}
+
+/* Buttons */
+.btn {
+    border-radius: 10px;
+    padding: 0.75rem 1.5rem;
+    font-weight: 600;
+    transition: all 0.2s ease;
+}
+
+.btn-primary {
+    background: linear-gradient(135deg, var(--eve-blue-medium) 0%, var(--eve-blue-deep) 100%);
+    border: none;
+    color: var(--eve-white);
+}
+
+.btn-primary:hover {
+    transform: translateY(-2px);
+    box-shadow: 0 6px 20px rgba(27, 143, 234, 0.3);
+}
+
+.btn-warning {
+    background: linear-gradient(135deg, #FFC107 0%, #FF9800 100%);
+    border: none;
+    color: #000;
+}
+
+.btn-warning:hover {
+    transform: translateY(-2px);
+    box-shadow: 0 6px 20px rgba(255, 193, 7, 0.3);
+}
+
+/* Permissions List */
+.permissions-list {
+    display: flex;
+    flex-direction: column;
+    gap: 0.75rem;
+}
+
+.permission-item {
+    display: flex;
+    align-items: center;
+    padding: 1rem;
+    background: var(--eve-bg-light);
+    border-radius: 12px;
+    border-left: 4px solid var(--eve-blue-medium);
+    transition: all 0.2s ease;
+}
+
+.permission-item:hover {
+    background: rgba(27, 143, 234, 0.05);
+    transform: translateX(5px);
+}
+
+.permission-item i:first-child {
+    color: var(--eve-blue-medium);
+    width: 24px;
+}
+
+.permission-item span {
+    flex: 1;
+    color: var(--eve-blue-deep);
+    font-weight: 500;
+}
+
+/* Activity List */
+.activity-list {
+    display: flex;
+    flex-direction: column;
+    gap: 0.75rem;
+    max-height: 400px;
+    overflow-y: auto;
+    padding-right: 0.5rem;
+}
+
+.activity-list::-webkit-scrollbar {
+    width: 6px;
+}
+
+.activity-list::-webkit-scrollbar-track {
+    background: #f1f1f1;
+    border-radius: 3px;
+}
+
+.activity-list::-webkit-scrollbar-thumb {
+    background: var(--eve-blue-medium);
+    border-radius: 3px;
+}
+
+.activity-item {
+    display: flex;
+    align-items: flex-start;
+    gap: 1rem;
+    padding: 1rem;
+    background: var(--eve-bg-light);
+    border-radius: 12px;
+    border-left: 4px solid var(--eve-blue-medium);
+}
+
+.activity-icon {
+    color: var(--eve-blue-medium);
+    font-size: 1.1rem;
+    margin-top: 0.25rem;
+}
+
+.activity-content {
+    flex: 1;
+    display: flex;
+    flex-direction: column;
+    gap: 0.5rem;
+}
+
+.activity-action {
+    display: flex;
+    align-items: center;
+    flex-wrap: wrap;
+    gap: 0.5rem;
+}
+
+.activity-action strong {
+    color: var(--eve-blue-deep);
+}
+
+.activity-date {
+    color: var(--eve-gray-light);
+    font-size: 0.85rem;
+    display: flex;
+    align-items: center;
+}
+
+/* Alerts */
+.alert {
+    border-radius: 12px;
+    border: none;
+    padding: 1rem 1.5rem;
+    margin-bottom: 1.5rem;
+}
+
+.alert-danger {
+    background: linear-gradient(135deg, #ffebee 0%, #ffcdd2 100%);
+    color: #c62828;
+}
+
+.alert-success {
+    background: linear-gradient(135deg, #e8f5e9 0%, #c8e6c9 100%);
+    color: #2e7d32;
+}
+
+/* Responsive */
+@media (max-width: 768px) {
+    .dashboard-wrapper {
+        padding: 1rem 0.5rem;
+    }
+    
+    .page-title {
+        font-size: 1.5rem;
+    }
+    
+    .account-card-body {
+        padding: 1.5rem;
+    }
+    
+    .activity-list {
+        max-height: 300px;
+    }
+}
+
+@media (max-width: 576px) {
+    .page-title {
+        font-size: 1.25rem;
+    }
+    
+    .account-card-header {
+        padding: 1rem;
+    }
+    
+    .account-card-body {
+        padding: 1rem;
+    }
+}

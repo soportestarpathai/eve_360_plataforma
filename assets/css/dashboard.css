@@ -20,18 +20,124 @@
 
 body { 
     background: linear-gradient(135deg, #F8F9FA 0%, #E9ECEF 100%);
+    background-attachment: fixed;
     overflow-x: hidden;
     min-height: 100vh;
+    font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, 'Helvetica Neue', Arial, sans-serif;
+    font-size: 15px;
+    line-height: 1.6;
+    color: #333;
 }
 
 .dashboard-wrapper {
     min-height: calc(100vh - 140px);
-    display: flex;
-    align-items: center;
     position: relative;
     z-index: 10;
-    padding: 2rem 0;
-    animation: fadeIn 0.6s ease-in;
+    padding: 2rem 1rem;
+    /* animation: fadeIn 0.6s ease-in; Comentado para carga más rápida */
+}
+
+/* Mejoras de contenedor principal */
+.container-fluid {
+    max-width: 1400px;
+    margin: 0 auto;
+}
+
+/* Mejor espaciado entre secciones */
+.row.g-4 {
+    margin-left: -1rem;
+    margin-right: -1rem;
+}
+
+.row.g-4 > * {
+    padding-left: 1rem;
+    padding-right: 1rem;
+}
+
+/* --- STATISTICS CARDS (Duralux Style) --- */
+.stat-card {
+    background: var(--eve-white);
+    border-radius: 18px;
+    padding: 1.75rem;
+    box-shadow: 0 6px 20px rgba(11, 60, 138, 0.12);
+    display: flex;
+    align-items: center;
+    gap: 1.5rem;
+    /* transition: all 0.4s cubic-bezier(0.175, 0.885, 0.32, 1.275); Removido */
+    border: 1px solid rgba(199, 205, 214, 0.25);
+    height: 100%;
+    position: relative;
+    overflow: hidden;
+}
+
+.stat-card::before {
+    content: '';
+    position: absolute;
+    top: 0;
+    left: 0;
+    width: 100%;
+    height: 4px;
+    background: linear-gradient(90deg, var(--eve-blue-medium) 0%, var(--eve-blue-light) 100%);
+    transform: scaleX(0);
+    transform-origin: left;
+    /* transition: transform 0.4s ease; Removido */
+}
+
+.stat-card:hover::before {
+    transform: scaleX(1);
+}
+
+.stat-card:hover {
+    transform: translateY(-5px);
+    box-shadow: 0 8px 25px rgba(11, 60, 138, 0.2);
+}
+
+.stat-icon {
+    width: 65px;
+    height: 65px;
+    border-radius: 12px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    flex-shrink: 0;
+    box-shadow: 0 4px 12px rgba(0, 0, 0, 0.15);
+}
+
+.stat-icon i {
+    font-size: 1.75rem;
+    color: var(--eve-white);
+}
+
+.stat-content {
+    flex: 1;
+}
+
+.stat-value {
+    font-size: 2rem;
+    font-weight: 700;
+    color: var(--eve-blue-deep);
+    margin: 0 0 0.25rem 0;
+    line-height: 1.2;
+}
+
+.stat-label {
+    font-size: 0.9rem;
+    color: #6c757d;
+    margin: 0 0 0.5rem 0;
+    font-weight: 500;
+}
+
+.stat-change {
+    font-size: 0.8rem;
+    color: var(--eve-blue-medium);
+    display: flex;
+    align-items: center;
+    gap: 0.25rem;
+    font-weight: 600;
+}
+
+.stat-change i {
+    font-size: 0.75rem;
 }
 
 /* --- TICKER --- */
@@ -53,7 +159,7 @@ body {
     position: absolute;
     will-change: transform;
     /* La duración de la animación se define inline desde PHP */
-    animation: marquee 60s linear infinite; 
+    /* animation: marquee 60s linear infinite; Removido por rendimiento */ 
 }
 
 .ticker-item {
@@ -70,14 +176,14 @@ body {
     font-weight: 700;
 }
 
-@keyframes marquee {
+/* @keyframes marquee {
     0% { transform: translateX(100vw); }
     100% { transform: translateX(-100%); }
-}
+} Removido por rendimiento */
 
-.news-ticker:hover .ticker-track {
+/* .news-ticker:hover .ticker-track {
     animation-play-state: paused;
-}
+} Removido */
 
 /* --- WATERMARK --- */
 .watermark {
@@ -100,16 +206,22 @@ body {
     position: relative;
     height: 500px;
     width: 100%;
-    display: flex;
-    justify-content: center;
-    align-items: center;
     padding: 2rem;
+    background: rgba(255, 255, 255, 0.95);
+    border-radius: 24px;
+    box-shadow: 0 8px 32px rgba(11, 60, 138, 0.1);
+    border: 1px solid rgba(199, 205, 214, 0.2);
+    overflow: visible;
+    /* Removido display: flex que interfería con posicionamiento absoluto */
 }
 
 .donut-center {
     position: absolute;
-    width: 240px;
-    height: 240px;
+    top: 50%;
+    left: 50%;
+    transform: translate(-50%, -50%);
+    width: 200px;
+    height: 200px;
     border-radius: 50%;
     border: 3px dashed var(--eve-blue-medium);
     display: flex;
@@ -117,10 +229,15 @@ body {
     justify-content: center;
     align-items: center;
     z-index: 5;
-    background: linear-gradient(135deg, rgba(255,255,255,0.95) 0%, rgba(255,255,255,0.85) 100%);
-    backdrop-filter: blur(10px);
-    box-shadow: 0 8px 25px rgba(11, 60, 138, 0.15);
-    transition: all 0.3s ease;
+    background: rgba(255, 255, 255, 0.98); /* Simplificado */
+    /* backdrop-filter: blur(15px); Comentado por rendimiento */
+    box-shadow: 0 12px 40px rgba(11, 60, 138, 0.2);
+    pointer-events: none;
+}
+
+.donut-center h5,
+.donut-center .back-btn {
+    pointer-events: auto;
 }
 
 .donut-center:hover {
@@ -144,7 +261,7 @@ body {
     cursor: pointer;
     font-size: 1.5rem;
     color: var(--eve-gray-light);
-    transition: all 0.3s ease;
+    /* transition: all 0.3s ease; Removido */
 }
 
 .donut-center .back-btn:hover {
@@ -154,12 +271,8 @@ body {
 
 .menu-item {
     position: absolute;
-    top: 50%;
-    left: 50%;
     width: var(--item-size);
     height: var(--item-size);
-    margin-left: calc(var(--item-size) / -2);
-    margin-top: calc(var(--item-size) / -2);
     background: var(--eve-white);
     border-radius: 50%;
     box-shadow: 0 6px 20px rgba(11, 60, 138, 0.15);
@@ -171,9 +284,8 @@ body {
     color: var(--eve-blue-deep);
     cursor: pointer;
     z-index: 20;
-    opacity: 0;
-    transform: scale(0.5);
-    transition: all 0.4s cubic-bezier(0.175, 0.885, 0.32, 1.275);
+    opacity: 1;
+    transform: translate(-50%, -50%);
     border: 2px solid transparent;
 }
 
@@ -182,14 +294,14 @@ body {
     color: var(--eve-white);
     box-shadow: 0 10px 30px rgba(27, 143, 234, 0.4);
     z-index: 30;
-    transform: scale(1.1);
+    transform: translate(-50%, -50%) scale(1.1);
     border-color: var(--eve-blue-light);
 }
 
 .menu-item i {
     font-size: 1.8rem;
     margin-bottom: 8px;
-    transition: transform 0.3s ease;
+    /* transition: transform 0.3s ease; Removido */
 }
 
 .menu-item:hover i {
@@ -205,10 +317,21 @@ body {
     padding: 0 4px;
 }
 
+/* Mensaje cuando no hay items en el menú */
+.menu-empty {
+    position: absolute;
+    top: 50%;
+    left: 50%;
+    transform: translate(-50%, -50%);
+    text-align: center;
+    color: var(--eve-gray-light);
+    z-index: 1;
+}
+
 /* --- RIGHT CHART --- */
 .chart-card {
     background: linear-gradient(135deg, rgba(255, 255, 255, 0.98) 0%, rgba(255, 255, 255, 0.95) 100%);
-    border-radius: 20px;
+    border-radius: 24px;
     box-shadow: 0 12px 40px rgba(11, 60, 138, 0.12);
     padding: 2.5rem;
     height: 100%;
@@ -216,7 +339,25 @@ body {
     flex-direction: column;
     justify-content: center;
     border: 1px solid rgba(199, 205, 214, 0.3);
-    transition: all 0.3s ease;
+    /* transition: all 0.4s cubic-bezier(0.175, 0.885, 0.32, 1.275); Removido */
+    position: relative;
+    overflow: hidden;
+}
+
+.chart-card::after {
+    content: '';
+    position: absolute;
+    top: -50%;
+    right: -50%;
+    width: 200%;
+    height: 200%;
+    background: radial-gradient(circle, rgba(27, 143, 234, 0.05) 0%, transparent 70%);
+    opacity: 0;
+    /* transition: opacity 0.4s ease; Removido */
+}
+
+.chart-card:hover::after {
+    opacity: 1;
 }
 
 .chart-card:hover {
@@ -228,10 +369,19 @@ body {
     color: var(--eve-blue-deep);
     font-weight: 700;
     margin-bottom: 1.5rem;
+    font-size: 1.25rem;
+    position: relative;
+    z-index: 1;
+    display: flex;
+    align-items: center;
+    padding-bottom: 0.75rem;
+    border-bottom: 2px solid rgba(199, 205, 214, 0.2);
 }
 
 .chart-card h4 i {
     color: var(--eve-blue-medium);
+    margin-right: 0.5rem;
+    font-size: 1.1rem;
 }
 
 /* --- ESTADOS VACÍOS --- */
@@ -253,8 +403,30 @@ body {
     padding-right: 1.5rem;
 }
 
-/* Animación suave para carga */
-@keyframes fadeIn {
+/* Smooth scroll */
+html {
+    scroll-behavior: smooth;
+}
+
+/* Mejor contraste para textos */
+h1, h2, h3, h4, h5, h6 {
+    color: var(--eve-blue-deep);
+    font-weight: 700;
+}
+
+/* Loading skeleton (futuro) - Animación deshabilitada */
+.skeleton {
+    background: linear-gradient(90deg, #f0f0f0 25%, #e0e0e0 50%, #f0f0f0 75%);
+    background-size: 200% 100%;
+    /* animation: loading 1.5s ease-in-out infinite; Removido */
+}
+
+/* @keyframes loading {
+    0% { background-position: 200% 0; }
+    100% { background-position: -200% 0; }
+} Removido */
+
+/* @keyframes fadeIn {
     from {
         opacity: 0;
         transform: translateY(20px);
@@ -263,47 +435,222 @@ body {
         opacity: 1;
         transform: translateY(0);
     }
+} Removido */
+
+/* Eliminada duplicación de .stat-card - Se mantiene solo la primera definición */
+
+/* .stat-card:nth-child(1) { animation-delay: 0.1s; } Comentado */
+/* .stat-card:nth-child(2) { animation-delay: 0.2s; } Comentado */
+/* .stat-card:nth-child(3) { animation-delay: 0.3s; } Comentado */
+/* .stat-card:nth-child(4) { animation-delay: 0.4s; } Comentado */
+
+/* @keyframes fadeInUp {
+    from {
+        opacity: 0;
+        transform: translateY(30px);
+    }
+    to {
+        opacity: 1;
+        transform: translateY(0);
+    }
+} Removido */
+
+/* Efectos de glassmorphism removidos completamente por rendimiento */
+/* backdrop-filter removido de .chart-card y .info-widget para mejor rendimiento */
+
+/* Mejoras de sombras están definidas individualmente en cada clase:
+   - .stat-card (línea 62)
+   - .chart-card (línea 335)
+   - .info-widget (línea 767)
+   - .quick-actions-widget (línea 1071)
+   Sin duplicaciones */
+
+/* Tooltips personalizados */
+[data-tooltip] {
+    position: relative;
+    cursor: help;
+}
+
+[data-tooltip]:hover::after {
+    content: attr(data-tooltip);
+    position: absolute;
+    bottom: 100%;
+    left: 50%;
+    transform: translateX(-50%);
+    padding: 0.5rem 0.75rem;
+    background: var(--eve-blue-deep);
+    color: white;
+    border-radius: 6px;
+    font-size: 0.8rem;
+    white-space: nowrap;
+    z-index: 1000;
+    margin-bottom: 5px;
+    box-shadow: 0 4px 12px rgba(0, 0, 0, 0.2);
+}
+
+[data-tooltip]:hover::before {
+    content: '';
+    position: absolute;
+    bottom: 100%;
+    left: 50%;
+    transform: translateX(-50%);
+    border: 5px solid transparent;
+    border-top-color: var(--eve-blue-deep);
+    z-index: 1000;
+    margin-bottom: -5px;
+}
+
+/* Mejoras de focus para accesibilidad */
+.stat-card:focus,
+.chart-card:focus,
+.info-widget:focus,
+.menu-item:focus {
+    outline: 3px solid var(--eve-blue-light);
+    outline-offset: 3px;
+}
+
+/* Scrollbar personalizado global */
+::-webkit-scrollbar {
+    width: 10px;
+    height: 10px;
+}
+
+::-webkit-scrollbar-track {
+    background: #f1f1f1;
+    border-radius: 10px;
+}
+
+::-webkit-scrollbar-thumb {
+    background: linear-gradient(135deg, var(--eve-blue-medium) 0%, var(--eve-blue-deep) 100%);
+    border-radius: 10px;
+}
+
+::-webkit-scrollbar-thumb:hover {
+    background: linear-gradient(135deg, var(--eve-blue-deep) 0%, var(--eve-blue-dark) 100%);
+}
+
+/* Efecto de brillo en hover para elementos interactivos */
+/* Efectos de brillo removidos - No se necesitan sin transiciones */
+/* .menu-item, .recent-action, .notification-action tienen position: relative definido en sus clases individuales */
+
+/* Mejor contraste para textos pequeños */
+small, .small {
+    color: #6c757d;
+    font-weight: 500;
+}
+
+/* Mejora de badges */
+.badge {
+    font-weight: 600;
+    letter-spacing: 0.5px;
+    text-transform: uppercase;
+    font-size: 0.7rem;
+}
+
+/* background-attachment ya está definido en body (línea 22) - Removida duplicación */
+
+/* Smooth transitions globales - Optimizado para mejor rendimiento */
+* {
+    /* transition-property: background-color, border-color, color, fill, stroke, opacity, box-shadow, transform; Comentado por rendimiento */
+    /* transition-timing-function: cubic-bezier(0.4, 0, 0.2, 1); Comentado por rendimiento */
+}
+
+/* Selección de texto personalizada */
+::selection {
+    background: rgba(27, 143, 234, 0.3);
+    color: var(--eve-blue-deep);
+}
+
+::-moz-selection {
+    background: rgba(27, 143, 234, 0.3);
+    color: var(--eve-blue-deep);
 }
 
 /* --- RESPONSIVE DESIGN --- */
-@media (max-width: 1200px) {
-    .dashboard-wrapper {
-        padding: 1.5rem 0;
+    @media (max-width: 1200px) {
+        .dashboard-wrapper {
+            padding: 1.5rem 0.5rem;
+        }
+        
+        .menu-container {
+            height: 450px;
+        }
+        
+        .chart-card {
+            padding: 2rem;
+            margin-top: 2rem;
+        }
+        
+        .stat-card {
+            padding: 1.5rem;
+        }
     }
-    
-    .menu-container {
-        height: 450px;
-    }
-    
-    .chart-card {
-        padding: 2rem;
-        margin-top: 2rem;
-    }
-}
 
-@media (max-width: 992px) {
-    .dashboard-wrapper {
-        flex-direction: column;
-        height: auto;
-        padding-top: 1rem;
+    @media (max-width: 992px) {
+        .dashboard-wrapper {
+            padding-top: 1rem;
+        }
+        
+        .menu-container {
+            height: 400px;
+            margin-bottom: 2rem;
+        }
+        
+        .chart-card {
+            margin-top: 0;
+            height: auto;
+            min-height: 400px;
+        }
+        
+        .stat-card {
+            padding: 1.25rem;
+        }
+        
+        .stat-icon {
+            width: 55px;
+            height: 55px;
+        }
+        
+        .stat-icon i {
+            font-size: 1.5rem;
+        }
+        
+        .stat-value {
+            font-size: 1.75rem;
+        }
     }
-    
-    .menu-container {
-        height: 400px;
-        margin-bottom: 2rem;
-    }
-    
-    .chart-card {
-        margin-top: 0;
-        height: auto;
-        min-height: 400px;
-    }
-}
 
-@media (max-width: 768px) {
-    .dashboard-wrapper {
-        padding: 1rem 0;
-    }
+    @media (max-width: 768px) {
+        .dashboard-wrapper {
+            padding: 1rem 0.5rem;
+        }
+        
+        .container-fluid {
+            padding-left: 0.75rem;
+            padding-right: 0.75rem;
+        }
+        
+        .stat-card {
+            padding: 1rem;
+            gap: 1rem;
+        }
+        
+        .stat-icon {
+            width: 50px;
+            height: 50px;
+        }
+        
+        .stat-icon i {
+            font-size: 1.25rem;
+        }
+        
+        .stat-value {
+            font-size: 1.5rem;
+        }
+        
+        .stat-label {
+            font-size: 0.85rem;
+        }
     
     .menu-container {
         height: auto;
@@ -386,7 +733,830 @@ body {
         font-size: 1.25rem;
     }
     
-    .watermark {
-        display: none;
+        .watermark {
+            display: none;
+        }
+        
+        .stat-card {
+            padding: 1.25rem;
+            gap: 1rem;
+        }
+        
+        .stat-icon {
+            width: 50px;
+            height: 50px;
+        }
+        
+        .stat-icon i {
+            font-size: 1.25rem;
+        }
+        
+        .stat-value {
+            font-size: 1.5rem;
+        }
+    }
+
+/* --- INFO WIDGETS (Duralux Style) --- */
+.info-widget {
+    background: linear-gradient(135deg, rgba(255, 255, 255, 0.98) 0%, rgba(255, 255, 255, 0.95) 100%);
+    border-radius: 20px;
+    box-shadow: 0 8px 25px rgba(11, 60, 138, 0.1);
+    border: 1px solid rgba(199, 205, 214, 0.3);
+    /* transition: all 0.3s ease; Removido */
+    height: 100%;
+    display: flex;
+    flex-direction: column;
+    overflow: hidden;
+}
+
+.info-widget:hover {
+    box-shadow: 0 12px 35px rgba(11, 60, 138, 0.15);
+    transform: translateY(-3px);
+}
+
+.widget-header {
+    padding: 1.5rem;
+    border-bottom: 2px solid rgba(199, 205, 214, 0.2);
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    background: linear-gradient(135deg, rgba(27, 143, 234, 0.05) 0%, rgba(11, 60, 138, 0.05) 100%);
+}
+
+.widget-title {
+    color: var(--eve-blue-deep);
+    font-weight: 700;
+    font-size: 1.1rem;
+    margin: 0;
+    display: flex;
+    align-items: center;
+}
+
+.widget-title i {
+    color: var(--eve-blue-medium);
+}
+
+.widget-link {
+    color: var(--eve-blue-medium);
+    text-decoration: none;
+    font-size: 0.85rem;
+    font-weight: 600;
+    /* transition: all 0.3s ease; Removido */
+    display: flex;
+    align-items: center;
+}
+
+.widget-link:hover {
+    color: var(--eve-blue-deep);
+    transform: translateX(3px);
+}
+
+.widget-body {
+    padding: 1rem;
+    flex: 1;
+    overflow-y: auto;
+    max-height: 400px;
+}
+
+.widget-body::-webkit-scrollbar {
+    width: 6px;
+}
+
+.widget-body::-webkit-scrollbar-track {
+    background: #f1f1f1;
+    border-radius: 10px;
+}
+
+.widget-body::-webkit-scrollbar-thumb {
+    background: var(--eve-gray-light);
+    border-radius: 10px;
+}
+
+.widget-body::-webkit-scrollbar-thumb:hover {
+    background: var(--eve-blue-medium);
+}
+
+/* --- RECENT LIST --- */
+.recent-list {
+    display: flex;
+    flex-direction: column;
+    gap: 0.75rem;
+}
+
+.recent-item {
+    display: flex;
+    align-items: center;
+    gap: 1rem;
+    padding: 1rem;
+    background: rgba(248, 249, 250, 0.8);
+    border-radius: 12px;
+    /* transition: all 0.3s ease; Removido */
+    border: 1px solid transparent;
+}
+
+.recent-item:hover {
+    background: rgba(27, 143, 234, 0.05);
+    border-color: rgba(27, 143, 234, 0.2);
+    transform: translateX(5px);
+}
+
+.recent-avatar {
+    width: 45px;
+    height: 45px;
+    border-radius: 50%;
+    background: linear-gradient(135deg, var(--eve-blue-medium) 0%, var(--eve-blue-deep) 100%);
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    color: white;
+    font-size: 1.1rem;
+    flex-shrink: 0;
+    box-shadow: 0 4px 10px rgba(27, 143, 234, 0.3);
+}
+
+.recent-info {
+    flex: 1;
+    min-width: 0;
+}
+
+.recent-name {
+    font-size: 0.95rem;
+    font-weight: 600;
+    color: var(--eve-blue-deep);
+    margin: 0 0 0.25rem 0;
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+}
+
+.recent-date {
+    color: #6c757d;
+    font-size: 0.8rem;
+    display: flex;
+    align-items: center;
+}
+
+.recent-badge {
+    flex-shrink: 0;
+}
+
+.badge-risk {
+    padding: 0.35rem 0.75rem;
+    border-radius: 20px;
+    color: white;
+    font-weight: 700;
+    font-size: 0.8rem;
+    box-shadow: 0 2px 8px rgba(0, 0, 0, 0.15);
+}
+
+.recent-action {
+    width: 35px;
+    height: 35px;
+    border-radius: 50%;
+    background: rgba(27, 143, 234, 0.1);
+    color: var(--eve-blue-medium);
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    text-decoration: none;
+    /* transition: all 0.3s ease; Removido */
+    flex-shrink: 0;
+}
+
+.recent-action:hover {
+    background: var(--eve-blue-medium);
+    color: white;
+    transform: scale(1.1);
+}
+
+/* --- NOTIFICATION LIST --- */
+.notification-list {
+    display: flex;
+    flex-direction: column;
+    gap: 0.75rem;
+}
+
+.notification-item {
+    display: flex;
+    align-items: flex-start;
+    gap: 1rem;
+    padding: 1rem;
+    background: rgba(248, 249, 250, 0.8);
+    border-radius: 12px;
+    border-left: 4px solid var(--eve-gray-light);
+    /* transition: all 0.3s ease; Removido */
+    position: relative;
+}
+
+.notification-item:hover {
+    background: rgba(27, 143, 234, 0.05);
+    transform: translateX(5px);
+}
+
+.notification-item.notification-danger {
+    border-left-color: #dc3545;
+    background: rgba(220, 53, 69, 0.05);
+}
+
+.notification-item.notification-dark {
+    border-left-color: #212529;
+    background: rgba(33, 37, 41, 0.05);
+}
+
+.notification-item.notification-warning {
+    border-left-color: #ffc107;
+    background: rgba(255, 193, 7, 0.05);
+}
+
+.notification-icon {
+    width: 40px;
+    height: 40px;
+    border-radius: 50%;
+    background: rgba(27, 143, 234, 0.1);
+    color: var(--eve-blue-medium);
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    flex-shrink: 0;
+    font-size: 1rem;
+}
+
+.notification-item.notification-danger .notification-icon {
+    background: rgba(220, 53, 69, 0.1);
+    color: #dc3545;
+}
+
+.notification-item.notification-dark .notification-icon {
+    background: rgba(33, 37, 41, 0.1);
+    color: #212529;
+}
+
+.notification-item.notification-warning .notification-icon {
+    background: rgba(255, 193, 7, 0.1);
+    color: #ffc107;
+}
+
+.notification-content {
+    flex: 1;
+    min-width: 0;
+}
+
+.notification-title {
+    font-size: 0.9rem;
+    font-weight: 700;
+    color: var(--eve-blue-deep);
+    margin: 0 0 0.25rem 0;
+}
+
+.notification-text {
+    font-size: 0.85rem;
+    color: #6c757d;
+    margin: 0 0 0.25rem 0;
+    line-height: 1.4;
+}
+
+.notification-time {
+    font-size: 0.75rem;
+    color: #adb5bd;
+    display: flex;
+    align-items: center;
+}
+
+.notification-action {
+    width: 32px;
+    height: 32px;
+    border-radius: 50%;
+    background: rgba(27, 143, 234, 0.1);
+    color: var(--eve-blue-medium);
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    text-decoration: none;
+    /* transition: all 0.3s ease; Removido */
+    flex-shrink: 0;
+    margin-top: 0.25rem;
+}
+
+.notification-action:hover {
+    background: var(--eve-blue-medium);
+    color: white;
+    transform: scale(1.1);
+}
+
+/* --- EMPTY WIDGET --- */
+.empty-widget {
+    text-align: center;
+    padding: 3rem 1rem;
+    color: var(--eve-gray-light);
+}
+
+.empty-widget i {
+    opacity: 0.3;
+    margin-bottom: 1rem;
+}
+
+.empty-widget p {
+    color: #adb5bd;
+    font-size: 0.9rem;
+}
+
+/* --- QUICK ACTIONS WIDGET --- */
+.quick-actions-widget {
+    background: linear-gradient(135deg, rgba(255, 255, 255, 0.98) 0%, rgba(255, 255, 255, 0.95) 100%);
+    border-radius: 24px;
+    box-shadow: 0 8px 32px rgba(11, 60, 138, 0.1);
+    border: 1px solid rgba(199, 205, 214, 0.3);
+    padding: 2rem;
+    /* backdrop-filter: blur(10px); Removido por rendimiento */
+    /* -webkit-backdrop-filter: blur(10px); Removido por rendimiento */
+    /* transition: all 0.3s ease; Removido */
+}
+
+.quick-actions-widget:hover {
+    box-shadow: 0 12px 40px rgba(11, 60, 138, 0.15);
+    transform: translateY(-3px);
+}
+
+.quick-actions-widget .widget-title {
+    color: var(--eve-blue-deep);
+    font-weight: 700;
+    font-size: 1.25rem;
+    display: flex;
+    align-items: center;
+    padding-bottom: 1rem;
+    border-bottom: 2px solid rgba(199, 205, 214, 0.2);
+}
+
+.quick-actions-widget .widget-title i {
+    color: var(--eve-blue-medium);
+}
+
+.quick-actions-grid {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(150px, 1fr));
+    gap: 1.5rem;
+    margin-top: 1.5rem;
+}
+
+.quick-action-btn {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    gap: 0.75rem;
+    padding: 1.5rem 1rem;
+    background: rgba(248, 249, 250, 0.8);
+    border-radius: 16px;
+    text-decoration: none;
+    color: var(--eve-blue-deep);
+    /* transition: all 0.3s cubic-bezier(0.175, 0.885, 0.32, 1.275); Removido */
+    border: 2px solid transparent;
+    position: relative;
+    overflow: hidden;
+}
+
+.quick-action-btn::before {
+    content: '';
+    position: absolute;
+    top: 0;
+    left: 0;
+    width: 100%;
+    height: 100%;
+    background: linear-gradient(135deg, rgba(27, 143, 234, 0.05) 0%, rgba(11, 60, 138, 0.05) 100%);
+    opacity: 0;
+    /* transition: opacity 0.3s ease; Removido */
+}
+
+.quick-action-btn:hover {
+    transform: translateY(-5px);
+    border-color: var(--eve-blue-medium);
+    box-shadow: 0 8px 25px rgba(27, 143, 234, 0.2);
+    background: white;
+}
+
+.quick-action-btn:hover::before {
+    opacity: 1;
+}
+
+.quick-action-icon {
+    width: 65px;
+    height: 65px;
+    border-radius: 16px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    color: white;
+    font-size: 1.75rem;
+    box-shadow: 0 6px 20px rgba(0, 0, 0, 0.2);
+    position: relative;
+    z-index: 1;
+    /* transition: all 0.3s ease; Removido */
+}
+
+.quick-action-btn:hover .quick-action-icon {
+    transform: scale(1.1) rotate(5deg);
+    box-shadow: 0 8px 25px rgba(0, 0, 0, 0.3);
+}
+
+.quick-action-label {
+    font-weight: 600;
+    font-size: 0.9rem;
+    color: var(--eve-blue-deep);
+    position: relative;
+    z-index: 1;
+    text-align: center;
+    /* transition: color 0.3s ease; Removido */
+}
+
+.quick-action-btn:hover .quick-action-label {
+    color: var(--eve-blue-medium);
+}
+
+/* --- RESPONSIVE WIDGETS --- */
+@media (max-width: 992px) {
+    .info-widget {
+        margin-bottom: 1.5rem;
+    }
+    
+    .widget-body {
+        max-height: 350px;
+    }
+    
+    .quick-actions-grid {
+        grid-template-columns: repeat(2, 1fr);
+        gap: 1rem;
+    }
+    
+    .quick-action-btn {
+        padding: 1.25rem 0.75rem;
+    }
+    
+    .quick-action-icon {
+        width: 55px;
+        height: 55px;
+        font-size: 1.5rem;
+    }
+}
+
+    @media (max-width: 768px) {
+        .widget-header {
+            padding: 1.25rem;
+            flex-direction: column;
+            align-items: flex-start;
+            gap: 0.75rem;
+        }
+        
+        .widget-link {
+            align-self: flex-end;
+        }
+        
+        .widget-body {
+            padding: 0.75rem;
+            max-height: 300px;
+        }
+        
+        .recent-item,
+        .notification-item {
+            padding: 0.75rem;
+            gap: 0.75rem;
+        }
+        
+        .recent-avatar {
+            width: 40px;
+            height: 40px;
+            font-size: 1rem;
+        }
+        
+        .notification-icon {
+            width: 35px;
+            height: 35px;
+            font-size: 0.9rem;
+        }
+        
+        .quick-actions-grid {
+            grid-template-columns: repeat(2, 1fr);
+            gap: 0.75rem;
+        }
+        
+        .quick-action-btn {
+            padding: 1rem 0.5rem;
+        }
+        
+        .quick-action-icon {
+            width: 50px;
+            height: 50px;
+            font-size: 1.5rem;
+        }
+        
+        .quick-action-label {
+            font-size: 0.85rem;
+        }
+        
+        .quick-actions-widget {
+            padding: 1.5rem;
+        }
+    }
+}
+
+/* ============================================
+   Admin Panel Widget Styles
+   ============================================ */
+
+.admin-panel-widget {
+    background: linear-gradient(135deg, rgba(255, 255, 255, 0.98) 0%, rgba(255, 255, 255, 0.95) 100%);
+    border-radius: 24px;
+    box-shadow: 0 8px 32px rgba(11, 60, 138, 0.1);
+    border: 2px solid rgba(27, 143, 234, 0.2);
+    padding: 2rem;
+}
+
+.admin-panel-header {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    margin-bottom: 1.5rem;
+    padding-bottom: 1rem;
+    border-bottom: 2px solid rgba(199, 205, 214, 0.3);
+}
+
+.admin-panel-title {
+    color: var(--eve-blue-deep);
+    font-weight: 700;
+    font-size: 1.25rem;
+    margin: 0;
+    display: flex;
+    align-items: center;
+}
+
+.admin-panel-title i {
+    color: var(--eve-blue-medium);
+}
+
+.admin-panel-link {
+    color: var(--eve-blue-medium);
+    text-decoration: none;
+    font-size: 0.9rem;
+    font-weight: 600;
+    display: flex;
+    align-items: center;
+}
+
+.admin-panel-link:hover {
+    color: var(--eve-blue-deep);
+    text-decoration: underline;
+}
+
+/* Admin Stat Cards */
+.admin-stat-card {
+    background: var(--eve-white);
+    border-radius: 16px;
+    box-shadow: 0 4px 20px rgba(11, 60, 138, 0.08);
+    border: 1px solid rgba(199, 205, 214, 0.2);
+    padding: 1.5rem;
+    height: 100%;
+}
+
+.admin-stat-header {
+    display: flex;
+    align-items: center;
+    gap: 0.75rem;
+    margin-bottom: 1rem;
+    font-weight: 600;
+    color: var(--eve-blue-deep);
+    font-size: 0.95rem;
+}
+
+.admin-stat-header i {
+    color: var(--eve-blue-medium);
+    font-size: 1.1rem;
+}
+
+.admin-stat-content {
+    display: flex;
+    flex-direction: column;
+    gap: 1rem;
+}
+
+.admin-stat-value {
+    display: flex;
+    align-items: baseline;
+    gap: 0.5rem;
+    font-size: 2rem;
+    font-weight: 700;
+    color: var(--eve-blue-deep);
+}
+
+.stat-number {
+    color: var(--eve-blue-medium);
+}
+
+.stat-divider {
+    color: var(--eve-gray-light);
+    font-weight: 400;
+}
+
+.stat-limit {
+    color: var(--eve-gray-light);
+    font-size: 1.5rem;
+    font-weight: 500;
+}
+
+.admin-stat-progress {
+    margin-top: 0.5rem;
+}
+
+.admin-stat-footer {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    margin-top: 0.5rem;
+    padding-top: 0.75rem;
+    border-top: 1px solid rgba(199, 205, 214, 0.2);
+}
+
+.admin-stat-link {
+    color: var(--eve-blue-medium);
+    text-decoration: none;
+    font-size: 0.85rem;
+    font-weight: 600;
+    display: flex;
+    align-items: center;
+}
+
+.admin-stat-link:hover {
+    color: var(--eve-blue-deep);
+    text-decoration: underline;
+}
+
+.admin-stat-info {
+    color: var(--eve-gray-light);
+    font-size: 0.85rem;
+}
+
+/* Admin Actions Grid */
+.admin-actions-grid {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(150px, 1fr));
+    gap: 1.5rem;
+    margin-top: 1.5rem;
+}
+
+.admin-action-btn {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    gap: 0.75rem;
+    padding: 1.5rem 1rem;
+    background: var(--eve-white);
+    border-radius: 16px;
+    box-shadow: 0 4px 15px rgba(11, 60, 138, 0.1);
+    border: 1px solid rgba(199, 205, 214, 0.2);
+    text-decoration: none;
+    color: var(--eve-blue-deep);
+    transition: all 0.2s ease;
+}
+
+.admin-action-btn:hover {
+    transform: translateY(-3px);
+    box-shadow: 0 8px 25px rgba(11, 60, 138, 0.2);
+    color: var(--eve-blue-deep);
+}
+
+.admin-action-icon {
+    width: 60px;
+    height: 60px;
+    border-radius: 12px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    color: var(--eve-white);
+    font-size: 1.75rem;
+    box-shadow: 0 4px 15px rgba(0, 0, 0, 0.2);
+}
+
+.admin-action-label {
+    font-weight: 600;
+    font-size: 0.9rem;
+    text-align: center;
+}
+
+/* Admin Logs Section */
+.admin-logs-section {
+    margin-top: 2rem;
+    padding-top: 1.5rem;
+    border-top: 2px solid rgba(199, 205, 214, 0.3);
+}
+
+.admin-logs-title {
+    color: var(--eve-blue-deep);
+    font-weight: 700;
+    font-size: 1.1rem;
+    margin-bottom: 1rem;
+    display: flex;
+    align-items: center;
+}
+
+.admin-logs-title i {
+    color: var(--eve-blue-medium);
+}
+
+.admin-logs-list {
+    display: flex;
+    flex-direction: column;
+    gap: 0.75rem;
+    max-height: 300px;
+    overflow-y: auto;
+    padding-right: 0.5rem;
+}
+
+.admin-logs-list::-webkit-scrollbar {
+    width: 6px;
+}
+
+.admin-logs-list::-webkit-scrollbar-track {
+    background: #f1f1f1;
+    border-radius: 3px;
+}
+
+.admin-logs-list::-webkit-scrollbar-thumb {
+    background: var(--eve-blue-medium);
+    border-radius: 3px;
+}
+
+.admin-log-item {
+    display: flex;
+    align-items: flex-start;
+    gap: 1rem;
+    padding: 1rem;
+    background: var(--eve-bg-light);
+    border-radius: 12px;
+    border-left: 4px solid var(--eve-blue-medium);
+}
+
+.admin-log-icon {
+    color: var(--eve-blue-medium);
+    font-size: 1.1rem;
+    margin-top: 0.25rem;
+}
+
+.admin-log-content {
+    flex: 1;
+    display: flex;
+    flex-direction: column;
+    gap: 0.5rem;
+}
+
+.admin-log-action {
+    display: flex;
+    align-items: center;
+    flex-wrap: wrap;
+    gap: 0.5rem;
+}
+
+.admin-log-details {
+    display: flex;
+    align-items: center;
+    flex-wrap: wrap;
+    gap: 0.5rem;
+}
+
+/* Responsive Admin Panel */
+@media (max-width: 768px) {
+    .admin-panel-header {
+        flex-direction: column;
+        align-items: flex-start;
+        gap: 1rem;
+    }
+    
+    .admin-actions-grid {
+        grid-template-columns: repeat(2, 1fr);
+        gap: 1rem;
+    }
+    
+    .admin-action-btn {
+        padding: 1rem 0.5rem;
+    }
+    
+    .admin-action-icon {
+        width: 50px;
+        height: 50px;
+        font-size: 1.5rem;
+    }
+    
+    .admin-stat-value {
+        font-size: 1.5rem;
+    }
+}
+
+@media (max-width: 576px) {
+    .admin-panel-widget {
+        padding: 1.5rem;
+    }
+    
+    .admin-actions-grid {
+        grid-template-columns: 1fr;
+    }
+    
+    .admin-stat-card {
+        padding: 1.25rem;
     }
 }

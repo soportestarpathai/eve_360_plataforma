@@ -1,21 +1,86 @@
 <?php
-session_start();
-require_once '../config/bitacora.php'; 
-require_once '../config/risk_engine.php'; // INCLUDE ENGINE
-header('Content-Type: application/json');
+// Start output buffering to catch any unwanted output
+ob_start();
 
-if (!isset($_SESSION['user_id'])) {
-    http_response_code(401);
-    echo json_encode(['status' => 'error', 'message' => 'Unauthorized']);
+// Suppress any warnings/notices that might break JSON output
+error_reporting(E_ALL);
+ini_set('display_errors', 0);
+ini_set('log_errors', 1);
+
+// Set JSON header immediately
+header('Content-Type: application/json; charset=utf-8');
+
+try {
+    session_start();
+    require_once '../config/db.php'; // Ensure DB connection is available
+    require_once '../config/bitacora.php'; 
+    require_once '../config/risk_engine.php'; // INCLUDE ENGINE
+    require_once '../config/pld_middleware.php'; // VAL-PLD-001: Bloqueo de operaciones PLD
+
+    if (!isset($_SESSION['user_id'])) {
+        ob_end_clean(); // Clear any output
+        http_response_code(401);
+        echo json_encode(['status' => 'error', 'message' => 'Unauthorized']);
+        exit;
+    }
+    
+    // VAL-PLD-001: Bloquear creación de clientes si no está habilitado
+    requirePLDHabilitado($pdo, true);
+} catch (Exception $e) {
+    ob_end_clean(); // Clear any output
+    http_response_code(500);
+    echo json_encode([
+        'status' => 'error', 
+        'message' => 'Error al inicializar: ' . $e->getMessage(),
+        'file' => basename($e->getFile()),
+        'line' => $e->getLine()
+    ]);
+    error_log('Init Error in save_client.php: ' . $e->getMessage() . ' in ' . $e->getFile() . ':' . $e->getLine());
+    exit;
+} catch (Error $e) {
+    ob_end_clean(); // Clear any output
+    http_response_code(500);
+    echo json_encode([
+        'status' => 'error', 
+        'message' => 'Error fatal al inicializar: ' . $e->getMessage(),
+        'file' => basename($e->getFile()),
+        'line' => $e->getLine()
+    ]);
+    error_log('Fatal Init Error in save_client.php: ' . $e->getMessage() . ' in ' . $e->getFile() . ':' . $e->getLine());
     exit;
 }
+
+// Clear any buffered output before starting
+ob_end_clean();
 
 // POST data comes from FormData
 $data = $_POST;
 $id_usuario_actual = $_SESSION['user_id'];
 
+// Validate required fields before starting transaction
+if (empty($data['id_tipo_persona'])) {
+    http_response_code(400);
+    echo json_encode(['status' => 'error', 'message' => 'Tipo de persona es requerido']);
+    exit;
+}
+
+if (empty($data['no_contrato'])) {
+    http_response_code(400);
+    echo json_encode(['status' => 'error', 'message' => 'Número de contrato es requerido']);
+    exit;
+}
+
 // Start Transaction
-$pdo->beginTransaction();
+try {
+    $pdo->beginTransaction();
+} catch (PDOException $e) {
+    http_response_code(500);
+    echo json_encode([
+        'status' => 'error', 
+        'message' => 'Error al iniciar transacción: ' . $e->getMessage()
+    ]);
+    exit;
+}
 
 try {
     // 1. INSERT into `clientes` (Main Table)
@@ -241,11 +306,55 @@ try {
     calculateClientRisk($pdo, $id_cliente);
     // -----------------------------------
 
-    echo json_encode(['status' => 'success', 'id_cliente' => $id_cliente]);
+    // --- VAL-PLD-003: Validar y actualizar flag RESTRICCION_USUARIO ---
+    require_once '../config/pld_responsable_validation.php';
+    validateAndUpdateResponsablePLD($pdo, $id_cliente);
+    // -------------------------------------------------------------------
 
+    echo json_encode(['status' => 'success', 'id_cliente' => $id_cliente]);
+    exit;
+
+} catch (PDOException $e) {
+    // If any database operation fails, roll back the entire operation
+    if ($pdo->inTransaction()) {
+        $pdo->rollBack();
+    }
+    http_response_code(500);
+    echo json_encode([
+        'status' => 'error', 
+        'message' => 'Error de base de datos: ' . $e->getMessage(),
+        'file' => basename($e->getFile()),
+        'line' => $e->getLine()
+    ]);
+    error_log('PDO Error in save_client.php: ' . $e->getMessage() . ' in ' . $e->getFile() . ':' . $e->getLine());
+    exit;
 } catch (Exception $e) {
-    // If any insert fails, roll back the entire operation
-    $pdo->rollBack();
-    echo json_encode(['status' => 'error', 'message' => $e->getMessage()]);
+    // If any other error occurs, roll back the entire operation
+    if ($pdo->inTransaction()) {
+        $pdo->rollBack();
+    }
+    http_response_code(500);
+    echo json_encode([
+        'status' => 'error', 
+        'message' => 'Error al guardar cliente: ' . $e->getMessage(),
+        'file' => basename($e->getFile()),
+        'line' => $e->getLine()
+    ]);
+    error_log('Error in save_client.php: ' . $e->getMessage() . ' in ' . $e->getFile() . ':' . $e->getLine());
+    exit;
+} catch (Error $e) {
+    // Catch fatal errors in PHP 7+
+    if ($pdo->inTransaction()) {
+        $pdo->rollBack();
+    }
+    http_response_code(500);
+    echo json_encode([
+        'status' => 'error', 
+        'message' => 'Error fatal: ' . $e->getMessage(),
+        'file' => basename($e->getFile()),
+        'line' => $e->getLine()
+    ]);
+    error_log('Fatal Error in save_client.php: ' . $e->getMessage() . ' in ' . $e->getFile() . ':' . $e->getLine());
+    exit;
 }
 ?>

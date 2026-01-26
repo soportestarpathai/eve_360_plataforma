@@ -14,15 +14,8 @@ require_once '../config/db.php';
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css" rel="stylesheet">
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
-    <style>
-        body { background-color: #f8f9fa; }
-        .sidebar { height: 100vh; width: 250px; position: fixed; top: 0; left: 0; background: #343a40; padding-top: 20px; }
-        .sidebar a { padding: 15px 25px; text-decoration: none; font-size: 1.1rem; color: #d1d1d1; display: block; transition: 0.3s; }
-        .sidebar a:hover, .sidebar a.active { color: #f1f1f1; background-color: #495057; }
-        .sidebar-header { padding: 0 25px; font-size: 0.85rem; text-transform: uppercase; color: #adb5bd; font-weight: bold; margin-top: 20px; margin-bottom: 5px; }
-        .main-content { margin-left: 250px; padding: 20px; }
-        .card { border: none; box-shadow: 0 2px 10px rgba(0,0,0,0.05); margin-bottom: 20px; }
-    </style>
+    <script src="https://cdn.jsdelivr.net/npm/sweetalert2@11"></script>
+    <link rel="stylesheet" href="../assets/css/admin.css">
 </head>
 <body>
 

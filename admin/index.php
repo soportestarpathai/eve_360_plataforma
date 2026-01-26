@@ -269,12 +269,20 @@ $apiAvailable = max(0, $apiLimit - $apiUsed);
                                             <span class="text-muted small d-block">ID: <?= $log['id_afectado'] ?? $log['id_registro'] ?? '?' ?></span>
                                         </td>
                                         
-                                        <td class="text-truncate" style="max-width: 150px;" title="<?= htmlspecialchars($log['valor_anterior']) ?>">
-                                            <?= htmlspecialchars(substr($log['valor_anterior'], 0, 40)) . (strlen($log['valor_anterior']) > 40 ? '...' : '') ?>
+                                        <td class="text-truncate" style="max-width: 150px;" title="<?= htmlspecialchars($log['valor_anterior'] ?? '') ?>">
+                                            <?php 
+                                                $valorAnterior = $log['valor_anterior'] ?? '';
+                                                $valorAnteriorStr = is_string($valorAnterior) ? $valorAnterior : (is_array($valorAnterior) ? json_encode($valorAnterior) : '');
+                                                echo htmlspecialchars(substr($valorAnteriorStr, 0, 40)) . (strlen($valorAnteriorStr) > 40 ? '...' : '');
+                                            ?>
                                         </td>
                                         
-                                        <td class="text-truncate" style="max-width: 150px;" title="<?= htmlspecialchars($log['valor_nuevo']) ?>">
-                                            <?= htmlspecialchars(substr($log['valor_nuevo'], 0, 40)) . (strlen($log['valor_nuevo']) > 40 ? '...' : '') ?>
+                                        <td class="text-truncate" style="max-width: 150px;" title="<?= htmlspecialchars($log['valor_nuevo'] ?? '') ?>">
+                                            <?php 
+                                                $valorNuevo = $log['valor_nuevo'] ?? '';
+                                                $valorNuevoStr = is_string($valorNuevo) ? $valorNuevo : (is_array($valorNuevo) ? json_encode($valorNuevo) : '');
+                                                echo htmlspecialchars(substr($valorNuevoStr, 0, 40)) . (strlen($valorNuevoStr) > 40 ? '...' : '');
+                                            ?>
                                         </td>
                                         
                                         <td class="text-end">
@@ -399,4 +407,4 @@ $apiAvailable = max(0, $apiLimit - $apiUsed);
     renderMenu(menuData);
 </script>
 
-<?php include 'footer.php'; ?>
+<?php include '../templates/footer.php'; ?>

@@ -14,11 +14,11 @@
         <a class="navbar-brand fw-bold d-flex align-items-center" href="index.php">
             <img src="<?= htmlspecialchars($appConfig['logo_url']) ?>" 
                     alt="Logo" 
-                    height="60" 
-                    class="d-inline-block align-text-top me-2"
+                    height="45" 
+                    class="d-inline-block align-text-top"
                     style="object-fit: contain;">
             
-            <span class="d-none d-sm-inline">
+            <span class="ms-2 d-none d-sm-inline">
                 <?= htmlspecialchars($appConfig['nombre_empresa']) ?>
             </span>
         </a>
@@ -26,19 +26,28 @@
 
     <div class="user-actions">
         <div class="notif-icon" title="Notificaciones">
-            <i class="fa-regular fa-bell"></i>
+            <i class="fa-solid fa-bell"></i>
             <span class="notif-badge" id="notifCount">0</span>
         </div>
         <div class="dropdown">
-            <div class="user-profile" data-bs-toggle="dropdown">
-                <span class="user-name" id="navUserName">...</span>
-                <img src="" id="navUserAvatar" class="user-avatar">
-                <i class="fa-solid fa-caret-down small text-muted ms-1"></i>
+            <div class="user-profile" data-bs-toggle="dropdown" title="Mi Perfil">
+                <span class="user-name" id="navUserName">
+                    <i class="fa-solid fa-user-circle"></i>
+                    <span class="d-none d-md-inline">...</span>
+                </span>
+                <img src="" id="navUserAvatar" class="user-avatar" alt="Avatar">
+                <i class="fa-solid fa-chevron-down ms-1" style="font-size: 0.75rem; color: rgba(255,255,255,0.8);"></i>
             </div>
-            <ul class="dropdown-menu dropdown-menu-end shadow border-0">
+            <ul class="dropdown-menu dropdown-menu-end shadow-lg border-0" style="border-radius: 12px; margin-top: 10px; min-width: 220px;">
                 <!-- Account Section -->
-                <li><h6 class="dropdown-header">Mi Cuenta</h6></li>
-                <li><a class="dropdown-item" href="#"><i class="fa-solid fa-user-gear me-2"></i>Administrar cuenta</a></li>
+                <li><h6 class="dropdown-header text-uppercase small fw-bold" style="color: #6c757d; letter-spacing: 1px;">
+                    <i class="fa-solid fa-user-circle me-2"></i>Mi Cuenta
+                </h6></li>
+                <li>
+                    <a class="dropdown-item" href="mi_cuenta.php">
+                        <i class="fa-solid fa-user-gear me-2" style="color: var(--primary-color);"></i>Administrar cuenta
+                    </a>
+                </li>
                 
                 <!-- System Config Section (Hidden by default, shown via JS permissions) -->
                 <div id="adminConfigSection" class="restricted">
@@ -57,7 +66,11 @@
                 </div>
 
                 <li><hr class="dropdown-divider"></li>
-                <li><a class="dropdown-item text-danger" href="#" id="btnLogout"><i class="fa-solid fa-right-from-bracket me-2"></i>Cerrar sesión</a></li>
+                <li>
+                    <a class="dropdown-item text-danger fw-semibold" href="#" id="btnLogout">
+                        <i class="fa-solid fa-right-from-bracket me-2"></i>Cerrar sesión
+                    </a>
+                </li>
             </ul>
         </div>
     </div>
@@ -87,8 +100,17 @@
             .then(data => {
                 if(data && data.status === 'success') {
                     // Populate user info
-                    document.getElementById('navUserName').textContent = data.user.name;
-                    document.getElementById('navUserAvatar').src = data.user.avatar;
+                    const userNameEl = document.getElementById('navUserName');
+                    if (userNameEl) {
+                        const nameSpan = userNameEl.querySelector('span');
+                        if (nameSpan) {
+                            nameSpan.textContent = data.user.name;
+                        } else {
+                            userNameEl.innerHTML = `<i class="fa-solid fa-user-circle"></i><span class="d-none d-md-inline">${data.user.name}</span>`;
+                        }
+                    }
+                    const avatarEl = document.getElementById('navUserAvatar');
+                    if (avatarEl) avatarEl.src = data.user.avatar;
                     
                     // Apply permissions
                     // If user has 'administracion' permission > 0, show the config section
