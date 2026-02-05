@@ -1,10 +1,11 @@
 <?php
 /**
- * PLD Validation - VAL-PLD-005, VAL-PLD-006
+ * PLD Validation - VAL-PLD-005, VAL-PLD-006, VAL-PLD-026
  * Integración y Actualización de Expediente de Identificación
  * 
  * VAL-PLD-005: Valida que el expediente esté completo
  * VAL-PLD-006: Valida que el expediente se actualice al menos 1 vez al año
+ * VAL-PLD-026: Negativa de identificación del cliente → operación bloqueada
  */
 
 if (!function_exists('validateExpedienteCompleto')) {
@@ -315,5 +316,69 @@ if (!function_exists('validateExpedienteCompleto')) {
         }
         
         return null;
+    }
+}
+
+if (!function_exists('hasNegativaIdentificacion')) {
+    /**
+     * VAL-PLD-026 — Verifica si el cliente tiene registrada negativa a proporcionar información.
+     * Si existe negativa, la operación no debe realizarse (OPERACION_RECHAZADA_PLD).
+     *
+     * @param PDO $pdo Conexión a la base de datos
+     * @param int $id_cliente ID del cliente
+     * @return array ['negativa' => bool, 'fecha' => string|null, 'evidencia' => string|null]
+     */
+    function hasNegativaIdentificacion($pdo, $id_cliente) {
+        try {
+            $stmt = $pdo->query("SELECT COUNT(*) AS c FROM INFORMATION_SCHEMA.COLUMNS
+                WHERE TABLE_SCHEMA = DATABASE() AND TABLE_NAME = 'clientes' AND COLUMN_NAME = 'negativa_identificacion_pld'");
+            if ($stmt->fetch(PDO::FETCH_ASSOC)['c'] == 0) {
+                return ['negativa' => false, 'fecha' => null, 'evidencia' => null];
+            }
+            $stmt = $pdo->prepare("SELECT negativa_identificacion_pld, fecha_negativa_identificacion_pld, evidencia_negativa_identificacion_pld FROM clientes WHERE id_cliente = ?");
+            $stmt->execute([$id_cliente]);
+            $row = $stmt->fetch(PDO::FETCH_ASSOC);
+            if ($row === false) {
+                return ['negativa' => false, 'fecha' => null, 'evidencia' => null];
+            }
+            $negativa = !empty($row['negativa_identificacion_pld']);
+            return [
+                'negativa' => (bool) $negativa,
+                'fecha' => $row['fecha_negativa_identificacion_pld'] ?? null,
+                'evidencia' => $row['evidencia_negativa_identificacion_pld'] ?? null
+            ];
+        } catch (Exception $e) {
+            error_log('hasNegativaIdentificacion: ' . $e->getMessage());
+            return ['negativa' => false, 'fecha' => null, 'evidencia' => null];
+        }
+    }
+}
+
+if (!function_exists('requireNoNegativaIdentificacion')) {
+    /**
+     * VAL-PLD-026 — Bloquea la acción si el cliente tiene negativa de identificación registrada.
+     *
+     * @param PDO $pdo Conexión a la base de datos
+     * @param int $id_cliente ID del cliente
+     * @param bool $returnJson Si true, envía JSON y exit; si false, lanza excepción
+     * @return null
+     * @throws Exception Si returnJson es false y hay negativa
+     */
+    function requireNoNegativaIdentificacion($pdo, $id_cliente, $returnJson = true) {
+        $result = hasNegativaIdentificacion($pdo, $id_cliente);
+        if (!$result['negativa']) {
+            return null;
+        }
+        if ($returnJson) {
+            http_response_code(403);
+            header('Content-Type: application/json');
+            echo json_encode([
+                'status' => 'error',
+                'code' => 'OPERACION_RECHAZADA_PLD',
+                'message' => 'No puede realizarse la operación: el cliente registró negativa a proporcionar información de identificación'
+            ]);
+            exit;
+        }
+        throw new Exception('OPERACION_RECHAZADA_PLD: Cliente con negativa de identificación');
     }
 }
