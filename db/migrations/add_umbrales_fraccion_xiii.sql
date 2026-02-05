@@ -42,12 +42,15 @@ EXECUTE stmt;
 DEALLOCATE PREPARE stmt;
 
 -- Valores para Fracción XIII (Donativos)
+-- Safe update mode: WHERE usa fraccion (no PK); se desactiva solo para este UPDATE
+SET SQL_SAFE_UPDATES = 0;
 UPDATE `cat_vulnerables`
 SET
     `umbral_aviso_uma`       = 3210.00,
     `umbral_acumulacion_uma` = 3210.00,
     `umbral_expediente_uma`  = 1605.00
 WHERE `fraccion` = 'XIII';
+SET SQL_SAFE_UPDATES = 1;
 
 -- Opcional: fallback en config_empresa si no existen columnas
 SET @ce_aviso = (
