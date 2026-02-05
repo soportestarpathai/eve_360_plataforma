@@ -110,17 +110,74 @@ if (!function_exists('validateResponsablePLD')) {
                 ];
             }
             
+            // 5. Capacitación anual REC (Art. 20 LFPIORPI, RCG Art. 10)
+            $capacitacionVigente = true;
+            $razonCapacitacion = null; // mensaje específico si falla por capacitación
+            $tieneColumnaCapacitacion = false;
+            try {
+                $stmtCol = $pdo->query("SELECT COUNT(*) AS c FROM INFORMATION_SCHEMA.COLUMNS WHERE TABLE_SCHEMA = DATABASE() AND TABLE_NAME = 'clientes_responsable_pld' AND COLUMN_NAME = 'fecha_ultima_capacitacion'");
+                $rowCol = $stmtCol ? $stmtCol->fetch(PDO::FETCH_ASSOC) : false;
+                $tieneColumnaCapacitacion = $rowCol && (int)($rowCol['c'] ?? 0) > 0;
+            } catch (Exception $e) { /* conservar $tieneColumnaCapacitacion = false */ }
+            if (!$tieneColumnaCapacitacion) {
+                $capacitacionVigente = false;
+                $razonCapacitacion = 'Ejecute la migración add_obligaciones_ley_rcg.sql para validar capacitación REC';
+            }
+            $fechaCapacitacion = $responsable['fecha_ultima_capacitacion'] ?? null;
+            $vigenciaCapacitacion = $responsable['vigencia_capacitacion'] ?? null;
+            if ($tieneColumnaCapacitacion && ($fechaCapacitacion !== null || $vigenciaCapacitacion !== null)) {
+                $hoy = new DateTime('today');
+                $vigencia = $vigenciaCapacitacion ? new DateTime($vigenciaCapacitacion) : null;
+                if (!$vigencia && $fechaCapacitacion) {
+                    $vigencia = new DateTime($fechaCapacitacion);
+                    $vigencia->modify('+1 year');
+                }
+                // Vigencia = fecha de expiración: vence el mismo día (>=), no al día siguiente
+                if ($vigencia && $hoy >= $vigencia) {
+                    $capacitacionVigente = false;
+                }
+            }
+            // Si nunca se ha registrado capacitación (columnas existen pero están vacías), restricción por capacitación pendiente
+            if ($tieneColumnaCapacitacion && $fechaCapacitacion === null && $vigenciaCapacitacion === null) {
+                $capacitacionVigente = false; // Capacitación nunca registrada → pendiente
+                if ($razonCapacitacion === null) {
+                    $razonCapacitacion = 'El responsable PLD debe contar con capacitación anual vigente (Art. 20 Ley, RCG Art. 10)';
+                }
+            }
+            
+            if (!$capacitacionVigente) {
+                return [
+                    'requiere_responsable' => true,
+                    'tiene_responsable' => true,
+                    'restriccion' => true,
+                    'estatus' => 'RESTRICCION_USUARIO',
+                    'razon' => $razonCapacitacion ?: 'El responsable PLD debe contar con capacitación anual vigente (Art. 20 Ley, RCG Art. 10)',
+                    'detalles' => [
+                        'tipo_persona' => $cliente['es_moral'] == 1 ? 'moral' : 'fideicomiso',
+                        'responsable_designado' => true,
+                        'responsable_activo' => true,
+                        'capacitacion_vigente' => false,
+                        'fecha_ultima_capacitacion' => $fechaCapacitacion,
+                        'vigencia_capacitacion' => $vigenciaCapacitacion,
+                        'id_responsable' => $responsable['id_responsable_pld']
+                    ]
+                ];
+            }
+            
             // Todas las validaciones pasaron
             return [
                 'requiere_responsable' => true,
                 'tiene_responsable' => true,
                 'restriccion' => false,
                 'estatus' => 'SIN_RESTRICCION',
-                'razon' => 'Responsable PLD designado y activo',
+                'razon' => 'Responsable PLD designado, activo y con capacitación vigente',
                 'detalles' => [
                     'tipo_persona' => $cliente['es_moral'] == 1 ? 'moral' : 'fideicomiso',
                     'responsable_designado' => true,
                     'responsable_activo' => true,
+                    'capacitacion_vigente' => true,
+                    'fecha_ultima_capacitacion' => $fechaCapacitacion,
+                    'vigencia_capacitacion' => $vigenciaCapacitacion,
                     'id_responsable' => $responsable['id_responsable_pld'],
                     'responsable_nombre' => $responsable['responsable_nombre'],
                     'responsable_email' => $responsable['responsable_email'],
@@ -173,8 +230,43 @@ if (!function_exists('validateResponsablePLD')) {
     }
     
     /**
+     * Registra o actualiza la fecha de capacitación anual del REC (Art. 20 Ley, RCG Art. 10).
+     * Vigencia por defecto: fecha + 1 año.
+     *
+     * @param PDO $pdo Conexión a la base de datos
+     * @param int $id_responsable_pld ID en clientes_responsable_pld
+     * @param string|null $fecha_capacitacion Fecha (Y-m-d); si null usa hoy
+     * @param string|null $vigencia Fecha vigencia (Y-m-d); si null se calcula +1 año
+     * @return array ['success' => bool, 'message' => string]
+     */
+    function registrarCapacitacionRec($pdo, $id_responsable_pld, $fecha_capacitacion = null, $vigencia = null) {
+        try {
+            $stmt = $pdo->query("SELECT COUNT(*) AS c FROM INFORMATION_SCHEMA.COLUMNS WHERE TABLE_SCHEMA = DATABASE() AND TABLE_NAME = 'clientes_responsable_pld' AND COLUMN_NAME = 'fecha_ultima_capacitacion'");
+            $row = $stmt->fetch(PDO::FETCH_ASSOC);
+            if ($row === false || (int)($row['c'] ?? 0) === 0) {
+                return ['success' => false, 'message' => 'Ejecute la migración add_obligaciones_ley_rcg.sql'];
+            }
+            $fecha = $fecha_capacitacion ?: date('Y-m-d');
+            if ($vigencia === null) {
+                $d = new DateTime($fecha);
+                $d->modify('+1 year');
+                $vigencia = $d->format('Y-m-d');
+            }
+            $stmt = $pdo->prepare("UPDATE clientes_responsable_pld SET fecha_ultima_capacitacion = ?, vigencia_capacitacion = ? WHERE id_responsable_pld = ?");
+            $stmt->execute([$fecha, $vigencia, $id_responsable_pld]);
+            if ($stmt->rowCount() === 0) {
+                return ['success' => false, 'message' => 'No existe el responsable PLD con el ID indicado (id_responsable_pld no encontrado)'];
+            }
+            return ['success' => true, 'message' => 'Capacitación anual REC registrada', 'fecha_ultima_capacitacion' => $fecha, 'vigencia_capacitacion' => $vigencia];
+        } catch (Exception $e) {
+            error_log('registrarCapacitacionRec: ' . $e->getMessage());
+            return ['success' => false, 'message' => $e->getMessage()];
+        }
+    }
+    
+    /**
      * Verifica si un cliente tiene restricción por falta de responsable PLD
-     * 
+     *
      * @param PDO $pdo Conexión a la base de datos
      * @param int $id_cliente ID del cliente
      * @return bool True si tiene restricción, false si no
