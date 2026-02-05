@@ -29,7 +29,16 @@ try {
     $catalogs['tipos_persona'] = fetchCatalog($pdo, 'cat_tipo_persona');
     $catalogs['paises'] = fetchCatalog($pdo, 'cat_pais');
     $catalogs['tipos_identificacion'] = fetchCatalog($pdo, 'cat_tipo_identificaciones');
-    $catalogs['tipos_contacto'] = fetchCatalog($pdo, 'cat_tipo_contacto'); 
+    $catalogs['tipos_contacto'] = fetchCatalog($pdo, 'cat_tipo_contacto');
+    
+    // Fetch vulnerable activities (fracciones PLD)
+    try {
+        $stmtVuln = $pdo->query("SELECT * FROM cat_vulnerables ORDER BY nombre ASC");
+        $catalogs['vulnerables'] = $stmtVuln->fetchAll(PDO::FETCH_ASSOC);
+    } catch (PDOException $e) {
+        // If table doesn't exist, return empty array
+        $catalogs['vulnerables'] = [];
+    }
 
     echo json_encode(['status' => 'success', 'data' => $catalogs]);
 

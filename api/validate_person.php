@@ -2,6 +2,7 @@
 session_start();
 require_once '../config/db.php';
 require_once '../config/pld_middleware.php';
+require_once '../config/pld_expediente.php'; // VAL-PLD-005, VAL-PLD-006
 header('Content-Type: application/json');
 
 if (!isset($_SESSION['user_id'])) {
@@ -52,6 +53,28 @@ $materno = cleanString(trim($data['materno'] ?? ''));
 $tipo_persona_input = $data['tipo_persona'] ?? ''; 
 $id_cliente = $data['id_cliente'] ?? null; 
 $save_history = $data['save_history'] ?? false;
+
+// VAL-PLD-005 y VAL-PLD-006: Validar expediente si hay cliente asociado (solo lectura, sin actualizar flags)
+// Las consultas PLD se permiten incluso si el expediente está incompleto.
+// Se registra una advertencia para auditoría sin modificar la tabla clientes.
+if ($id_cliente) {
+    try {
+        require_once __DIR__ . '/../config/pld_expediente.php';
+        $resultCompleto = validateExpedienteCompleto($pdo, $id_cliente, false);
+        $resultActualizacion = validateActualizacionExpediente($pdo, $id_cliente);
+        
+        // Si el expediente está incompleto o vencido, solo registramos una advertencia
+        // pero NO bloqueamos la consulta PLD (puede ser necesaria para completar el expediente)
+        if (!$resultCompleto['completo'] || !$resultActualizacion['actualizado']) {
+            error_log("ADVERTENCIA PLD: Consulta PLD realizada para cliente $id_cliente con expediente incompleto o vencido. " .
+                     "Completitud: " . ($resultCompleto['completo'] ? 'OK' : 'INCOMPLETO') . 
+                     ", Actualización: " . ($resultActualizacion['actualizado'] ? 'OK' : 'VENCIDO'));
+        }
+    } catch (Exception $e) {
+        // Si hay error en la validación, no bloqueamos la consulta
+        error_log("Error al validar expediente en validate_person.php: " . $e->getMessage());
+    }
+}
 
 // Validate required fields before API call
 if ($tipo_persona_input === 'fisica') {

@@ -37,12 +37,13 @@ include 'templates/top_bar.php';
                             <th>Riesgo</th>
                             <th>RFC</th>
                             <th>Fecha Alta</th>
+                            <th>Expediente PLD</th>
                             <th>Estatus</th>
                             <th class="text-end pe-4">Acciones</th>
                         </tr>
                     </thead>
                     <tbody id="clientsTableBody">
-                        <tr><td colspan="7" class="text-center py-4 text-muted"><i class="fa-solid fa-spinner fa-spin me-2"></i>Cargando clientes...</td></tr>
+                        <tr><td colspan="8" class="text-center py-4 text-muted"><i class="fa-solid fa-spinner fa-spin me-2"></i>Cargando clientes...</td></tr>
                     </tbody>
                 </table>
             </div>

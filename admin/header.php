@@ -31,7 +31,7 @@ require_once '../config/db.php';
 
     <div class="sidebar-header">Administración</div>
     <a href="users.php" class="<?= basename($_SERVER['PHP_SELF'])=='users.php'?'active':'' ?>">
-        <i class="fa-solid fa-users me-2"></i>Usuarios
+        <i class="fa-solid fa-users me-2"></i>Usuarios del Sistema
     </a>
     <a href="config.php" class="<?= basename($_SERVER['PHP_SELF'])=='config.php'?'active':'' ?>">
         <i class="fa-solid fa-gears me-2"></i>Configuración

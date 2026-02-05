@@ -130,6 +130,15 @@ try {
         
         $details['apoderados'][] = $apo;
     }
+    
+    // 5. Fetch Beneficiarios Controladores (VAL-PLD-007)
+    $stmt_benef = $pdo->prepare("
+        SELECT * FROM clientes_beneficiario_controlador 
+        WHERE id_cliente = ? AND id_status = 1
+        ORDER BY fecha_registro DESC
+    ");
+    $stmt_benef->execute([$id_cliente]);
+    $details['beneficiarios_controladores'] = $stmt_benef->fetchAll(PDO::FETCH_ASSOC);
 
     // --- NEW: Fetch PLD Search History ---
     $stmt_pld = $pdo->prepare("

@@ -3,6 +3,8 @@ session_start();
 require_once '../config/db.php';
 require_once '../config/bitacora.php'; // Include Logger
 require_once '../config/pld_middleware.php'; // VAL-PLD-001: Bloqueo de operaciones PLD
+require_once '../config/pld_expediente.php'; // VAL-PLD-005, VAL-PLD-006
+require_once '../config/pld_beneficiario_controlador.php'; // VAL-PLD-007: Beneficiario Controlador
 header('Content-Type: application/json');
 
 if (!isset($_SESSION['user_id'])) {
@@ -27,10 +29,23 @@ if (!$id_busqueda) {
 }
 
 try {
-    // Fetch OLD state
+    // Fetch OLD state and get client ID
     $stmtOld = $pdo->prepare("SELECT * FROM clientes_busquedas_listas WHERE id_busqueda = ?");
     $stmtOld->execute([$id_busqueda]);
     $oldSearch = $stmtOld->fetch(PDO::FETCH_ASSOC);
+    
+    if (!$oldSearch) {
+        throw new Exception('Búsqueda no encontrada');
+    }
+    
+    // VAL-PLD-005 y VAL-PLD-006: Validar expediente del cliente
+    $id_cliente = $oldSearch['id_cliente'] ?? null;
+    if ($id_cliente) {
+        requireExpedienteCompleto($pdo, $id_cliente, true);
+        
+        // VAL-PLD-007: Validar beneficiario controlador (si aplica)
+        requireBeneficiarioControlador($pdo, $id_cliente, true);
+    }
 
     if (is_array($seleccion) || is_object($seleccion)) {
         $seleccion = json_encode($seleccion, JSON_UNESCAPED_UNICODE);

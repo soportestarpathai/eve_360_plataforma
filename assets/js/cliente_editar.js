@@ -176,6 +176,24 @@ function populateForm(data) {
     
     // Re-build Apoderados list
     if (data.apoderados) data.apoderados.forEach(a => addApoderadoItem(a));
+    
+    // 5. Re-build Beneficiarios Controladores list
+    if (data.beneficiarios_controladores) {
+        const beneficiarioSection = document.getElementById('beneficiario-controlador-section');
+        if (beneficiarioSection) {
+            beneficiarioSection.style.display = 'block';
+        }
+        data.beneficiarios_controladores.forEach(b => addBeneficiarioItem(b));
+    } else {
+        // Mostrar sección si es persona moral o fideicomiso
+        const persona = personaTypes.find(p => p.id_tipo_persona == data.general?.id_tipo_persona);
+        if (persona && (persona.es_moral > 0 || persona.es_fideicomiso > 0)) {
+            const beneficiarioSection = document.getElementById('beneficiario-controlador-section');
+            if (beneficiarioSection) {
+                beneficiarioSection.style.display = 'block';
+            }
+        }
+    }
 }
 
 function setupDynamicBuilders() {
@@ -185,6 +203,7 @@ function setupDynamicBuilders() {
     const addContacto = document.getElementById('addContacto');
     const addDocumento = document.getElementById('addDocumento');
     const addApoderado = document.getElementById('addApoderado');
+    // Nota: addBeneficiario usa onclick directo en el HTML, no necesita event listener aquí
     
     if (addNacionalidad) addNacionalidad.addEventListener('click', () => addDynamicItem('nacionalidades-list'));
     if (addIdentificacion) addIdentificacion.addEventListener('click', () => addDynamicItem('identificaciones-list'));
@@ -192,6 +211,7 @@ function setupDynamicBuilders() {
     if (addContacto) addContacto.addEventListener('click', () => addDynamicItem('contactos-list'));
     if (addDocumento) addDocumento.addEventListener('click', () => addDocumentoItem());
     if (addApoderado) addApoderado.addEventListener('click', () => addApoderadoItem());
+    // Removido: addBeneficiario - usa onclick directo
 }
 
 // Helper to populate a <select>
@@ -414,15 +434,20 @@ function addDocumentoItem(data = {}) {
         `;
     }
 
+    // Si hay datos existentes (ruta o descripcion), el tipo es readonly
+    // Si es un documento nuevo, el tipo es editable
+    const isExisting = (data.ruta && data.ruta.trim() !== '') || (data.descripcion && data.descripcion.trim() !== '');
+    const readonlyAttr = isExisting ? 'readonly' : '';
+    
     item.innerHTML = `
         <div class="col-md-4">
-            <input type="text" class="form-control" name="doc_tipo[]" placeholder="Tipo de Documento" value="${(data.descripcion || '').replace(/"/g, '&quot;')}" readonly>
+            <input type="text" class="form-control" name="doc_tipo[]" placeholder="Tipo de Documento (ej: KYC, Identificación)" value="${(data.descripcion || '').replace(/"/g, '&quot;')}" ${readonlyAttr}>
         </div>
         <div class="col-md-5">
             ${fileInput}
         </div>
         <div class="col-md-2">
-            <input type="date" class="form-control" name="doc_vencimiento[]" value="${data.fecha_vencimiento || ''}">
+            <input type="date" class="form-control" name="doc_vencimiento[]" value="${data.fecha_vencimiento || ''}" placeholder="Vencimiento">
         </div>
         <div class="col-md-1 text-end">
             <button type="button" class="btn btn-danger" onclick="this.closest('.dynamic-list-item').remove()">
@@ -500,6 +525,81 @@ document.addEventListener('DOMContentLoaded', function() {
     });
 });
 
+// ============================================
+// BENEFICIARIO CONTROLADOR (VAL-PLD-007)
+// ============================================
+
+let _beneficiarioFormIndex = 0;
+
+function addBeneficiarioItem(data = {}) {
+    const list = document.getElementById('beneficiarios-controladores-list');
+    if (!list) return;
+    
+    _beneficiarioFormIndex += 1;
+    const index = _beneficiarioFormIndex;
+
+    const item = document.createElement('div');
+    item.className = 'border p-3 rounded mb-3 bg-light';
+    
+    const tipoPersonaSelected = data.tipo_persona || '';
+    const tipoPersonaOptions = `
+        <option value="">-- Seleccione --</option>
+        <option value="fisica" ${tipoPersonaSelected === 'fisica' ? 'selected' : ''}>Persona Física</option>
+        <option value="moral" ${tipoPersonaSelected === 'moral' ? 'selected' : ''}>Persona Moral</option>
+    `;
+    
+    item.innerHTML = `
+        <div class="d-flex justify-content-between align-items-center mb-2">
+            <h6 class="mb-0"><i class="fa-solid fa-user-tie me-2"></i>Beneficiario Controlador</h6>
+            <button type="button" class="btn btn-sm btn-danger" onclick="this.closest('.border').remove()">
+                <i class="fa-solid fa-trash"></i>
+            </button>
+        </div>
+        
+        <div class="row">
+            <div class="col-md-6 mb-3">
+                <label class="form-label small">Tipo de Persona *</label>
+                <select class="form-select" name="beneficiario[${index}][tipo_persona]" required>
+                    ${tipoPersonaOptions}
+                </select>
+            </div>
+            <div class="col-md-6 mb-3">
+                <label class="form-label small">Nombre Completo *</label>
+                <input type="text" class="form-control" name="beneficiario[${index}][nombre_completo]" 
+                       value="${(data.nombre_completo || '').replace(/"/g, '&quot;')}" required>
+            </div>
+            <div class="col-md-6 mb-3">
+                <label class="form-label small">RFC</label>
+                <input type="text" class="form-control" name="beneficiario[${index}][rfc]" 
+                       value="${(data.rfc || '').replace(/"/g, '&quot;')}" maxlength="13">
+            </div>
+            <div class="col-md-6 mb-3">
+                <label class="form-label small">Porcentaje de Participación (%)</label>
+                <input type="number" class="form-control" name="beneficiario[${index}][porcentaje_participacion]" 
+                       value="${data.porcentaje_participacion || ''}" min="0" max="100" step="0.01">
+            </div>
+            <div class="col-md-6 mb-3">
+                <label class="form-label small">Documento de Identificación</label>
+                <input type="file" class="form-control" name="beneficiario[${index}][documento_identificacion]" 
+                       accept=".pdf,.jpg,.jpeg,.png">
+                <small class="text-muted">Requerido para persona moral</small>
+                ${data.documento_identificacion ? `<div class="mt-1"><a href="${data.documento_identificacion.replace('../', '')}" target="_blank" class="btn btn-sm btn-outline-primary"><i class="fa-solid fa-eye me-1"></i>Ver actual</a></div>` : ''}
+            </div>
+            <div class="col-md-6 mb-3">
+                <label class="form-label small">Declaración Jurada</label>
+                <input type="file" class="form-control" name="beneficiario[${index}][declaracion_jurada]" 
+                       accept=".pdf,.jpg,.jpeg,.png">
+                <small class="text-muted">Requerido para persona física</small>
+                ${data.declaracion_jurada ? `<div class="mt-1"><a href="${data.declaracion_jurada.replace('../', '')}" target="_blank" class="btn btn-sm btn-outline-primary"><i class="fa-solid fa-eye me-1"></i>Ver actual</a></div>` : ''}
+            </div>
+        </div>
+        ${data.id_beneficiario ? `<input type="hidden" name="beneficiario[${index}][id_beneficiario]" value="${data.id_beneficiario}">` : ''}
+    `;
+    
+    list.appendChild(item);
+}
+
 // Make functions available globally for inline handlers
 window.addApoderadoContactoItem = addApoderadoContactoItem;
 window.toggleApoderadoType = toggleApoderadoType;
+window.addBeneficiarioItem = addBeneficiarioItem;

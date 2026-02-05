@@ -17,13 +17,13 @@ function loadClients() {
             if (!Array.isArray(data)) {
                 console.error("Data received is not an array:", data);
                 if (data.status === 'error' || data.error) {
-                    tbody.innerHTML = '<tr><td colspan="7" class="text-center text-danger">Error: ' + (data.message || data.error) + '</td></tr>';
+                    tbody.innerHTML = '<tr><td colspan="8" class="text-center text-danger">Error: ' + (data.message || data.error) + '</td></tr>';
                 }
                 return;
             }
 
             if (data.length === 0) {
-                tbody.innerHTML = '<tr><td colspan="7" class="text-center py-4 text-muted">No hay clientes registrados.</td></tr>';
+                tbody.innerHTML = '<tr><td colspan="8" class="text-center py-4 text-muted">No hay clientes registrados.</td></tr>';
                 return;
             }
             
@@ -42,6 +42,28 @@ function loadClients() {
                 if (client.status_nombre === 'Inactivo') statusClass = 'status-inactive';
                 else if (client.status_nombre === 'Pendiente') statusClass = 'status-pending';
 
+                // Expediente PLD Badge Logic (VAL-PLD-005)
+                let expedienteBadge = '<span class="badge bg-secondary" title="Estado no verificado"><i class="fa-solid fa-question me-1"></i>No verificado</span>';
+                if (client.identificacion_incompleta === 1 || client.identificacion_incompleta === '1') {
+                    expedienteBadge = '<span class="badge bg-danger" title="Expediente incompleto - Bloquea operaciones PLD"><i class="fa-solid fa-times-circle me-1"></i>Incompleto</span>';
+                } else if (client.expediente_completo === 1 || client.expediente_completo === '1') {
+                    // Verificar si está vencido (VAL-PLD-006)
+                    let fechaActualizacion = client.fecha_ultima_actualizacion_expediente;
+                    if (fechaActualizacion) {
+                        const fecha = new Date(fechaActualizacion);
+                        const hoy = new Date();
+                        const diffTime = Math.abs(hoy - fecha);
+                        const diffDays = Math.ceil(diffTime / (1000 * 60 * 60 * 24));
+                        if (diffDays > 365) {
+                            expedienteBadge = '<span class="badge bg-warning text-dark" title="Expediente vencido - Requiere actualización"><i class="fa-solid fa-exclamation-triangle me-1"></i>Vencido</span>';
+                        } else {
+                            expedienteBadge = '<span class="badge bg-success" title="Expediente completo y actualizado"><i class="fa-solid fa-check-circle me-1"></i>Completo</span>';
+                        }
+                    } else {
+                        expedienteBadge = '<span class="badge bg-success" title="Expediente completo"><i class="fa-solid fa-check-circle me-1"></i>Completo</span>';
+                    }
+                }
+
                 const row = `
                     <tr>
                         <td class="ps-4 fw-bold text-primary">${client.no_contrato || 'S/N'}</td>
@@ -52,6 +74,7 @@ function loadClients() {
                         <td>${riskBadge}</td>
                         <td><span class="badge bg-light text-dark border">${client.rfc || 'N/A'}</span></td>
                         <td>${client.fecha_apertura || '-'}</td>
+                        <td>${expedienteBadge}</td>
                         <td><span class="${statusClass}">${client.status_nombre || 'Activo'}</span></td>
                         <td class="text-end pe-4">
                             <div class="action-buttons">
@@ -70,7 +93,7 @@ function loadClients() {
         })
         .catch(err => {
             console.error(err);
-            tbody.innerHTML = '<tr><td colspan="7" class="text-center text-danger">Error al cargar clientes.</td></tr>';
+            tbody.innerHTML = '<tr><td colspan="8" class="text-center text-danger">Error al cargar clientes.</td></tr>';
         });
 }
 

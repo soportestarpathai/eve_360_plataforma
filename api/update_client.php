@@ -4,6 +4,8 @@ require_once '../config/db.php'; // Change 1: Removed require bitacora/risk to c
 require_once '../config/bitacora.php'; 
 require_once '../config/risk_engine.php';
 require_once '../config/pld_middleware.php'; // VAL-PLD-001: Bloqueo de operaciones PLD
+require_once '../config/pld_expediente.php'; // VAL-PLD-005, VAL-PLD-006: Validación de expediente
+require_once '../config/pld_beneficiario_controlador.php'; // VAL-PLD-007: Beneficiario Controlador
 header('Content-Type: application/json');
 
 if (!isset($_SESSION['user_id'])) {
@@ -26,6 +28,9 @@ if (!$id_cliente) {
 
 // Start Transaction
 $pdo->beginTransaction();
+
+/** Archivos subidos en esta petición; si hay rollback se eliminan para no dejar huérfanos */
+$uploaded_files_this_request = [];
 
 try {
     // Helper function (Ensure this exists or is included)
@@ -226,10 +231,11 @@ try {
                 $tmpName = $_FILES['doc_file']['tmp_name'][$key];
                 $extension = pathinfo($_FILES['doc_file']['name'][$key], PATHINFO_EXTENSION);
                 // Sanitize filename
-                $cleanName = preg_replace('/[^a-zA-Z0-9_-]/', '', $tipo) . '_' . time() . '.' . $extension;
+                $cleanName = preg_replace('/[^a-zA-Z0-9_-]/', '', $tipo) . '_' . time() . '_' . bin2hex(random_bytes(4)) . '.' . $extension;
                 $targetPath = $uploadDir . $cleanName;
                 
                 if (move_uploaded_file($tmpName, $targetPath)) {
+                    $uploaded_files_this_request[] = $targetPath;
                     $rutaToSave = $targetPath; // Use NEW path
                 }
             } 
@@ -297,15 +303,135 @@ try {
         }
     }
 
-    // If all successful, commit
-    $pdo->commit();
-    
-    // Recalculate Risk
+    // Recalculate Risk (still inside transaction)
     calculateClientRisk($pdo, $id_cliente);
+    
+    // --- VAL-PLD-005 y VAL-PLD-006: Validar expediente y actualizar fecha ---
+    validateExpedienteCompleto($pdo, $id_cliente); // Actualiza flags
+    actualizarFechaExpediente($pdo, $id_cliente); // Actualiza fecha de última actualización (VAL-PLD-006)
+    // -------------------------------------------------------------------------
+
+    // --- VAL-PLD-005/006: Bloquear actualización si expediente incompleto o vencido ---
+    requireExpedienteCompleto($pdo, $id_cliente, false);
+    // ---------------------------------------------------------------------------------
+
+    // --- VAL-PLD-007: Procesar Beneficiarios Controladores ---
+    if (isset($data['beneficiario']) && is_array($data['beneficiario'])) {
+        $uploadDir = __DIR__ . '/../uploads/beneficiarios/' . $id_cliente . '/';
+        if (!is_dir($uploadDir)) {
+            if (!@mkdir($uploadDir, 0755, true)) {
+                throw new Exception('No se pudo crear el directorio para documentos de beneficiarios. Compruebe permisos en uploads/beneficiarios.');
+            }
+        }
+
+        // Obtener beneficiarios existentes para mantener los que no se están editando
+        $stmt_existing = $pdo->prepare("SELECT id_beneficiario FROM clientes_beneficiario_controlador WHERE id_cliente = ? AND id_status = 1");
+        $stmt_existing->execute([$id_cliente]);
+        $existing_ids = $stmt_existing->fetchAll(PDO::FETCH_COLUMN);
+        $submitted_ids = [];
+        
+        foreach ($data['beneficiario'] as $key => $benefData) {
+            $id_beneficiario = $benefData['id_beneficiario'] ?? null;
+            $tipo_persona = $benefData['tipo_persona'] ?? null;
+            $nombre_completo = $benefData['nombre_completo'] ?? null;
+            $rfc = $benefData['rfc'] ?? null;
+            $porcentaje_participacion = $benefData['porcentaje_participacion'] ?? null;
+            
+            if (!$tipo_persona || !$nombre_completo) {
+                continue; // Skip invalid entries
+            }
+            
+            if ($id_beneficiario) {
+                $submitted_ids[] = $id_beneficiario;
+            }
+            
+            // Handle file uploads
+            $documento_identificacion = null;
+            $declaracion_jurada = null;
+            
+            // Obtener rutas existentes si hay id_beneficiario
+            if ($id_beneficiario) {
+                $stmt_old = $pdo->prepare("SELECT documento_identificacion, declaracion_jurada FROM clientes_beneficiario_controlador WHERE id_beneficiario = ?");
+                $stmt_old->execute([$id_beneficiario]);
+                $old_data = $stmt_old->fetch(PDO::FETCH_ASSOC);
+                if ($old_data) {
+                    $documento_identificacion = $old_data['documento_identificacion'];
+                    $declaracion_jurada = $old_data['declaracion_jurada'];
+                }
+            }
+            
+            // Process documento_identificacion file (incluir $key para evitar sobrescritura entre beneficiarios)
+            if (isset($_FILES['beneficiario']['name'][$key]['documento_identificacion']) && 
+                $_FILES['beneficiario']['error'][$key]['documento_identificacion'] === UPLOAD_ERR_OK) {
+                $tmpName = $_FILES['beneficiario']['tmp_name'][$key]['documento_identificacion'];
+                $baseName = basename($_FILES['beneficiario']['name'][$key]['documento_identificacion']);
+                $fileName = time() . '_' . $key . '_' . bin2hex(random_bytes(4)) . '_' . $baseName;
+                $filePath = $uploadDir . $fileName;
+                if (move_uploaded_file($tmpName, $filePath)) {
+                    $uploaded_files_this_request[] = $filePath;
+                    $documento_identificacion = '../uploads/beneficiarios/' . $id_cliente . '/' . $fileName;
+                }
+            }
+            
+            // Process declaracion_jurada file (incluir $key para evitar sobrescritura entre beneficiarios)
+            if (isset($_FILES['beneficiario']['name'][$key]['declaracion_jurada']) && 
+                $_FILES['beneficiario']['error'][$key]['declaracion_jurada'] === UPLOAD_ERR_OK) {
+                $tmpName = $_FILES['beneficiario']['tmp_name'][$key]['declaracion_jurada'];
+                $baseName = basename($_FILES['beneficiario']['name'][$key]['declaracion_jurada']);
+                $fileName = time() . '_' . $key . '_' . bin2hex(random_bytes(4)) . '_' . $baseName;
+                $filePath = $uploadDir . $fileName;
+                if (move_uploaded_file($tmpName, $filePath)) {
+                    $uploaded_files_this_request[] = $filePath;
+                    $declaracion_jurada = '../uploads/beneficiarios/' . $id_cliente . '/' . $fileName;
+                }
+            }
+            
+            $benefPayload = [
+                'id_cliente' => $id_cliente,
+                'tipo_persona' => $tipo_persona,
+                'nombre_completo' => $nombre_completo,
+                'rfc' => $rfc,
+                'porcentaje_participacion' => $porcentaje_participacion,
+                'documento_identificacion' => $documento_identificacion,
+                'declaracion_jurada' => $declaracion_jurada
+            ];
+            
+            if ($id_beneficiario) {
+                $benefPayload['id_beneficiario'] = $id_beneficiario;
+            }
+            
+            $result = registrarBeneficiarioControlador($pdo, $benefPayload);
+            if (empty($result['success'])) {
+                throw new Exception($result['message'] ?? 'Error al registrar beneficiario controlador');
+            }
+            // Nuevos beneficiarios: añadir el ID devuelto a submitted_ids para que no se desactiven después
+            if (empty($id_beneficiario) && !empty($result['id_beneficiario'])) {
+                $submitted_ids[] = (int) $result['id_beneficiario'];
+            }
+        }
+        
+        // Desactivar beneficiarios que no fueron incluidos en el formulario
+        $to_deactivate = array_diff($existing_ids, $submitted_ids);
+        if (!empty($to_deactivate)) {
+            $in_clause = str_repeat('?,', count($to_deactivate) - 1) . '?';
+            $stmt_deactivate = $pdo->prepare("UPDATE clientes_beneficiario_controlador SET id_status = 0 WHERE id_beneficiario IN ($in_clause)");
+            $stmt_deactivate->execute($to_deactivate);
+        }
+    }
+    // -------------------------------------------------------------------------
+
+    // If all successful (including beneficiarios and PLD), commit
+    $pdo->commit();
 
     echo json_encode(['status' => 'success', 'id_cliente' => $id_cliente]);
 
 } catch (Exception $e) {
+    // Eliminar archivos subidos en esta petición para no dejar huérfanos al hacer rollback
+    foreach ($uploaded_files_this_request as $path) {
+        if (is_file($path)) {
+            @unlink($path);
+        }
+    }
     $pdo->rollBack();
     echo json_encode(['status' => 'error', 'message' => $e->getMessage()]);
 }

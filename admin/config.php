@@ -20,7 +20,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
             if (in_array($fileExtension, $allowedfileExtensions)) {
                 $uploadFileDir = '../assets/img/';
                 if (!is_dir($uploadFileDir)) mkdir($uploadFileDir, 0755, true);
-                $newFileName = 'logo_company_' . time() . '.' . $fileExtension;
+                $newFileName = 'logo_company_' . time() . '_' . bin2hex(random_bytes(4)) . '.' . $fileExtension;
                 $dest_path = $uploadFileDir . $newFileName;
                 if (move_uploaded_file($fileTmpPath, $dest_path)) {
                     $logoPath = 'assets/img/' . $newFileName;

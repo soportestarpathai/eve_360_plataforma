@@ -1,6 +1,7 @@
 <?php
 session_start();
 require_once 'config/db.php';
+require_once 'config/pld_representacion_legal.php';
 
 // Verificar que el usuario esté autenticado
 if (!isset($_SESSION['user_id'])) {
@@ -125,7 +126,88 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
         $stmt->execute([$userId]);
         $user = $stmt->fetch(PDO::FETCH_ASSOC);
     }
+    
+    // Guardar Representación Legal (VAL-PLD-004)
+    if (isset($_POST['action']) && $_POST['action'] === 'save_representacion') {
+        try {
+            $tipo_representacion = $_POST['tipo_representacion'] ?? null;
+            $fecha_vencimiento = !empty($_POST['fecha_vencimiento']) ? $_POST['fecha_vencimiento'] : null;
+            
+            if (!$tipo_representacion) {
+                $error = 'Tipo de representación es requerido';
+            } else {
+                // Handle file upload
+                $documento_facultades = null;
+                if (isset($_FILES['documento_facultades']) && $_FILES['documento_facultades']['error'] === UPLOAD_ERR_OK) {
+                    $uploadDir = 'uploads/representacion_legal/';
+                    if (!file_exists($uploadDir)) {
+                        mkdir($uploadDir, 0755, true);
+                    }
+                    
+                    $extension = pathinfo($_FILES['documento_facultades']['name'], PATHINFO_EXTENSION);
+                    $cleanName = 'rep_' . $userId . '_' . time() . '_' . bin2hex(random_bytes(4)) . '.' . $extension;
+                    $targetPath = $uploadDir . $cleanName;
+                    
+                    if (move_uploaded_file($_FILES['documento_facultades']['tmp_name'], $targetPath)) {
+                        $documento_facultades = '../uploads/representacion_legal/' . $cleanName;
+                    } else {
+                        throw new Exception("Error al subir el archivo");
+                    }
+                } else {
+                    // Si no hay archivo nuevo, mantener el existente
+                    $id_representacion = $_POST['id_representacion'] ?? null;
+                    if ($id_representacion) {
+                        $stmt = $pdo->prepare("SELECT documento_facultades FROM usuarios_representacion_legal WHERE id_representacion = ? AND id_usuario = ?");
+                        $stmt->execute([$id_representacion, $userId]);
+                        $existente = $stmt->fetch(PDO::FETCH_ASSOC);
+                        if ($existente && !empty($existente['documento_facultades'])) {
+                            $documento_facultades = $existente['documento_facultades'];
+                        }
+                    }
+                }
+                
+                if (!$documento_facultades) {
+                    $error = 'Documento de facultades es requerido';
+                } else {
+                    $data = [
+                        'id_usuario' => $userId,
+                        'id_cliente' => null, // General para el usuario
+                        'tipo_representacion' => $tipo_representacion,
+                        'documento_facultades' => $documento_facultades,
+                        'fecha_vencimiento' => $fecha_vencimiento
+                    ];
+                    
+                    if (!empty($_POST['id_representacion'])) {
+                        $data['id_representacion'] = $_POST['id_representacion'];
+                    }
+                    
+                    $result = registrarRepresentacionLegal($pdo, $data);
+                    
+                    if ($result['success']) {
+                        $success = 'Representación legal registrada correctamente';
+                    } else {
+                        $error = $result['message'];
+                    }
+                }
+            }
+        } catch (Exception $e) {
+            $error = 'Error al guardar representación legal: ' . $e->getMessage();
+        }
+    }
 }
+
+// Obtener representaciones legales del usuario
+$representaciones = [];
+try {
+    $stmt = $pdo->prepare("SELECT * FROM usuarios_representacion_legal WHERE id_usuario = ? AND id_status = 1 ORDER BY fecha_alta DESC");
+    $stmt->execute([$userId]);
+    $representaciones = $stmt->fetchAll(PDO::FETCH_ASSOC);
+} catch (Exception $e) {
+    $representaciones = [];
+}
+
+// Validar representación legal
+$validacionRepresentacion = validateRepresentacionLegal($pdo, $userId);
 
 // Obtener actividad reciente del usuario
 $recentActivity = [];
@@ -347,6 +429,82 @@ include 'templates/header.php';
                 </div>
             </div>
             
+            <!-- Representación Legal (VAL-PLD-004) -->
+            <div class="col-lg-6">
+                <div class="account-card">
+                    <div class="account-card-header">
+                        <h5 class="account-card-title">
+                            <i class="fa-solid fa-gavel me-2"></i>Representación Legal
+                            <small class="text-muted ms-2">(VAL-PLD-004)</small>
+                        </h5>
+                    </div>
+                    <div class="account-card-body">
+                        <?php if ($validacionRepresentacion['valido'] && !$validacionRepresentacion['bloqueado']): ?>
+                            <div class="alert alert-success mb-3">
+                                <i class="fa-solid fa-check-circle me-2"></i>
+                                <strong>Representación Legal Válida</strong>
+                                <p class="mb-0 small">Tienes representación legal documentada y vigente</p>
+                            </div>
+                        <?php else: ?>
+                            <div class="alert alert-danger mb-3">
+                                <i class="fa-solid fa-exclamation-triangle me-2"></i>
+                                <strong>Representación Legal Requerida</strong>
+                                <p class="mb-0 small"><?= htmlspecialchars($validacionRepresentacion['razon'] ?? 'Falta representación legal documentada') ?></p>
+                                <p class="mb-0 small text-danger"><strong>Esto puede bloquear operaciones PLD</strong></p>
+                            </div>
+                        <?php endif; ?>
+                        
+                        <div class="mb-3">
+                            <button type="button" class="btn btn-primary btn-sm w-100" data-bs-toggle="modal" data-bs-target="#representacionModal">
+                                <i class="fa-solid fa-plus me-2"></i>Agregar Representación Legal
+                            </button>
+                        </div>
+                        
+                        <?php if (!empty($representaciones)): ?>
+                            <div class="list-group">
+                                <?php foreach ($representaciones as $rep): 
+                                    $tieneDoc = !empty($rep['documento_facultades']) && file_exists($rep['documento_facultades']);
+                                    $vencido = !empty($rep['fecha_vencimiento']) && strtotime($rep['fecha_vencimiento']) < time();
+                                ?>
+                                    <div class="list-group-item">
+                                        <div class="d-flex justify-content-between align-items-start">
+                                            <div>
+                                                <h6 class="mb-1">
+                                                    <?= ucfirst(str_replace('_', ' ', $rep['tipo_representacion'])) ?>
+                                                    <?php if ($vencido): ?>
+                                                        <span class="badge bg-danger ms-2">Vencido</span>
+                                                    <?php elseif ($tieneDoc): ?>
+                                                        <span class="badge bg-success ms-2">Con documento</span>
+                                                    <?php else: ?>
+                                                        <span class="badge bg-warning ms-2">Sin documento</span>
+                                                    <?php endif; ?>
+                                                </h6>
+                                                <small class="text-muted">
+                                                    Fecha alta: <?= $rep['fecha_alta'] ? date('d/m/Y', strtotime($rep['fecha_alta'])) : 'N/A' ?>
+                                                    <?php if ($rep['fecha_vencimiento']): ?>
+                                                        <br>Vencimiento: <?= date('d/m/Y', strtotime($rep['fecha_vencimiento'])) ?>
+                                                    <?php endif; ?>
+                                                </small>
+                                            </div>
+                                            <?php if ($tieneDoc): ?>
+                                                <a href="<?= htmlspecialchars($rep['documento_facultades']) ?>" target="_blank" class="btn btn-sm btn-outline-primary">
+                                                    <i class="fa-solid fa-download"></i>
+                                                </a>
+                                            <?php endif; ?>
+                                        </div>
+                                    </div>
+                                <?php endforeach; ?>
+                            </div>
+                        <?php else: ?>
+                            <div class="text-center text-muted py-3">
+                                <i class="fa-solid fa-inbox fa-2x mb-2"></i>
+                                <p class="mb-0">No hay representaciones registradas</p>
+                            </div>
+                        <?php endif; ?>
+                    </div>
+                </div>
+            </div>
+            
             <!-- Actividad Reciente -->
             <div class="col-lg-6">
                 <div class="account-card">
@@ -389,6 +547,57 @@ include 'templates/header.php';
             </div>
         </div>
     </div>
+
+<!-- Modal para Representación Legal -->
+<div class="modal fade" id="representacionModal" tabindex="-1">
+    <div class="modal-dialog">
+        <div class="modal-content">
+            <div class="modal-header bg-primary text-white">
+                <h5 class="modal-title"><i class="fa-solid fa-gavel me-2"></i>Representación Legal</h5>
+                <button type="button" class="btn-close btn-close-white" data-bs-dismiss="modal"></button>
+            </div>
+            <form method="POST" enctype="multipart/form-data">
+                <div class="modal-body">
+                    <input type="hidden" name="action" value="save_representacion">
+                    <input type="hidden" name="id_representacion" id="id_representacion" value="">
+                    
+                    <div class="mb-3">
+                        <label class="form-label fw-bold">Tipo de Representación <span class="text-danger">*</span></label>
+                        <select class="form-select" name="tipo_representacion" id="tipo_representacion" required>
+                            <option value="">Seleccione...</option>
+                            <option value="representante_legal">Representante Legal</option>
+                            <option value="apoderado">Apoderado</option>
+                            <option value="usuario_autorizado">Usuario Autorizado</option>
+                        </select>
+                        <small class="text-muted">Seleccione el tipo de representación que tiene para actuar en nombre de la entidad</small>
+                    </div>
+                    
+                    <div class="mb-3">
+                        <label class="form-label fw-bold">Documento de Facultades <span class="text-danger">*</span></label>
+                        <input type="file" class="form-control" name="documento_facultades" id="documento_facultades" accept=".pdf,.jpg,.jpeg,.png">
+                        <small class="text-muted">Formatos permitidos: PDF, JPG, PNG. Debe ser el documento que acredita sus facultades</small>
+                        <div id="documento_actual" class="mt-2"></div>
+                    </div>
+                    
+                    <div class="mb-3">
+                        <label class="form-label fw-bold">Fecha de Vencimiento (Opcional)</label>
+                        <input type="date" class="form-control" name="fecha_vencimiento" id="fecha_vencimiento">
+                        <small class="text-muted">Si el documento tiene fecha de vencimiento</small>
+                    </div>
+                    
+                    <div class="alert alert-info">
+                        <i class="fa-solid fa-info-circle me-2"></i>
+                        <strong>Importante:</strong> La representación legal es requerida para realizar operaciones PLD. Sin ella, algunas operaciones pueden estar bloqueadas.
+                    </div>
+                </div>
+                <div class="modal-footer">
+                    <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Cancelar</button>
+                    <button type="submit" class="btn btn-primary">Guardar</button>
+                </div>
+            </form>
+        </div>
+    </div>
+</div>
 
 <script>
     // Validar que las contraseñas coincidan

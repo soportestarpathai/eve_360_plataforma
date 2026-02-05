@@ -16,6 +16,8 @@ try {
     require_once '../config/bitacora.php'; 
     require_once '../config/risk_engine.php'; // INCLUDE ENGINE
     require_once '../config/pld_middleware.php'; // VAL-PLD-001: Bloqueo de operaciones PLD
+    require_once '../config/pld_expediente.php'; // VAL-PLD-005, VAL-PLD-006: Validación de expediente
+    require_once '../config/pld_beneficiario_controlador.php'; // VAL-PLD-007: Beneficiario Controlador
 
     if (!isset($_SESSION['user_id'])) {
         ob_end_clean(); // Clear any output
@@ -81,6 +83,9 @@ try {
     ]);
     exit;
 }
+
+/** Archivos subidos en esta petición; si hay rollback se eliminan para no dejar huérfanos */
+$uploaded_files_this_request = [];
 
 try {
     // 1. INSERT into `clientes` (Main Table)
@@ -234,11 +239,12 @@ try {
                 $tmpName = $_FILES['doc_file']['tmp_name'][$key];
                 // Sanitizing filename to avoid issues
                 $extension = pathinfo($_FILES['doc_file']['name'][$key], PATHINFO_EXTENSION);
-                $cleanName = preg_replace('/[^a-zA-Z0-9_-]/', '', $tipo) . '_' . time() . '.' . $extension;
+                $cleanName = preg_replace('/[^a-zA-Z0-9_-]/', '', $tipo) . '_' . time() . '_' . bin2hex(random_bytes(4)) . '.' . $extension;
                 
                 $targetPath = $uploadDir . $cleanName;
                 
                 if (move_uploaded_file($tmpName, $targetPath)) {
+                    $uploaded_files_this_request[] = $targetPath;
                     $rutaDB = $targetPath; // Save the path
                 }
             }
@@ -299,23 +305,31 @@ try {
     }
     // --- END NEW ---
 
-    // If all inserts were successful, commit the transaction
-    $pdo->commit();
-
-    // --- NEW: Calculate Initial Risk ---
+    // Calcular riesgo, responsable PLD y expediente DENTRO de la transacción
     calculateClientRisk($pdo, $id_cliente);
-    // -----------------------------------
 
-    // --- VAL-PLD-003: Validar y actualizar flag RESTRICCION_USUARIO ---
     require_once '../config/pld_responsable_validation.php';
     validateAndUpdateResponsablePLD($pdo, $id_cliente);
-    // -------------------------------------------------------------------
+
+    validateExpedienteCompleto($pdo, $id_cliente);
+    actualizarFechaExpediente($pdo, $id_cliente);
+
+    // VAL-PLD-005/006: Bloquear guardado si expediente incompleto o vencido (mismo criterio que confirm_pld_selection)
+    requireExpedienteCompleto($pdo, $id_cliente, false);
+
+    // Si todo fue correcto (incluyendo validaciones), confirmar la transacción
+    $pdo->commit();
 
     echo json_encode(['status' => 'success', 'id_cliente' => $id_cliente]);
     exit;
 
 } catch (PDOException $e) {
-    // If any database operation fails, roll back the entire operation
+    // Eliminar archivos subidos en esta petición para no dejar huérfanos al hacer rollback
+    foreach ($uploaded_files_this_request as $path) {
+        if (is_file($path)) {
+            @unlink($path);
+        }
+    }
     if ($pdo->inTransaction()) {
         $pdo->rollBack();
     }
@@ -329,7 +343,11 @@ try {
     error_log('PDO Error in save_client.php: ' . $e->getMessage() . ' in ' . $e->getFile() . ':' . $e->getLine());
     exit;
 } catch (Exception $e) {
-    // If any other error occurs, roll back the entire operation
+    foreach ($uploaded_files_this_request as $path) {
+        if (is_file($path)) {
+            @unlink($path);
+        }
+    }
     if ($pdo->inTransaction()) {
         $pdo->rollBack();
     }
@@ -343,7 +361,11 @@ try {
     error_log('Error in save_client.php: ' . $e->getMessage() . ' in ' . $e->getFile() . ':' . $e->getLine());
     exit;
 } catch (Error $e) {
-    // Catch fatal errors in PHP 7+
+    foreach ($uploaded_files_this_request as $path) {
+        if (is_file($path)) {
+            @unlink($path);
+        }
+    }
     if ($pdo->inTransaction()) {
         $pdo->rollBack();
     }

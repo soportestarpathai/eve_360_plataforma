@@ -1,4 +1,7 @@
 <?php 
+// Inicializar conexión a la base de datos primero
+require_once __DIR__ . '/config/db.php';
+
 $id_cliente = $_GET['id'] ?? 0;
 if (!$id_cliente) {
     die("ID de cliente no válido.");
@@ -285,6 +288,22 @@ include 'templates/header.php';
                 <div id="documentos-list"></div>
                 <button type="button" class="btn btn-sm btn-outline-success" id="addDocumento">
                     <i class="fa-solid fa-plus me-2"></i>Agregar Documento
+                </button>
+            </div>
+
+            <!-- SECTION 5: Beneficiario Controlador (VAL-PLD-007) -->
+            <div class="form-section" id="beneficiario-controlador-section" style="display: none;">
+                <div class="section-title">
+                    <i class="fa-solid fa-users me-2"></i>
+                    Beneficiario Controlador (VAL-PLD-007 / VAL-PLD-015)
+                </div>
+                <div class="alert alert-info">
+                    <i class="fa-solid fa-info-circle me-2"></i>
+                    <small>Obligatorio para Personas Morales y Fideicomisos. Permite identificar a los beneficiarios controladores del cliente.</small>
+                </div>
+                <div id="beneficiarios-controladores-list"></div>
+                <button type="button" class="btn btn-sm btn-outline-primary" id="addBeneficiario" onclick="addBeneficiarioItem()">
+                    <i class="fa-solid fa-plus me-2"></i>Agregar Beneficiario Controlador
                 </button>
             </div>
             

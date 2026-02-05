@@ -22,6 +22,9 @@ try {
             c.fecha_apertura,
             c.nivel_riesgo,
             c.id_status,
+            c.identificacion_incompleta,
+            c.expediente_completo,
+            c.fecha_ultima_actualizacion_expediente,
             COALESCE(s.nombre, 'Desconocido') AS status_nombre,
             
             -- Client Name Logic
