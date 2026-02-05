@@ -15,9 +15,10 @@ if (!function_exists('validatePatronPLD')) {
      * Valida el padrón PLD del sujeto obligado
      * 
      * @param PDO $pdo Conexión a la base de datos
+     * @param string|null $fraccionRequerida Si se indica (ej: 'XIII' para Donativos), valida además que esa fracción esté activa
      * @return array Resultado de la validación
      */
-    function validatePatronPLD($pdo) {
+    function validatePatronPLD($pdo, $fraccionRequerida = null) {
         try {
             // Obtener configuración del sujeto obligado
             $stmt = $pdo->query("SELECT * FROM config_empresa WHERE id_config = 1");
@@ -88,6 +89,33 @@ if (!function_exists('validatePatronPLD')) {
                         'fracciones' => []
                     ]
                 ];
+            }
+            
+            // Validación opcional: fracción específica activa (ej. Fracción XIII para Donativos)
+            if ($fraccionRequerida !== null && $fraccionRequerida !== '') {
+                $fraccionNormalizada = strtoupper(trim($fraccionRequerida));
+                $tieneFraccion = false;
+                foreach ($fraccionesArray as $f) {
+                    if (strtoupper(trim((string) $f)) === $fraccionNormalizada) {
+                        $tieneFraccion = true;
+                        break;
+                    }
+                }
+                if (!$tieneFraccion) {
+                    return [
+                        'habilitado' => false,
+                        'estatus' => 'NO_HABILITADO_PLD',
+                        'razon' => 'La fracción ' . $fraccionRequerida . ' no está activa en el padrón PLD',
+                        'detalles' => [
+                            'folio_registrado' => true,
+                            'estatus_vigente' => true,
+                            'fracciones_activas' => true,
+                            'fraccion_requerida' => $fraccionRequerida,
+                            'fraccion_activa' => false,
+                            'fracciones' => $fraccionesArray
+                        ]
+                    ];
+                }
             }
             
             // Todas las validaciones pasaron
