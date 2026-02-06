@@ -1,0 +1,207 @@
+================================================================================
+  BUGS REGISTRADOS Y PROBLEMAS CONOCIDOS — PLATAFORMA EVE360
+================================================================================
+Fecha de referencia: Febrero 2025
+Este documento consolida bugs corregidos, potenciales y deficiencias conocidas.
+
+================================================================================
+1. BUGS CORREGIDOS (HISTÓRICO)
+================================================================================
+
+--------------------------------------------------------------------------------
+[B001] Off-by-one en vigencia de capacitación REC (pld_responsable_validation.php)
+--------------------------------------------------------------------------------
+Descripción: La validación usaba $hoy > $vigencia, dejando la capacitación
+             vigente el día exacto de expiración.
+Corrección:  Cambiar a $hoy >= $vigencia para que vence el mismo día (cumplimiento).
+Estado:      CORREGIDO
+
+--------------------------------------------------------------------------------
+[B002] Inconsistencia validación vs. registro de capacitación (migración no ejecutada)
+--------------------------------------------------------------------------------
+Descripción: validateResponsablePLD() retornaba capacitacion_vigente=true cuando
+             las columnas fecha_ultima_capacitacion/vigencia_capacitacion no
+             existían (antes de migración), mientras registrarCapacitacionRec()
+             devolvía error. Comportamiento indefinido.
+Corrección:  Añadir verificación de existencia de columnas en validateResponsablePLD()
+             vía INFORMATION_SCHEMA; si no existen → restricción con mensaje
+             "Ejecute la migración add_obligaciones_ley_rcg.sql".
+Estado:      CORREGIDO
+
+--------------------------------------------------------------------------------
+[B003] registrarCapacitacionRec() devolvía success sin verificar filas afectadas
+--------------------------------------------------------------------------------
+Descripción: Tras UPDATE, no se comprobaba rowCount(). Si id_responsable_pld
+             era inválido, se retornaba success=true aunque no se actualizó nada.
+Corrección:  Verificar $stmt->rowCount() === 0 y devolver success=false con
+             mensaje "No existe el responsable PLD con el ID indicado".
+Estado:      CORREGIDO
+
+--------------------------------------------------------------------------------
+[B004] SQL syntax en validate_person.php (backticks)
+--------------------------------------------------------------------------------
+Descripción: Tabla/columna en INSERT sin backticks provocaba errores de sintaxis SQL.
+Corrección:  Añadir backticks alrededor de nombres de tabla y columnas.
+Estado:      CORREGIDO (según comentario en código)
+
+================================================================================
+2. BUGS POTENCIALES / A VERIFICAR
+================================================================================
+
+--------------------------------------------------------------------------------
+[B005] Migración add_obligaciones_ley_rcg.sql — Sintaxis SET con subconsulta
+--------------------------------------------------------------------------------
+Archivo:     db/migrations/add_obligaciones_ley_rcg.sql
+Descripción: Uso de SET @var = ( SELECT ... ) puede fallar en algunas versiones
+             de MySQL/MariaDB (sintaxis de subconsulta en asignación).
+Riesgo:      Medio. En MySQL 5.7+ y 8.0 suele funcionar.
+Alternativa: Usar "SELECT COUNT(*) INTO @col_cap FROM ..." si hay error.
+Estado:      A VERIFICAR en entorno objetivo
+
+--------------------------------------------------------------------------------
+[B006] error_log en producción
+--------------------------------------------------------------------------------
+Archivos:    config/pld_*.php, api/validate_person.php
+Descripción: Múltiples error_log() que exponen mensajes de excepción; en producción
+             podrían revelar información sensible (rutas, estructura BD).
+Riesgo:      Bajo a medio según configuración de logging.
+Sugerencia:  Revisar nivel de log; considerar mensajes genéricos al usuario.
+
+--------------------------------------------------------------------------------
+[B007] VAL-PLD-025 — Triggers de riesgo sancionable no centralizados
+--------------------------------------------------------------------------------
+Archivo:     config/pld_avisos.php, config_empresa
+Descripción: Los flags aviso_requerido, aviso_24h, incumplimiento_pld,
+             riesgo_sancion_administrativa existen pero los triggers que los
+             activan no están centralizados en el flujo de avisos/operaciones.
+Riesgo:      Puede no marcarse riesgo_sancion_administrativa ante omisión de
+             aviso, aviso extemporáneo, etc.
+Estado:      DEFICIENCIA CONOCIDA (ver docs FRACCION_V_VAL_PLD_UBICACION)
+
+================================================================================
+3. DEFICIENCIAS FUNCIONALES (NO IMPLEMENTADO)
+================================================================================
+
+--------------------------------------------------------------------------------
+[D001] VAL-PLD-023 — Aviso modificatorio (30 días)
+--------------------------------------------------------------------------------
+Falta:       Control en avisos_pld de "modificado" y validación de plazo 30 días
+             desde el acuse del aviso original.
+Impacto:     No se puede validar modificación dentro de plazo reglamentario.
+
+--------------------------------------------------------------------------------
+[D002] VAL-PLD-020 — Registro BC en sistemas externos
+--------------------------------------------------------------------------------
+Falta:       Campo o tabla de "registro externo realizado" y validación en flujo
+             de Beneficiario Controlador.
+Impacto:     No hay trazabilidad de registro en sistemas oficiales.
+
+--------------------------------------------------------------------------------
+[D003] VAL-PLD-016 — Excepción primera venta con sistema financiero
+--------------------------------------------------------------------------------
+Falta:       Lógica para validar primera venta + recursos de banca de desarrollo/
+             organismos públicos/sistema financiero → AVISO_NO_REQUERIDO.
+Impacto:     Se podría exigir aviso cuando la ley permite excepción (Fracción V).
+
+--------------------------------------------------------------------------------
+[D004] Expediente — Checklist por Anexo
+--------------------------------------------------------------------------------
+Falta:       Validación explícita en validateExpedienteCompleto() por Anexo
+             (3, 4, 4 Bis, 5, 6, etc.) según id_tipo_persona y nacionalidad.
+Impacto:     Posible expediente incompleto según normativa específica.
+
+--------------------------------------------------------------------------------
+[D005] Campos cotejado_contra_original sin uso en UI
+--------------------------------------------------------------------------------
+Falta:       Pantalla de documentos no permite marcar "cotejado contra original"
+             ni fecha de cotejo (campos existen en clientes_documentos).
+Impacto:     No se cumple trazabilidad del Art. 12 RCG en interfaz.
+
+--------------------------------------------------------------------------------
+[D006] Pantalla Admin para capacitación REC
+--------------------------------------------------------------------------------
+Falta:       Pantalla en Admin para registrar capacitación (fecha, evidencia)
+             usando registrarCapacitacionRec().
+Impacto:       Solo se puede registrar vía código/API; no hay flujo de usuario.
+
+--------------------------------------------------------------------------------
+[D007] clasificacion_bajo_riesgo sin lógica de expediente simplificado
+--------------------------------------------------------------------------------
+Falta:       Uso de clientes.clasificacion_bajo_riesgo en reglas de expediente
+             simplificado (Anexos 7/7-A/7 Bis) y migración a expediente completo.
+Impacto:     Clientes de bajo riesgo no pueden usar medidas simplificadas.
+
+--------------------------------------------------------------------------------
+[D008] Documento Art. 37 (políticas PLD) no versionado
+--------------------------------------------------------------------------------
+Falta:       Módulo de documento Art. 37 versionado y registro de "puesto a
+             disposición a UIF/SAT".
+Impacto:     No hay trazabilidad de criterios, medidas y procedimientos.
+
+--------------------------------------------------------------------------------
+[D009] Sin flujo explícito de solicitud de baja al padrón
+--------------------------------------------------------------------------------
+Falta:       Pantalla/flujo de "Solicitud de baja al padrón" con aviso de
+             obligación de seguir presentando avisos hasta que surta efecto.
+Impacto:     Riesgo de desconocer obligaciones al solicitar baja.
+
+--------------------------------------------------------------------------------
+[D010] Sin modelo de "actualización por SAT" (RCG Art. 7 y 8)
+--------------------------------------------------------------------------------
+Falta:       Registro de actualización realizada por SAT (fecha, motivo) y
+             alerta de plazo 10 días para notificación.
+Impacto:     Cumplimiento parcial de RCG.
+
+================================================================================
+4. PROBLEMAS DE CÓDIGO / ARQUITECTURA
+================================================================================
+
+--------------------------------------------------------------------------------
+[P001] Confidencialidad PLD (Art. 38) no modelada
+--------------------------------------------------------------------------------
+No hay módulo "manejo de información reservada"; control de acceso por sesión
+genérico; no etiquetado "confidencial PLD".
+
+--------------------------------------------------------------------------------
+[P002] validate_person.php — Consulta PLD con expediente incompleto
+--------------------------------------------------------------------------------
+En validate_person.php se registra ADVERTENCIA en log cuando el expediente está
+incompleto o vencido, pero "no bloqueamos la consulta". Si la política interna
+exige bloquear, esto sería una brecha.
+
+--------------------------------------------------------------------------------
+[P003] Conservación física no soportada
+--------------------------------------------------------------------------------
+Solo conservación digital; no hay indicador "expediente conservado en físico"
+para clientes que cumplan Art. 12 (archivo físico único).
+
+--------------------------------------------------------------------------------
+[P004] Intercambio de información (Art. 35 RCG)
+--------------------------------------------------------------------------------
+No existe módulo para registro de intercambios con otros sujetos obligados.
+
+================================================================================
+5. RESUMEN POR PRIORIDAD
+================================================================================
+
+ALTA (corregir o implementar pronto):
+  - B005: Verificar migración add_obligaciones_ley_rcg en entorno
+  - D006: Pantalla Admin capacitación REC
+  - D004: Checklist expediente por Anexo
+  - D008: Documento Art. 37 versionado
+
+MEDIA:
+  - B007: Centralizar triggers VAL-PLD-025
+  - D001: VAL-PLD-023 aviso modificatorio
+  - D005: UI para cotejo contra original
+  - D007: Lógica expediente simplificado (bajo riesgo)
+
+BAJA:
+  - B006: Revisar error_log en producción
+  - D002, D003: VAL-PLD-020, VAL-PLD-016
+  - D009, D010: Flujo baja padrón, actualización SAT
+  - P001 a P004: Mejoras de arquitectura
+
+================================================================================
+  FIN DEL DOCUMENTO
+================================================================================

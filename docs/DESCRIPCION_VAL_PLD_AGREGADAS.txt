@@ -1,0 +1,350 @@
+================================================================================
+  DESCRIPCIÓN DE VAL-PLD AGREGADAS EN LA PLATAFORMA EVE360
+================================================================================
+Fuente: LFPIORPI, Reglamento, RCG, documento OBLIGACIONES articulos LEY Reglamento
+        y reglas EVE360.
+Fecha de referencia: Febrero 2025
+
+================================================================================
+1. ÍNDICE DE VAL-PLD POR CÓDIGO
+================================================================================
+
+VAL-PLD-001  Validación de Alta en el Padrón PLD
+VAL-PLD-002  Revalidación Periódica de Alta (trimestral)
+VAL-PLD-003  Designación de Responsable PLD (REC)
+VAL-PLD-004  Representación Legal del Usuario
+VAL-PLD-005  Integración de Expediente del Cliente/Usuario
+VAL-PLD-006  Actualización Anual del Expediente
+VAL-PLD-007  Identificación del Beneficiario Controlador
+VAL-PLD-008  Aviso por Umbral Individual
+VAL-PLD-009  Aviso por Acumulación (6 meses)
+VAL-PLD-010  Aviso por Operación Sospechosa (24 h)
+VAL-PLD-011  Aviso por Listas Restringidas
+VAL-PLD-012  Informe de No Operaciones
+VAL-PLD-013  Conservación de Información (10 años)
+VAL-PLD-014  Atención a Visitas de Verificación
+VAL-PLD-015  Identificación y Registro del Beneficiario Controlador
+VAL-PLD-016  Excepción Primera Venta con Sistema Financiero
+VAL-PLD-018  Atención a Visitas (Refuerzo)
+VAL-PLD-019  Atención a Requerimientos de Autoridad (BC)
+VAL-PLD-020  Registro de BC en Sistemas Externos
+VAL-PLD-022  Aviso por Acumulación Inmobiliaria
+VAL-PLD-023  Aviso Modificatorio (30 días del acuse)
+VAL-PLD-025  Detección de Riesgo Sancionable
+VAL-PLD-026  Negativa de Identificación del Cliente/Usuario
+VAL-PLD-027  Prohibición de Operaciones en Efectivo o Metales Preciosos
+VAL-PLD-028  Detección de Riesgo Sancionable (fracción específica)
+
+================================================================================
+2. DETALLE POR VAL-PLD
+================================================================================
+
+--------------------------------------------------------------------------------
+VAL-PLD-001 — Validación de Alta en el Padrón PLD
+--------------------------------------------------------------------------------
+Descripción: Verificar que la empresa esté registrada en el SPPLD con la
+             fracción requerida activa (V, V Bis, VI, XIII según aplique).
+Archivo:     config/pld_validation.php → validatePatronPLD($pdo, $fraccionRequerida)
+Fracciones:  - Fracción V:     config/pld_fraccion_v.php → requireFraccionVActiva()
+             - Fracción V Bis: config/pld_fraccion_v_bis.php → requireFraccionVBisActiva()
+             - Fracción VI:    config/pld_fraccion_vi.php → requireFraccionVIActiva()
+             - Fracción XIII:  config/pld_fraccion_xiii.php → requireFraccionXIIIActiva()
+Uso:         admin/config.php, check_pld.php, cliente_nuevo.php, flujos de operación
+Resultado:   Falla → NO_HABILITADO_PLD; Baja → bloqueo operativo
+Migración:   add_pld_patron_fields*.sql, add_pld_validations_fields.sql
+
+--------------------------------------------------------------------------------
+VAL-PLD-002 — Revalidación Periódica de Alta (trimestral)
+--------------------------------------------------------------------------------
+Descripción: Revalidación trimestral del padrón; detección de cambios de
+             estatus o fracción por SAT.
+Archivo:     config/pld_revalidation.php → checkRevalidacionDue($pdo)
+             config/pld_validation.php → revalidatePatronPLD($pdo)
+Uso:         admin/config.php, api/revalidate_patron_pld.php
+Resultado:   Baja confirmada → bloqueo operativo
+
+--------------------------------------------------------------------------------
+VAL-PLD-003 — Designación de Responsable PLD (REC)
+--------------------------------------------------------------------------------
+Descripción: Personas morales y fideicomisos deben tener responsable PLD
+             designado, activo y con capacitación anual vigente.
+Archivo:     config/pld_responsable_validation.php → validateResponsablePLD($pdo, $id_cliente)
+Uso:         config/pld_middleware.php, admin/config.php, api/designar_responsable_pld.php
+             Al dar de alta/editar cliente (save_client)
+Capacitación REC (Art. 20 Ley, RCG Art. 10):
+  - Campos: clientes_responsable_pld.fecha_ultima_capacitacion, vigencia_capacitacion
+  - Migración: add_obligaciones_ley_rcg.sql
+  - Función: registrarCapacitacionRec($pdo, $id_responsable_pld, $fecha, $vigencia)
+  - Si no hay fecha o está vencida → RESTRICCION_USUARIO
+Resultado:   No registrado o capacitación vencida → RESTRICCION_USUARIO
+
+--------------------------------------------------------------------------------
+VAL-PLD-004 — Representación Legal del Usuario
+--------------------------------------------------------------------------------
+Descripción: Usuario con rol representante legal, apoderado o autorizado debe
+             tener evidencia documental de facultades cargada.
+Archivo:     config/pld_representacion_legal.php → validateRepresentacionLegal($pdo, $id_usuario, $id_cliente)
+Uso:         admin/representacion_legal.php, mi_cuenta.php (cliente sube la suya),
+             pld_middleware.php en APIs que requieren facultades
+Resultado:   Falta evidencia → bloqueo de acción
+
+--------------------------------------------------------------------------------
+VAL-PLD-005 — Integración de Expediente del Cliente/Usuario
+--------------------------------------------------------------------------------
+Descripción: Expediente de identificación completo según tipo de persona y
+             fracción. Obligatorio siempre en V y V Bis; en VI cuando monto ≥ 805 UMA.
+Archivo:     config/pld_expediente.php → validateExpedienteCompleto($pdo, $id_cliente)
+             - Fracción V:     pld_fraccion_v.php → requiereExpedienteInmobiliario() (siempre true)
+             - Fracción V Bis: pld_fraccion_v_bis.php → requiereExpedienteVBis() (siempre true)
+             - Fracción VI:    pld_fraccion_vi.php → requiereExpedienteMetalesJoyas($monto_uma) (≥805 UMA)
+Uso:         requireExpedienteCompleto() antes de operaciones
+Resultado:   Incompleto → IDENTIFICACION_INCOMPLETA
+Mejora BD:   add_obligaciones_ley_rcg.sql añade cotejado_contra_original, fecha_cotejo
+             en clientes_documentos (Art. 12 RCG)
+
+--------------------------------------------------------------------------------
+VAL-PLD-006 — Actualización Anual del Expediente
+--------------------------------------------------------------------------------
+Descripción: Última actualización del expediente ≤ 12 meses en relaciones
+             de negocios.
+Archivo:     config/pld_expediente.php → validateActualizacionExpediente($pdo, $id_cliente)
+Uso:         Dentro de requireExpedienteCompleto()
+Resultado:   Vencido → bloqueo de nuevas operaciones
+
+--------------------------------------------------------------------------------
+VAL-PLD-007 — Identificación del Beneficiario Controlador
+--------------------------------------------------------------------------------
+Descripción: Persona moral/fideicomiso → documentación; persona física →
+             declaración expresa; constancia firmada.
+Archivo:     config/pld_beneficiario_controlador.php → validateBeneficiarioControlador($pdo, $id_cliente)
+Uso:         Flujos de operación PLD
+Resultado:   No identificado → bloqueo de operación
+
+--------------------------------------------------------------------------------
+VAL-PLD-008 — Aviso por Umbral Individual
+--------------------------------------------------------------------------------
+Descripción: Operación individual ≥ umbral de aviso (UMA) requiere aviso.
+Umbrales por fracción:
+  - Fracción V / V Bis: 8,025 UMA
+  - Fracción VI:        1,605 UMA
+  - Fracción XIII:      (ver add_umbrales_fraccion_xiii.sql)
+Archivo:     config/pld_avisos.php → validateAvisoUmbralIndividual($pdo, $id_cliente, $monto, $id_fraccion)
+Uso:         api/registrar_operacion_pld.php, registrarOperacionPLD()
+Resultado:   AVISO_REQUERIDO; límite día 17 del mes siguiente
+
+--------------------------------------------------------------------------------
+VAL-PLD-009 — Aviso por Acumulación (6 meses)
+--------------------------------------------------------------------------------
+Descripción: Suma acumulada en ventana móvil 6 meses ≥ umbral; en VI solo
+             actos en supuestos de identificación (≥ 805 UMA).
+Archivo:     config/pld_avisos.php → validateAvisoAcumulacion(..., $id_fraccion)
+Uso:         Registrar operación con id_fraccion correcto
+Resultado:   GENERAR_AVISO
+
+--------------------------------------------------------------------------------
+VAL-PLD-010 — Aviso por Operación Sospechosa (24 h)
+--------------------------------------------------------------------------------
+Descripción: Marca de sospecha, fecha de conocimiento; aviso en 24 horas.
+Archivo:     config/pld_avisos.php → validateAvisoSospechosa($pdo, $id_cliente, $fechaConocimiento)
+Uso:         registrarOperacionPLD()
+Resultado:   AVISO_24H
+
+--------------------------------------------------------------------------------
+VAL-PLD-011 — Aviso por Listas Restringidas
+--------------------------------------------------------------------------------
+Descripción: Match con listas UIF/ONU; aviso en 24 horas.
+Archivo:     config/pld_avisos.php → validateAvisoListasRestringidas($pdo, $id_cliente, $fechaConocimiento)
+Resultado:   AVISO_24H
+
+--------------------------------------------------------------------------------
+VAL-PLD-012 — Informe de No Operaciones
+--------------------------------------------------------------------------------
+Descripción: Periodo sin operaciones avisables; presentar informe en fecha límite.
+Archivo:     config/pld_avisos.php → validateInformeNoOperaciones($pdo, $mes, $anio)
+Uso:         api/registrar_informe_no_operaciones.php, operaciones_pld.php
+Resultado:   No presentado → INCUMPLIMIENTO_PLD
+
+--------------------------------------------------------------------------------
+VAL-PLD-013 — Conservación de Información (10 años)
+--------------------------------------------------------------------------------
+Descripción: Expedientes, avisos, informes, comprobantes, documentación
+             soporte por al menos 10 años.
+Archivo:     config/pld_conservacion.php → validateConservacionInformacion(),
+             registrarConservacion()
+Uso:         pld_middleware.php, pld_avisos.php (registrarOperacionPLD)
+Tabla:       conservacion_informacion_pld con fecha_vencimiento
+Resultado:   Falta evidencia → EXPEDIENTE_INCOMPLETO
+
+--------------------------------------------------------------------------------
+VAL-PLD-014 — Atención a Visitas de Verificación
+--------------------------------------------------------------------------------
+Descripción: Expedientes e información disponibles ante visitas de UIF/SAT.
+Archivo:     config/pld_conservacion.php → validateExpedientesDisponibles(),
+             registrarVisitaVerificacion(), registrarEventoCriticoPLD()
+Migración:   add_eventos_criticos_pld.sql
+Resultado:   No disponible → evento crítico
+
+--------------------------------------------------------------------------------
+VAL-PLD-015 — Identificación y Registro del Beneficiario Controlador
+--------------------------------------------------------------------------------
+Descripción: Sociedades mercantiles: registro completo, evidencia soporte,
+             actualización vigente.
+Archivo:     config/pld_beneficiario_controlador.php → validateBeneficiarioControlador()
+Resultado:   Falta → bloqueo y observación regulatoria
+
+--------------------------------------------------------------------------------
+VAL-PLD-016 — Excepción Primera Venta con Sistema Financiero
+--------------------------------------------------------------------------------
+Descripción: Primera venta del inmueble + recursos de banca de desarrollo /
+             organismos públicos / sistema financiero (pago total) → AVISO_NO_REQUERIDO.
+Estado:      PENDIENTE (específico Fracción V)
+Sugerencia:  Añadir en config/pld_avisos.php o módulo inmobiliario
+
+--------------------------------------------------------------------------------
+VAL-PLD-018 — Atención a Visitas (Refuerzo)
+--------------------------------------------------------------------------------
+Descripción: Mismo flujo que VAL-PLD-014; evento crítico cuando no atendido.
+Archivo:     config/pld_conservacion.php → registrarEventoCriticoPLD()
+
+--------------------------------------------------------------------------------
+VAL-PLD-019 — Atención a Requerimientos de Autoridad (BC)
+--------------------------------------------------------------------------------
+Descripción: Atender requerimientos sobre Beneficiario Controlador; información
+             disponible, evidencia conservada.
+Archivo:     Consistente con pld_conservacion.php y pld_beneficiario_controlador.php
+Resultado:   No atendido → INCUMPLIMIENTO_REQUERIMIENTO_AUTORIDAD
+
+--------------------------------------------------------------------------------
+VAL-PLD-020 — Registro de BC en Sistemas Externos
+--------------------------------------------------------------------------------
+Descripción: Registrar información del BC en sistemas electrónicos oficiales
+             cuando aplique; consistencia con expediente interno.
+Estado:      PENDIENTE
+Resultado:   Falta → OBSERVACION_REGULATORIA
+
+--------------------------------------------------------------------------------
+VAL-PLD-022 — Aviso por Acumulación Inmobiliaria
+--------------------------------------------------------------------------------
+Descripción: Misma lógica que VAL-PLD-009 para Fracción V (8,025 UMA).
+Archivo:     config/pld_avisos.php → validateAvisoAcumulacion() con id_fraccion V
+
+--------------------------------------------------------------------------------
+VAL-PLD-023 — Aviso Modificatorio (una modificación en 30 días del acuse)
+--------------------------------------------------------------------------------
+Descripción: Aviso original existente, no modificado previamente, dentro de
+             30 días del acuse.
+Estado:      PENDIENTE
+Sugerencia:  Añadir en avisos_pld control de "modificado" y validación de plazo
+Resultado:   Fuera de plazo → MODIFICACION_NO_PERMITIDA
+
+--------------------------------------------------------------------------------
+VAL-PLD-025 — Detección de Riesgo Sancionable
+--------------------------------------------------------------------------------
+Descripción: Flags en config_empresa: aviso_requerido, aviso_24h, incumplimiento_pld,
+             riesgo_sancion_administrativa. Activar cuando: aviso omitido,
+             extemporáneo, sin formalidades, uso de efectivo prohibido.
+Archivo:     config/pld_avisos.php, config_empresa (add_pld_validations_fields.sql)
+Estado:      Soportado por campos; falta centralizar triggers en flujo
+
+--------------------------------------------------------------------------------
+VAL-PLD-026 — Negativa de Identificación del Cliente/Usuario
+--------------------------------------------------------------------------------
+Descripción: Cliente con negativa de identificación registrada no puede operar.
+Archivo:     config/pld_expediente.php → hasNegativaIdentificacion(),
+             requireNoNegativaIdentificacion($pdo, $id_cliente, $returnJson)
+Migración:   add_negativa_identificacion_pld.sql (clientes.negativa_identificacion_pld,
+             fecha_negativa_identificacion_pld, evidencia_negativa_identificacion_pld)
+Uso:         Flujo de alta/operación
+Resultado:   OPERACION_RECHAZADA_PLD
+
+--------------------------------------------------------------------------------
+VAL-PLD-027 — Prohibición de Operaciones en Efectivo o Metales Preciosos
+--------------------------------------------------------------------------------
+Descripción: Operaciones ≥ umbral no permiten efectivo ni metales preciosos.
+Umbrales por fracción:
+  - Fracción V:  8,025 UMA
+  - Fracción VI: 3,210 UMA
+Archivo:     - Fracción V:  config/pld_fraccion_v.php → validateProhibicionEfectivoInmobiliario()
+             - Fracción VI: config/pld_fraccion_vi.php → validateProhibicionEfectivoMetalesJoyas()
+Uso:         Antes de ejecutar operación; bloquear si !permitido
+Resultado:   RESTRICCION_EFECTIVO; operación no ejecutable
+
+--------------------------------------------------------------------------------
+VAL-PLD-028 — Detección de Riesgo Sancionable (fracción específica)
+--------------------------------------------------------------------------------
+Descripción: Triggers: omisión avisos, aviso extemporáneo, sin formalidades,
+             incumplimiento art. 33/33 Bis/33 Ter, operaciones prohibidas art. 32.
+Archivo:     - Fracción VI:    config/pld_fraccion_vi.php → registrarRiesgoSancionableVI()
+             - Fracción V Bis: config/pld_fraccion_v_bis.php → registrarRiesgoSancionableVBis()
+Acción:      Actualiza config_empresa.riesgo_sancion_administrativa = 1
+Resultado:   RIESGO_SANCION_ADMINISTRATIVA; escalamiento interno
+
+================================================================================
+3. ARCHIVOS DE CONFIGURACIÓN POR VAL-PLD
+================================================================================
+
+config/pld_validation.php           VAL-PLD-001 (padrón, fracción)
+config/pld_revalidation.php         VAL-PLD-002
+config/pld_responsable_validation.php VAL-PLD-003
+config/pld_representacion_legal.php VAL-PLD-004
+config/pld_expediente.php           VAL-PLD-005, 006, 026
+config/pld_beneficiario_controlador.php VAL-PLD-007, 015
+config/pld_avisos.php               VAL-PLD-008, 009, 010, 011, 012
+config/pld_conservacion.php         VAL-PLD-013, 014, 018, 019
+config/pld_fraccion_v.php           VAL-PLD-001 (V), 005, 008, 009, 027
+config/pld_fraccion_v_bis.php       VAL-PLD-001 (V Bis), 005, 008, 009, 028
+config/pld_fraccion_vi.php          VAL-PLD-001 (VI), 005, 008, 009, 027, 028
+config/pld_fraccion_xiii.php        VAL-PLD-001 (XIII)
+config/pld_middleware.php           Orquestación de validaciones
+
+================================================================================
+4. MIGRACIONES RELACIONADAS
+================================================================================
+
+add_pld_patron_fields*.sql          Padrón PLD, folio, estatus, fracciones
+add_pld_validations_fields.sql      Campos aviso_requerido, riesgo_sancion_administrativa
+add_responsable_pld_table*.sql      Tabla clientes_responsable_pld
+add_negativa_identificacion_pld.sql Campos VAL-PLD-026 en clientes
+add_eventos_criticos_pld.sql        Visitas de verificación
+add_obligaciones_ley_rcg.sql        Capacitación REC, bajo riesgo, cotejo
+add_umbrales_fraccion_v.sql         Umbrales 8,025 UMA (Fracción V)
+add_umbrales_fraccion_v_bis.sql     Umbrales 8,025 UMA (Fracción V Bis)
+add_umbrales_fraccion_vi.sql        Umbrales 805, 1605, 3210 UMA (Fracción VI)
+add_umbrales_fraccion_xiii.sql      Umbrales Fracción XIII
+
+================================================================================
+5. INCORPORACIONES DEL DOCUMENTO OBLIGACIONES (LEY / REGLAMENTO / RCG)
+================================================================================
+
+Capacitación anual del REC (Art. 20 Ley, RCG Art. 10):
+  - Implementado: fecha_ultima_capacitacion, vigencia_capacitacion
+  - validateResponsablePLD() exige capacitación vigente
+  - registrarCapacitacionRec() para dar de alta/actualizar
+
+Clasificación de bajo riesgo (Art. 17 y 12 RCG):
+  - Campos en BD: clientes.clasificacion_bajo_riesgo, fecha_clasificacion_bajo_riesgo
+  - Lógica de expediente simplificado pendiente
+
+Cotejo de copias contra originales (Art. 12 RCG):
+  - Campos en BD: clientes_documentos.cotejado_contra_original, fecha_cotejo
+  - Uso en UI pendiente
+
+================================================================================
+6. RESUMEN: IMPLEMENTADO vs. PENDIENTE
+================================================================================
+
+IMPLEMENTADO:
+  VAL-PLD-001 a 015, 018, 019, 022, 025, 026, 027, 028
+  Capacitación REC en VAL-PLD-003
+  Campos bajo riesgo y cotejo en BD
+
+PENDIENTE:
+  VAL-PLD-016  Excepción primera venta con sistema financiero
+  VAL-PLD-020  Registro BC en sistemas externos
+  VAL-PLD-023  Aviso modificatorio 30 días
+  Uso en UI: cotejado_contra_original, pantalla Admin para capacitación REC
+  Checklist por Anexo en expediente (validación por tipo persona)
+
+================================================================================
+  FIN DEL DOCUMENTO
+================================================================================
