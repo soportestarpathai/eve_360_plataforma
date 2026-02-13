@@ -1,12 +1,15 @@
 <?php
 /**
  * API Endpoint: Actualizar Aviso PLD
- * Actualiza el estatus, folio SPPLD y fecha de presentación de un aviso
+ * Actualiza el estatus, folio SPPLD y fecha de presentación de un aviso.
+ * Requiere permiso: administrador o responsable PLD del cliente.
+ * Bitácora: permite auditoría y deshacer.
  */
 
 session_start();
 require_once __DIR__ . '/../config/db.php';
 require_once __DIR__ . '/../config/bitacora.php';
+require_once __DIR__ . '/../config/pld_permisos.php';
 header('Content-Type: application/json');
 
 if (!isset($_SESSION['user_id'])) {
@@ -35,7 +38,7 @@ try {
     }
     
     // Obtener aviso actual para el log
-    $stmt = $pdo->prepare("SELECT * FROM avisos_pld WHERE id_aviso = ?");
+    $stmt = $pdo->prepare("SELECT * FROM avisos_pld WHERE id_aviso = ? AND id_status = 1");
     $stmt->execute([$id_aviso]);
     $oldAviso = $stmt->fetch(PDO::FETCH_ASSOC);
     
@@ -44,35 +47,57 @@ try {
         echo json_encode(['status' => 'error', 'message' => 'Aviso no encontrado']);
         exit;
     }
+
+    // Validar permiso: admin o responsable PLD del cliente
+    if (!canModifyPLD($pdo, $id_usuario_actual, (int)$oldAviso['id_cliente'])) {
+        http_response_code(403);
+        echo json_encode(['status' => 'error', 'message' => mensajeSinPermisoPLD()]);
+        exit;
+    }
     
-    // Actualizar aviso
+    // Actualizar aviso (solo si sigue activo, evita modificar registros dados de baja)
     $stmt = $pdo->prepare("UPDATE avisos_pld 
                            SET folio_sppld = ?, 
                                fecha_presentacion = ?, 
                                estatus = ?
-                           WHERE id_aviso = ?");
+                           WHERE id_aviso = ? AND id_status = 1");
+    
+    // Usar array_key_exists para permitir vaciar folio/fecha (?: trataría '' como falsy)
+    $folioFinal = array_key_exists('folio_sppld', $data) ? ($data['folio_sppld'] ?? '') : ($oldAviso['folio_sppld'] ?? '');
+    $fechaFinal = array_key_exists('fecha_presentacion', $data) ? ($data['fecha_presentacion'] ?? '') : ($oldAviso['fecha_presentacion'] ?? '');
     
     $stmt->execute([
-        $folio_sppld ?: $oldAviso['folio_sppld'],
-        $fecha_presentacion ?: $oldAviso['fecha_presentacion'],
+        $folioFinal,
+        $fechaFinal,
         $estatus,
         $id_aviso
     ]);
-    
-    // Log
-    $newAviso = $oldAviso;
-    $newAviso['folio_sppld'] = $folio_sppld ?: $oldAviso['folio_sppld'];
-    $newAviso['fecha_presentacion'] = $fecha_presentacion ?: $oldAviso['fecha_presentacion'];
-    $newAviso['estatus'] = $estatus;
-    
-    logChange($pdo, $id_usuario_actual, 'ACTUALIZAR_AVISO_PLD', 
-             'avisos_pld', $id_aviso, $oldAviso, $newAviso);
-    
+
+    // rowCount()=0 puede significar: aviso eliminado, o valores idénticos (sin cambios).
+    // Re-verificar: si sigue activo → éxito; si no → fue dado de baja.
+    if ($stmt->rowCount() === 0) {
+        $chk = $pdo->prepare("SELECT 1 FROM avisos_pld WHERE id_aviso = ? AND id_status = 1");
+        $chk->execute([$id_aviso]);
+        if (!$chk->fetch()) {
+            http_response_code(409);
+            echo json_encode(['status' => 'error', 'message' => 'El aviso ya no está activo o fue dado de baja']);
+            exit;
+        }
+        // Aviso sigue activo → no hubo cambios en los campos; éxito sin bitácora
+    } else {
+        $newAviso = $oldAviso;
+        $newAviso['folio_sppld'] = $folioFinal;
+        $newAviso['fecha_presentacion'] = $fechaFinal;
+        $newAviso['estatus'] = $estatus;
+        logChange($pdo, $id_usuario_actual, 'ACTUALIZAR_AVISO_PLD',
+                 'avisos_pld', $id_aviso, $oldAviso, $newAviso);
+    }
+
     echo json_encode([
         'status' => 'success',
         'message' => 'Aviso actualizado correctamente'
     ]);
-    
+
 } catch (Exception $e) {
     http_response_code(500);
     error_log("Error en actualizar_aviso_pld.php: " . $e->getMessage());

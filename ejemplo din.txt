@@ -1,0 +1,260 @@
+<!doctype html>
+<html lang="es">
+<head>
+  <meta charset="utf-8" />
+  <title>Generar XML DIN</title>
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <style>
+    body { font-family: system-ui, Arial; max-width: 960px; margin: 24px auto; padding: 0 12px; }
+    label { display:block; margin-top: 12px; font-weight: 600; }
+    input, textarea { width: 100%; padding: 10px; margin-top: 6px; box-sizing: border-box; }
+    .row { display:grid; grid-template-columns: 1fr 1fr; gap: 12px; }
+    button { margin-top: 16px; padding: 10px 14px; cursor: pointer; }
+    pre { background:#f6f6f6; padding: 12px; overflow:auto; }
+    .err { color:#b00020; font-weight: 600; }
+    .ok { color:#0a7a2f; font-weight: 600; }
+  </style>
+</head>
+<body>
+  <h1>Generador XML DIN (XSD → XML)</h1>
+
+  <p>Este ejemplo genera 1 informe → 1 aviso → 1 operación → 1 desarrollo → 1 aportación (recursos_propios/aportacion_numerario).</p>
+
+  <div class="row">
+    <div>
+      <label>mes_reportado (YYYYMM)</label>
+      <input id="mes_reportado" value="201612" placeholder="201612" />
+    </div>
+    <div>
+      <label>clave_actividad</label>
+      <input id="clave_actividad" value="DIN" placeholder="DIN" />
+    </div>
+  </div>
+
+  <label>clave_sujeto_obligado</label>
+  <input id="clave_so" value="XXXX890505DF4" placeholder="XXXX890505DF4" />
+
+  <hr />
+
+  <div class="row">
+    <div>
+      <label>referencia_aviso</label>
+      <input id="referencia_aviso" value="REF1" />
+    </div>
+    <div>
+      <label>prioridad (1 o 2)</label>
+      <input id="prioridad" value="1" />
+    </div>
+  </div>
+
+  <label>alerta.tipo_alerta (3-4 dígitos)</label>
+  <input id="tipo_alerta" value="100" />
+
+  <hr />
+
+  <label>datos_operacion.tipo_operacion (3-4 dígitos)</label>
+  <input id="tipo_operacion" value="1601" />
+
+  <h3>Desarrollo inmobiliario</h3>
+  <div class="row">
+    <div>
+      <label>objeto_aviso_anterior (SI/NO)</label>
+      <input id="objeto_aviso_anterior" value="NO" />
+    </div>
+    <div>
+      <label>modificacion (SI/NO)</label>
+      <input id="modificacion" value="NO" />
+    </div>
+  </div>
+
+  <div class="row">
+    <div>
+      <label>entidad_federativa (1-2 dígitos)</label>
+      <input id="entidad_federativa" value="9" />
+    </div>
+    <div>
+      <label>registro_licencia</label>
+      <input id="registro_licencia" value="REG2016-1" />
+    </div>
+  </div>
+
+  <div class="row">
+    <div>
+      <label>codigo_postal</label>
+      <input id="codigo_postal" value="02000" />
+    </div>
+    <div>
+      <label>tipo_desarrollo (1-2 dígitos)</label>
+      <input id="tipo_desarrollo" value="5" />
+    </div>
+  </div>
+
+  <label>colonia</label>
+  <input id="colonia" value="COLONIA" />
+  <label>calle</label>
+  <input id="calle" value="CALLE" />
+
+  <div class="row">
+    <div>
+      <label>monto_desarrollo (##########.##)</label>
+      <input id="monto_desarrollo" value="150000.00" />
+    </div>
+    <div>
+      <label>unidades_comercializadas (##########.##)</label>
+      <input id="unidades_comercializadas" value="10.00" />
+    </div>
+  </div>
+
+  <div class="row">
+    <div>
+      <label>costo_unidad (##########.##)</label>
+      <input id="costo_unidad" value="1500.00" />
+    </div>
+    <div>
+      <label>otras_empresas (SI/NO)</label>
+      <input id="otras_empresas" value="NO" />
+    </div>
+  </div>
+
+  <hr />
+
+  <h3>Aportación (recursos_propios → aportacion_numerario)</h3>
+  <label>fecha_aportacion (YYYYMMDD)</label>
+  <input id="fecha_aportacion" value="20161205" />
+
+  <div class="row">
+    <div>
+      <label>instrumento_monetario (1-2 dígitos)</label>
+      <input id="instrumento_monetario" value="1" />
+    </div>
+    <div>
+      <label>moneda (1-3 dígitos)</label>
+      <input id="moneda" value="1" />
+    </div>
+  </div>
+
+  <div class="row">
+    <div>
+      <label>monto_aportacion (##########.##)</label>
+      <input id="monto_aportacion" value="16000.00" />
+    </div>
+    <div>
+      <label>aportacion_fideicomiso (SI/NO)</label>
+      <input id="aportacion_fideicomiso" value="NO" />
+    </div>
+  </div>
+
+  <label>nombre_institucion</label>
+  <input id="nombre_institucion" value="INSTITUCION" />
+
+  <button id="btn">Generar XML</button>
+
+  <p id="status"></p>
+  <pre id="debug"></pre>
+
+<script>
+function v(id){ return document.getElementById(id).value.trim(); }
+
+document.getElementById('btn').addEventListener('click', async () => {
+  const payload = {
+    informe: [{
+      mes_reportado: v('mes_reportado'),
+      sujeto_obligado: {
+        clave_sujeto_obligado: v('clave_so'),
+        clave_actividad: v('clave_actividad')
+      },
+      aviso: [{
+        referencia_aviso: v('referencia_aviso'),
+        prioridad: v('prioridad'),
+        alerta: {
+          tipo_alerta: v('tipo_alerta')
+        },
+        detalle_operaciones: [{
+          datos_operacion: [{
+            tipo_operacion: v('tipo_operacion'),
+            desarrollos_inmobiliarios: [{
+              datos_desarrollo: [{
+                objeto_aviso_anterior: v('objeto_aviso_anterior'),
+                modificacion: v('modificacion'),
+                entidad_federativa: v('entidad_federativa'),
+                registro_licencia: v('registro_licencia'),
+                caracteristicas_desarrollo: [{
+                  codigo_postal: v('codigo_postal'),
+                  colonia: v('colonia'),
+                  calle: v('calle'),
+                  tipo_desarrollo: v('tipo_desarrollo'),
+                  monto_desarrollo: v('monto_desarrollo'),
+                  unidades_comercializadas: v('unidades_comercializadas'),
+                  costo_unidad: v('costo_unidad'),
+                  otras_empresas: v('otras_empresas')
+                }]
+              }]
+            }],
+            aportaciones: [{
+              fecha_aportacion: v('fecha_aportacion'),
+              tipo_aportacion: [{
+                recursos_propios: [{
+                  datos_aportacion: [{
+                    aportacion_numerario: [{
+                      instrumento_monetario: v('instrumento_monetario'),
+                      moneda: v('moneda'),
+                      monto_aportacion: v('monto_aportacion'),
+                      aportacion_fideicomiso: v('aportacion_fideicomiso'),
+                      nombre_institucion: v('nombre_institucion')
+                    }]
+                  }]
+                }]
+              }]
+            }]
+          }]
+        }]
+      }]
+    }]
+  };
+
+  const status = document.getElementById('status');
+  const debug = document.getElementById('debug');
+  status.textContent = '';
+  debug.textContent = JSON.stringify(payload, null, 2);
+
+  try {
+    const res = await fetch('generate_din.php', {
+      method: 'POST',
+      headers: {'Content-Type': 'application/json'},
+      body: JSON.stringify(payload)
+    });
+
+    if (!res.ok) {
+      const errText = await res.text();
+      status.className = 'err';
+      status.textContent = 'Error HTTP ' + res.status;
+      debug.textContent = errText;
+      return;
+    }
+
+    // We return XML as a downloadable attachment
+    const blob = await res.blob();
+    const cd = res.headers.get('Content-Disposition') || '';
+    const match = cd.match(/filename="([^"]+)"/i);
+    const filename = match ? match[1] : 'din.xml';
+
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement('a');
+    a.href = url;
+    a.download = filename;
+    document.body.appendChild(a);
+    a.click();
+    a.remove();
+    URL.revokeObjectURL(url);
+
+    status.className = 'ok';
+    status.textContent = 'XML generado y descargado: ' + filename;
+
+  } catch (e) {
+    status.className = 'err';
+    status.textContent = 'Error: ' + (e?.message || String(e));
+  }
+});
+</script>
+</body>
+</html>

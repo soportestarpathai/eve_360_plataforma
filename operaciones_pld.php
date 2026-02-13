@@ -32,9 +32,17 @@ include 'templates/top_bar.php';
             <p class="text-muted">Registro y gestión de operaciones sujetas a aviso PLD</p>
         </div>
         <div class="page-header-actions">
-            <button class="btn btn-primary shadow-sm" onclick="abrirModalOperacion()">
-                <i class="fa-solid fa-plus me-2"></i>Registrar Operación
-            </button>
+            <div class="btn-group shadow-sm">
+                <a href="operacion_din.php" class="btn btn-primary">
+                    <i class="fa-solid fa-building me-2"></i>Registro DIN (V/V Bis)
+                </a>
+                <button type="button" class="btn btn-outline-primary dropdown-toggle dropdown-toggle-split" data-bs-toggle="dropdown"></button>
+                <ul class="dropdown-menu dropdown-menu-end">
+                    <li><a class="dropdown-item" href="operacion_din.php"><i class="fa-solid fa-file-code me-2"></i>Formulario DIN (Desarrollo Inmobiliario)</a></li>
+                    <li><hr class="dropdown-divider"></li>
+                    <li><a class="dropdown-item" href="#" onclick="abrirModalOperacion(); return false;"><i class="fa-solid fa-plus me-2"></i>Registro simplificado</a></li>
+                </ul>
+            </div>
         </div>
     </div>
 
@@ -130,6 +138,9 @@ include 'templates/top_bar.php';
                     <i class="fa-solid fa-bell fa-2x text-warning mb-2"></i>
                     <h4 class="mb-0" id="avisos-pendientes-count">-</h4>
                     <small class="text-muted">Avisos Pendientes</small>
+                    <div id="avisos-por-vencer-line" class="small text-warning mt-1 d-none">
+                        <i class="fa-solid fa-clock me-1"></i><span id="avisos-por-vencer-count">0</span> por vencer
+                    </div>
                 </div>
             </div>
         </div>
@@ -184,9 +195,13 @@ include 'templates/top_bar.php';
         <div class="tab-pane fade show active" id="operaciones" role="tabpanel">
             <div class="card">
                 <div class="card-body">
+                    <div class="form-check mb-3">
+                        <input class="form-check-input" type="checkbox" id="chk-historico-op" onchange="cargarOperaciones()">
+                        <label class="form-check-label" for="chk-historico-op">Incluir histórico (operaciones dadas de baja)</label>
+                    </div>
                     <div class="table-responsive">
                         <table class="table table-hover" id="tabla-operaciones">
-                            <thead>
+                                <thead>
                                 <tr>
                                     <th>Fecha</th>
                                     <th>Cliente</th>
@@ -195,12 +210,13 @@ include 'templates/top_bar.php';
                                     <th>Tipo</th>
                                     <th>Requiere Aviso</th>
                                     <th>Deadline</th>
+                                    <th>XML / Folio SAT</th>
                                     <th>Acciones</th>
                                 </tr>
                             </thead>
                             <tbody id="operaciones-tbody">
                                 <tr>
-                                    <td colspan="8" class="text-center">
+                                    <td colspan="9" class="text-center">
                                         <i class="fa-solid fa-spinner fa-spin me-2"></i>Cargando operaciones...
                                     </td>
                                 </tr>
@@ -216,8 +232,14 @@ include 'templates/top_bar.php';
             <div class="card">
                 <div class="card-body">
                     <!-- Filtros -->
-                    <div class="row mb-3">
-                        <div class="col-md-4">
+                    <div class="row mb-3 align-items-center">
+                        <div class="col-md-3">
+                            <div class="form-check">
+                                <input class="form-check-input" type="checkbox" id="chk-historico-av" onchange="cargarAvisos(); cargarAlertasAvisos();">
+                                <label class="form-check-label small" for="chk-historico-av">Incluir histórico</label>
+                            </div>
+                        </div>
+                        <div class="col-md-3">
                             <select class="form-select" id="filtro-estatus-aviso">
                                 <option value="">Todos los estatus</option>
                                 <option value="pendiente">Pendientes</option>
@@ -225,7 +247,7 @@ include 'templates/top_bar.php';
                                 <option value="vencido">Vencidos</option>
                             </select>
                         </div>
-                        <div class="col-md-4">
+                        <div class="col-md-3">
                             <select class="form-select" id="filtro-tipo-aviso">
                                 <option value="">Todos los tipos</option>
                                 <option value="umbral_individual">Umbral Individual</option>
@@ -234,7 +256,7 @@ include 'templates/top_bar.php';
                                 <option value="listas_restringidas_24h">Listas Restringidas (24H)</option>
                             </select>
                         </div>
-                        <div class="col-md-4">
+                        <div class="col-md-3">
                             <button class="btn btn-outline-primary w-100" onclick="cargarAvisos()">
                                 <i class="fa-solid fa-filter me-2"></i>Filtrar
                             </button>
@@ -475,7 +497,7 @@ include 'templates/top_bar.php';
 
 <!-- Modal Actualizar Aviso -->
 <div class="modal fade" id="modalAviso" tabindex="-1">
-    <div class="modal-dialog">
+    <div class="modal-dialog modal-lg">
         <div class="modal-content">
             <div class="modal-header">
                 <h5 class="modal-title">
@@ -484,8 +506,24 @@ include 'templates/top_bar.php';
                 <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
             </div>
             <div class="modal-body">
+                <!-- Reglas de plazo -->
+                <div class="alert alert-info mb-3">
+                    <h6 class="alert-heading"><i class="fa-solid fa-calendar-days me-2"></i>Reglas de plazo para vencimiento</h6>
+                    <ul class="mb-0 small">
+                        <li><strong>Avisos normales (umbral, acumulación):</strong> Día 17 del mes siguiente a la fecha de operación.</li>
+                        <li><strong>Avisos 24H (sospechosa, listas restringidas):</strong> 24 horas desde la fecha de conocimiento.</li>
+                        <li>Capture el <strong>folio SPPLD</strong> al subir el aviso al SAT para llevar control.</li>
+                    </ul>
+                </div>
+                <div id="aviso-alerta-por-vencer" class="alert alert-warning d-none">
+                    <i class="fa-solid fa-clock me-2"></i><strong>Aviso próximo a vencer</strong> – Capture el folio SAT lo antes posible.
+                </div>
+                <div id="aviso-alerta-vencido" class="alert alert-danger d-none">
+                    <i class="fa-solid fa-exclamation-triangle me-2"></i><strong>Aviso vencido</strong> – Capture el folio y marque como extemporáneo si aplica.
+                </div>
                 <form id="formAviso">
                     <input type="hidden" id="aviso_id_aviso">
+                    <input type="hidden" id="aviso_id_cliente">
                     <div class="mb-3">
                         <label class="form-label">Folio SPPLD</label>
                         <input type="text" class="form-control" id="aviso_folio_sppld" placeholder="Folio del aviso en SPPLD">
@@ -498,14 +536,34 @@ include 'templates/top_bar.php';
                         <label class="form-label">Estatus</label>
                         <select class="form-select" id="aviso_estatus">
                             <option value="pendiente">Pendiente</option>
+                            <option value="generado">Generado</option>
                             <option value="presentado">Presentado</option>
+                            <option value="extemporaneo">Extemporáneo</option>
+                            <option value="cancelado">Cancelado</option>
                         </select>
                     </div>
                 </form>
+                <div id="aviso-sin-permiso" class="alert alert-warning d-none">
+                    <i class="fa-solid fa-lock me-2"></i>Solicite autorización a un administrador o al responsable PLD para modificar este aviso.
+                </div>
+                <div class="accordion mt-3" id="accordionBitacora">
+                    <div class="accordion-item">
+                        <h2 class="accordion-header">
+                            <button class="accordion-button collapsed" type="button" data-bs-toggle="collapse" data-bs-target="#collapseBitacora">
+                                <i class="fa-solid fa-history me-2"></i>Historial de cambios
+                            </button>
+                        </h2>
+                        <div id="collapseBitacora" class="accordion-collapse collapse" data-bs-parent="#accordionBitacora">
+                            <div class="accordion-body p-2" id="bitacora-aviso-body">
+                                <small class="text-muted">Cargando...</small>
+                            </div>
+                        </div>
+                    </div>
+                </div>
             </div>
             <div class="modal-footer">
                 <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Cancelar</button>
-                <button type="button" class="btn btn-primary" onclick="actualizarAviso()">
+                <button type="button" class="btn btn-primary" id="btn-actualizar-aviso" onclick="actualizarAviso()">
                     <i class="fa-solid fa-save me-2"></i>Actualizar Aviso
                 </button>
             </div>
@@ -517,6 +575,29 @@ include 'templates/top_bar.php';
 <script>
 let clientesList = [];
 let fraccionesList = [];
+let puedeModificarPLD = false;
+
+function escapeHtml(s) {
+    if (s == null || s === undefined) return '';
+    return String(s)
+        .replace(/&/g, '&amp;')
+        .replace(/</g, '&lt;')
+        .replace(/>/g, '&gt;')
+        .replace(/"/g, '&quot;')
+        .replace(/'/g, '&#39;');
+}
+// Parsea YYYY-MM-DD como fecha local (evita UTC que new Date('YYYY-MM-DD') usa)
+function parseDateLocal(str) {
+    if (!str) return null;
+    const m = String(str).trim().match(/^(\d{4})-(\d{2})-(\d{2})/);
+    if (m) return new Date(parseInt(m[1],10), parseInt(m[2],10)-1, parseInt(m[3],10));
+    return new Date(str);
+}
+function todayLocalMidnight() {
+    const d = new Date();
+    d.setHours(0, 0, 0, 0);
+    return d;
+}
 
 document.addEventListener('DOMContentLoaded', function() {
     cargarClientes();
@@ -526,6 +607,8 @@ document.addEventListener('DOMContentLoaded', function() {
     cargarInformes();
     cargarAlertasAvisos();
     actualizarTotalOperaciones();
+    checkPermisoPLD();
+    fetch('api/generar_notificaciones_avisos_pld.php').then(r=>r.json()).catch(()=>{});
     
     // Cargar acumulaciones cuando se cambia al tab (solo si el elemento existe)
     const acumulacionesTab = document.getElementById('acumulaciones-tab');
@@ -613,21 +696,29 @@ function cargarFracciones() {
         .catch(err => console.error('Error al cargar fracciones:', err));
 }
 
+function checkPermisoPLD(idCliente) {
+    const url = idCliente ? `api/check_permiso_pld.php?id_cliente=${idCliente}` : 'api/check_permiso_pld.php';
+    fetch(url).then(r=>r.json()).then(d=>{
+        puedeModificarPLD = d.puede_modificar || false;
+    }).catch(()=>{ puedeModificarPLD = false; });
+}
+
 function cargarOperaciones() {
-    fetch('api/get_operaciones_pld.php')
+    const historico = document.getElementById('chk-historico-op')?.checked ? '1' : '';
+    fetch('api/get_operaciones_pld.php' + (historico ? '?historico=1' : ''))
         .then(res => res.json())
         .then(data => {
             if (data.status === 'success') {
                 renderOperaciones(data.operaciones || []);
             } else {
                 document.getElementById('operaciones-tbody').innerHTML = 
-                    '<tr><td colspan="8" class="text-center text-danger">Error al cargar operaciones</td></tr>';
+                    '<tr><td colspan="9" class="text-center text-danger">Error al cargar operaciones</td></tr>';
             }
         })
         .catch(err => {
             console.error('Error al cargar operaciones:', err);
             document.getElementById('operaciones-tbody').innerHTML = 
-                '<tr><td colspan="8" class="text-center text-danger">Error de conexión</td></tr>';
+                '<tr><td colspan="9" class="text-center text-danger">Error de conexión</td></tr>';
         });
 }
 
@@ -636,7 +727,7 @@ function renderOperaciones(operaciones) {
     if (operaciones.length === 0) {
         tbody.innerHTML = `
             <tr>
-                <td colspan="8" class="text-center text-muted py-5">
+                <td colspan="9" class="text-center text-muted py-5">
                     <i class="fa-solid fa-inbox fa-3x mb-3 d-block" style="opacity: 0.3;"></i>
                     <p class="mb-0">No hay operaciones registradas</p>
                     <small>Haz clic en "Registrar Operación" para comenzar</small>
@@ -654,27 +745,49 @@ function renderOperaciones(operaciones) {
         
         let deadline = '-';
         if (op.fecha_deadline_aviso) {
-            const fechaDeadline = new Date(op.fecha_deadline_aviso);
-            const hoy = new Date();
+            const fechaDeadline = parseDateLocal(op.fecha_deadline_aviso);
+            const hoy = todayLocalMidnight();
             const isVencido = fechaDeadline < hoy;
             const diasRestantes = Math.ceil((fechaDeadline - hoy) / (1000 * 60 * 60 * 24));
-            
+            const deadlineEsc = escapeHtml(op.fecha_deadline_aviso);
             if (isVencido) {
-                deadline = `<span class="text-danger fw-bold"><i class="fa-solid fa-exclamation-circle me-1"></i>${op.fecha_deadline_aviso} (Vencido)</span>`;
+                deadline = `<span class="text-danger fw-bold"><i class="fa-solid fa-exclamation-circle me-1"></i>${deadlineEsc} (Vencido)</span>`;
             } else if (diasRestantes <= 7) {
-                deadline = `<span class="text-warning fw-bold"><i class="fa-solid fa-clock me-1"></i>${op.fecha_deadline_aviso} (${diasRestantes} días)</span>`;
+                deadline = `<span class="text-warning fw-bold"><i class="fa-solid fa-clock me-1"></i>${deadlineEsc} (${diasRestantes} días)</span>`;
             } else {
-                deadline = `<span class="text-success">${op.fecha_deadline_aviso}</span>`;
+                deadline = `<span class="text-success">${deadlineEsc}</span>`;
             }
         }
         
+        let xmlFolio = '<span class="text-muted">-</span>';
+        if (op.xml_nombre_archivo) {
+            xmlFolio = `<span class="badge bg-secondary" title="XML almacenado"><i class="fa-solid fa-file-code me-1"></i>${escapeHtml(op.xml_nombre_archivo)}</span>`;
+            if (op.folio_sppld && requiereAviso) {
+                xmlFolio += `<br><small class="text-success">Folio: ${escapeHtml(op.folio_sppld)}</small>`;
+                if (op.fecha_presentacion) {
+                    xmlFolio += `<br><small class="text-muted">${escapeHtml(op.fecha_presentacion)}</small>`;
+                }
+            }
+        } else if (requiereAviso && op.folio_sppld) {
+            xmlFolio = `<span class="badge bg-success">${escapeHtml(op.folio_sppld)}</span>`;
+            if (op.fecha_presentacion) {
+                xmlFolio += `<br><small>${escapeHtml(op.fecha_presentacion)}</small>`;
+            }
+        }
+        
+        const esBaja = op.id_status == 0;
+        const trClass = (requiereAviso && op.fecha_deadline_aviso && parseDateLocal(op.fecha_deadline_aviso) < todayLocalMidnight() ? 'table-danger' : '') + (esBaja ? ' table-secondary opacity-75' : '');
+        const idOp = parseInt(op.id_operacion, 10) || 0;
+        const idAvisoGen = parseInt(op.id_aviso_generado, 10) || 0;
+        const clienteNombre = op.cliente_nombre != null && String(op.cliente_nombre).trim() !== '' ? escapeHtml(op.cliente_nombre) : ('Cliente #' + (parseInt(op.id_cliente, 10) || ''));
+        const tipoOp = op.tipo_operacion != null && op.tipo_operacion !== '' ? escapeHtml(op.tipo_operacion) : '<span class="text-muted">-</span>';
         return `
-            <tr class="${requiereAviso && op.fecha_deadline_aviso && new Date(op.fecha_deadline_aviso) < new Date() ? 'table-danger' : ''}">
-                <td><strong>${op.fecha_operacion}</strong></td>
+            <tr class="${trClass}">
+                <td><strong>${escapeHtml(op.fecha_operacion)}</strong>${esBaja ? ' <span class="badge bg-secondary">Baja</span>' : ''}</td>
                 <td>
                     <div class="d-flex align-items-center">
                         <i class="fa-solid fa-user me-2 text-primary"></i>
-                        ${op.cliente_nombre || `Cliente #${op.id_cliente}`}
+                        ${clienteNombre}
                     </div>
                 </td>
                 <td>
@@ -683,15 +796,18 @@ function renderOperaciones(operaciones) {
                 <td>
                     <span class="badge bg-info">${parseFloat(op.monto_uma || 0).toFixed(2)} UMAs</span>
                 </td>
-                <td>${op.tipo_operacion || '<span class="text-muted">-</span>'}</td>
+                <td>${tipoOp}</td>
                 <td>${badgeAviso}</td>
                 <td>${deadline}</td>
+                <td>${xmlFolio}</td>
                 <td>
+                    ${(op.tiene_xml == 1 || op.xml_nombre_archivo) ? `<button class="btn btn-sm btn-outline-secondary me-1" onclick="descargarXmlOperacion(${idOp})" title="Descargar XML"><i class="fa-solid fa-download"></i></button>` : ''}
                     ${requiereAviso ? `
-                        <button class="btn btn-sm btn-info" onclick="verAviso(${op.id_aviso_generado})" title="Ver Aviso">
+                        <button class="btn btn-sm btn-info" onclick="verAviso(${idAvisoGen})" title="Ver Aviso">
                             <i class="fa-solid fa-eye"></i>
                         </button>
                     ` : '<span class="text-muted">-</span>'}
+                    ${op.puede_modificar && !esBaja ? `<button class="btn btn-sm btn-outline-danger ms-1" onclick="bajaOperacion(${idOp})" title="Dar de baja"><i class="fa-solid fa-trash"></i></button>` : ''}
                 </td>
             </tr>
         `;
@@ -701,10 +817,13 @@ function renderOperaciones(operaciones) {
 function cargarAvisos() {
     const estatus = document.getElementById('filtro-estatus-aviso').value;
     const tipo = document.getElementById('filtro-tipo-aviso').value;
+    const historico = document.getElementById('chk-historico-av')?.checked ? '1' : '';
     
-    let url = 'api/get_avisos_pld.php?';
-    if (estatus) url += `estatus=${estatus}&`;
-    if (tipo) url += `tipo_aviso=${tipo}`;
+    const params = [];
+    if (estatus) params.push(`estatus=${estatus}`);
+    if (tipo) params.push(`tipo_aviso=${tipo}`);
+    if (historico) params.push('historico=1');
+    const url = 'api/get_avisos_pld.php' + (params.length ? '?' + params.join('&') : '');
     
     fetch(url)
         .then(res => res.json())
@@ -727,9 +846,17 @@ function cargarAvisos() {
 
 function actualizarEstadisticas(contadores) {
     if (contadores) {
-        document.getElementById('avisos-pendientes-count').textContent = contadores.pendientes || 0;
-        document.getElementById('avisos-vencidos-count').textContent = contadores.vencidos || 0;
-        document.getElementById('avisos-presentados-count').textContent = contadores.presentados || 0;
+        const pend = document.getElementById('avisos-pendientes-count');
+        const venc = document.getElementById('avisos-vencidos-count');
+        const pres = document.getElementById('avisos-presentados-count');
+        const porVencerLine = document.getElementById('avisos-por-vencer-line');
+        const porVencerCount = document.getElementById('avisos-por-vencer-count');
+        if (pend) pend.textContent = contadores.pendientes || 0;
+        if (venc) venc.textContent = contadores.vencidos || 0;
+        if (pres) pres.textContent = contadores.presentados || 0;
+        const pv = contadores.por_vencer || 0;
+        if (porVencerCount) porVencerCount.textContent = pv;
+        if (porVencerLine) porVencerLine.classList.toggle('d-none', pv === 0);
     }
 }
 
@@ -1000,8 +1127,8 @@ function renderAcumulaciones(acumulaciones) {
         
         let deadline = '-';
         if (acum.fecha_deadline_aviso) {
-            const fechaDeadline = new Date(acum.fecha_deadline_aviso);
-            const hoy = new Date();
+            const fechaDeadline = parseDateLocal(acum.fecha_deadline_aviso);
+            const hoy = todayLocalMidnight();
             const isVencido = fechaDeadline < hoy;
             const diasRestantesDeadline = Math.ceil((fechaDeadline - hoy) / (1000 * 60 * 60 * 24));
             
@@ -1015,7 +1142,7 @@ function renderAcumulaciones(acumulaciones) {
         }
         
         return `
-            <tr class="${requiereAviso && acum.fecha_deadline_aviso && new Date(acum.fecha_deadline_aviso) < new Date() ? 'table-danger' : ''}">
+            <tr class="${requiereAviso && acum.fecha_deadline_aviso && parseDateLocal(acum.fecha_deadline_aviso) < todayLocalMidnight() ? 'table-danger' : ''}">
                 <td>
                     <div class="d-flex align-items-center">
                         <i class="fa-solid fa-user me-2 text-primary"></i>
@@ -1079,14 +1206,15 @@ function renderAvisos(avisos) {
         const estatusReal = aviso.estatus_real || aviso.estatus;
         let badgeEstatus = '';
         if (estatusReal === 'pendiente') {
-            const isVencido = new Date(aviso.fecha_deadline) < new Date();
+            const fd = parseDateLocal(aviso.fecha_deadline);
+            const isVencido = fd ? fd < todayLocalMidnight() : false;
             badgeEstatus = isVencido 
                 ? '<span class="badge bg-danger"><i class="fa-solid fa-exclamation-triangle me-1"></i>Vencido</span>'
                 : '<span class="badge bg-warning"><i class="fa-solid fa-clock me-1"></i>Pendiente</span>';
         } else if (estatusReal === 'presentado') {
             badgeEstatus = '<span class="badge bg-success"><i class="fa-solid fa-check-circle me-1"></i>Presentado</span>';
         } else {
-            badgeEstatus = '<span class="badge bg-secondary">' + estatusReal + '</span>';
+            badgeEstatus = '<span class="badge bg-secondary">' + escapeHtml(estatusReal) + '</span>';
         }
         
         const tipoAvisoLabels = {
@@ -1099,23 +1227,23 @@ function renderAvisos(avisos) {
         // Información adicional para acumulación
         let infoAdicional = '';
         if (aviso.tipo_aviso === 'acumulacion') {
-            const cantidadOps = aviso.cantidad_operaciones || 'N/A';
-            const fechaPrimera = aviso.fecha_primera_operacion || aviso.fecha_operacion;
+            const cantidadOps = escapeHtml(aviso.cantidad_operaciones != null ? String(aviso.cantidad_operaciones) : 'N/A');
+            const fechaPrimera = escapeHtml((aviso.fecha_primera_operacion || aviso.fecha_operacion) || 'N/A');
             const montoUMA = aviso.monto_acumulado_uma ? parseFloat(aviso.monto_acumulado_uma).toFixed(2) : 'N/A';
             infoAdicional = `
                 <br><small class="text-muted">
                     <i class="fa-solid fa-info-circle me-1"></i>
-                    <strong>${cantidadOps}</strong> operaciones acumuladas | 
-                    Primera: <strong>${fechaPrimera}</strong> | 
-                    Monto: <strong>${montoUMA} UMAs</strong>
+                    <strong>${cantidadOps}</strong> operaciones acumuladas |
+                    Primera: <strong>${fechaPrimera}</strong> |
+                    Monto: <strong>${escapeHtml(String(montoUMA))} UMAs</strong>
                 </small>
             `;
         }
         
-        const fechaDeadline = new Date(aviso.fecha_deadline);
-        const hoy = new Date();
-        const isVencido = fechaDeadline < hoy;
-        const diasRestantes = Math.ceil((fechaDeadline - hoy) / (1000 * 60 * 60 * 24));
+        const fechaDeadline = parseDateLocal(aviso.fecha_deadline);
+        const hoy = todayLocalMidnight();
+        const isVencido = fechaDeadline ? fechaDeadline < hoy : false;
+        const diasRestantes = fechaDeadline ? Math.ceil((fechaDeadline - hoy) / (1000 * 60 * 60 * 24)) : 0;
         
         let deadlineClass = '';
         let deadlineIcon = '';
@@ -1130,38 +1258,65 @@ function renderAvisos(avisos) {
             deadlineIcon = '<i class="fa-solid fa-calendar-check me-1"></i>';
         }
         
+        const esBajaAviso = aviso.id_status == 0;
+        const idAvisoNum = parseInt(aviso.id_aviso, 10) || 0;
+        const clienteNombreAviso = aviso.cliente_nombre != null ? escapeHtml(aviso.cliente_nombre) : ('Cliente #' + (parseInt(aviso.id_cliente, 10) || ''));
+        const tipoAvisoFallback = tipoAvisoLabels[aviso.tipo_aviso] || escapeHtml(aviso.tipo_aviso || '');
         return `
-            <tr class="${estatusReal === 'vencido' ? 'table-danger' : ''}">
-                <td><strong>${aviso.fecha_operacion}</strong></td>
+            <tr class="${estatusReal === 'vencido' ? 'table-danger' : ''}${esBajaAviso ? ' table-secondary opacity-75' : ''}">
+                <td><strong>${escapeHtml(aviso.fecha_operacion)}</strong>${esBajaAviso ? ' <span class="badge bg-secondary">Baja</span>' : ''}</td>
                 <td>
                     <div class="d-flex align-items-center">
                         <i class="fa-solid fa-user me-2 text-primary"></i>
-                        ${aviso.cliente_nombre || `Cliente #${aviso.id_cliente}`}
+                        ${clienteNombreAviso}
                     </div>
                 </td>
                 <td>
-                    ${tipoAvisoLabels[aviso.tipo_aviso] || aviso.tipo_aviso}
+                    ${tipoAvisoFallback}
                     ${infoAdicional}
                 </td>
                 <td>
                     ${aviso.monto ? `<strong class="text-primary">$${parseFloat(aviso.monto).toLocaleString('es-MX', {minimumFractionDigits: 2})}</strong>` : '<span class="text-muted">-</span>'}
                 </td>
                 <td class="${deadlineClass}">
-                    ${deadlineIcon}${aviso.fecha_deadline}
+                    ${deadlineIcon}${escapeHtml(aviso.fecha_deadline)}
                     ${!isVencido && diasRestantes <= 7 ? `<br><small class="text-warning">(${diasRestantes} días restantes)</small>` : ''}
                 </td>
                 <td>${badgeEstatus}</td>
                 <td>
-                    ${aviso.folio_sppld ? `<span class="badge bg-secondary"><i class="fa-solid fa-hashtag me-1"></i>${aviso.folio_sppld}</span>` : '<span class="text-muted">-</span>'}
+                    ${aviso.folio_sppld ? `<span class="badge bg-secondary"><i class="fa-solid fa-hashtag me-1"></i>${escapeHtml(aviso.folio_sppld)}</span>` : '<span class="text-muted">-</span>'}
                 </td>
                 <td>
-                    <button class="btn btn-sm btn-primary" onclick="editarAviso(${aviso.id_aviso})" title="Editar Aviso">
+                    <button class="btn btn-sm btn-primary" onclick="editarAviso(${idAvisoNum})" title="Editar Aviso">
                         <i class="fa-solid fa-pen"></i>
                     </button>
+                    ${aviso.puede_modificar && !esBajaAviso ? `<button class="btn btn-sm btn-outline-danger ms-1" onclick="bajaAviso(${idAvisoNum})" title="Dar de baja"><i class="fa-solid fa-trash"></i></button>` : ''}
                 </td>
             </tr>
         `;
     }).join('');
+}
+
+function bajaOperacion(id) {
+    Swal.fire({ title: '¿Dar de baja esta operación?', text: 'Se conservará en histórico.', icon: 'warning', showCancelButton: true, confirmButtonText: 'Sí, dar de baja' })
+        .then(r=>{ if (r.isConfirmed) {
+            fetch('api/baja_operacion_pld.php', { method: 'POST', headers: {'Content-Type': 'application/json'}, body: JSON.stringify({id_operacion: id}) })
+                .then(res=>res.json()).then(d=>{
+                    if (d.status === 'success') { Swal.fire({ icon: 'success', text: d.message }); cargarOperaciones(); actualizarTotalOperaciones(); }
+                    else { Swal.fire({ icon: 'error', text: d.message }); }
+                });
+        }});
+}
+
+function bajaAviso(id) {
+    Swal.fire({ title: '¿Dar de baja este aviso?', text: 'Se conservará en histórico.', icon: 'warning', showCancelButton: true, confirmButtonText: 'Sí, dar de baja' })
+        .then(r=>{ if (r.isConfirmed) {
+            fetch('api/baja_aviso_pld.php', { method: 'POST', headers: {'Content-Type': 'application/json'}, body: JSON.stringify({id_aviso: id}) })
+                .then(res=>res.json()).then(d=>{
+                    if (d.status === 'success') { Swal.fire({ icon: 'success', text: d.message }); cargarAvisos(); cargarAlertasAvisos(); }
+                    else { Swal.fire({ icon: 'error', text: d.message }); }
+                });
+        }});
 }
 
 function actualizarBadgeAvisos(count) {
@@ -1171,19 +1326,32 @@ function actualizarBadgeAvisos(count) {
 }
 
 function cargarAlertasAvisos() {
-    fetch('api/get_avisos_pld.php?estatus=vencido')
+    const historico = document.getElementById('chk-historico-av')?.checked ? '1' : '';
+    const url = 'api/get_avisos_pld.php' + (historico ? '?historico=1' : '');
+    fetch(url)
         .then(res => res.json())
         .then(data => {
-            if (data.status === 'success' && data.contadores?.vencidos > 0) {
-                const alertDiv = document.getElementById('alertas-avisos');
-                alertDiv.innerHTML = `
-                    <div class="alert alert-danger alert-dismissible fade show" role="alert">
-                        <i class="fa-solid fa-exclamation-triangle me-2"></i>
-                        <strong>¡Atención!</strong> Tienes <strong>${data.contadores.vencidos}</strong> aviso(s) vencido(s) que requieren atención inmediata.
-                        <button type="button" class="btn-close" data-bs-dismiss="alert"></button>
-                    </div>
-                `;
+            if (data.status !== 'success') return;
+            const cont = data.contadores || {};
+            const vencidosSinFolio = cont.vencidos_sin_folio ?? cont.vencidos ?? 0;
+            const porVencer = cont.por_vencer || 0;
+            const alertDiv = document.getElementById('alertas-avisos');
+            let html = '';
+            if (vencidosSinFolio > 0) {
+                html += `<div class="alert alert-danger alert-dismissible fade show" role="alert">
+                    <i class="fa-solid fa-exclamation-triangle me-2"></i>
+                    <strong>¡Atención!</strong> Tienes <strong>${vencidosSinFolio}</strong> aviso(s) vencido(s) sin folio SAT. Capture el folio en Actualizar Aviso.
+                    <button type="button" class="btn-close" data-bs-dismiss="alert"></button>
+                </div>`;
             }
+            if (porVencer > 0) {
+                html += `<div class="alert alert-warning alert-dismissible fade show" role="alert">
+                    <i class="fa-solid fa-clock me-2"></i>
+                    <strong>Por vencer:</strong> <strong>${porVencer}</strong> aviso(s) próximo(s) a vencer sin folio SAT. No olvide capturar el folio.
+                    <button type="button" class="btn-close" data-bs-dismiss="alert"></button>
+                </div>`;
+            }
+            if (alertDiv) alertDiv.innerHTML = html;
         })
         .catch(err => console.error('Error al cargar alertas:', err));
 }
@@ -1275,17 +1443,48 @@ function editarAviso(idAviso) {
     fetch(`api/get_avisos_pld.php`)
         .then(res => res.json())
         .then(data => {
-            if (data.status === 'success') {
-                const aviso = data.avisos.find(a => a.id_aviso == idAviso);
-                if (aviso) {
-                    document.getElementById('aviso_id_aviso').value = aviso.id_aviso;
-                    document.getElementById('aviso_folio_sppld').value = aviso.folio_sppld || '';
-                    document.getElementById('aviso_fecha_presentacion').value = aviso.fecha_presentacion || '';
-                    document.getElementById('aviso_estatus').value = aviso.estatus;
-                    const modal = new bootstrap.Modal(document.getElementById('modalAviso'));
-                    modal.show();
+            if (data.status !== 'success') return;
+            const aviso = data.avisos.find(a => a.id_aviso == idAviso);
+            if (!aviso) return;
+
+            const currentIdAviso = String(aviso.id_aviso);
+            document.getElementById('aviso_id_aviso').value = aviso.id_aviso;
+            document.getElementById('aviso_id_cliente').value = aviso.id_cliente || '';
+            document.getElementById('aviso_folio_sppld').value = aviso.folio_sppld || '';
+            document.getElementById('aviso_fecha_presentacion').value = aviso.fecha_presentacion || '';
+            document.getElementById('aviso_estatus').value = aviso.estatus || 'pendiente';
+            document.getElementById('aviso-alerta-por-vencer').classList.add('d-none');
+            document.getElementById('aviso-alerta-vencido').classList.add('d-none');
+            const hoy = todayLocalMidnight();
+            const deadline = parseDateLocal(aviso.fecha_deadline);
+            const sinFolio = !aviso.folio_sppld || String(aviso.folio_sppld).trim() === '';
+            if (deadline && sinFolio) {
+                const dias = Math.ceil((deadline - hoy) / (1000*60*60*24));
+                if (deadline < hoy) {
+                    document.getElementById('aviso-alerta-vencido').classList.remove('d-none');
+                } else if (dias <= 7) {
+                    document.getElementById('aviso-alerta-por-vencer').classList.remove('d-none');
                 }
             }
+
+            const permPromise = fetch(`api/check_permiso_pld.php?id_cliente=${aviso.id_cliente || ''}`).then(r => r.json());
+            const bitacoraPromise = cargarBitacoraAviso(aviso.id_aviso);
+            Promise.all([permPromise, bitacoraPromise]).then(([perm]) => {
+                if (document.getElementById('aviso_id_aviso').value !== currentIdAviso) return;
+                const puede = perm.puede_modificar || false;
+                document.getElementById('aviso-sin-permiso').classList.toggle('d-none', puede);
+                document.getElementById('formAviso').querySelectorAll('input, select').forEach(el => el.disabled = !puede);
+                document.getElementById('btn-actualizar-aviso').disabled = !puede;
+                const modal = new bootstrap.Modal(document.getElementById('modalAviso'));
+                modal.show();
+            }).catch(() => {
+                if (document.getElementById('aviso_id_aviso').value !== currentIdAviso) return;
+                document.getElementById('aviso-sin-permiso').classList.remove('d-none');
+                document.getElementById('formAviso').querySelectorAll('input, select').forEach(el => el.disabled = true);
+                document.getElementById('btn-actualizar-aviso').disabled = true;
+                const modal = new bootstrap.Modal(document.getElementById('modalAviso'));
+                modal.show();
+            });
         });
 }
 
@@ -1332,10 +1531,77 @@ function actualizarAviso() {
     });
 }
 
+function cargarBitacoraAviso(idAviso) {
+    const body = document.getElementById('bitacora-aviso-body');
+    if (!body) return Promise.resolve();
+    body.innerHTML = '<small class="text-muted"><i class="fa-solid fa-spinner fa-spin me-1"></i>Cargando...</small>';
+    return fetch(`api/get_bitacora_pld.php?tabla=avisos_pld&id=${idAviso}`)
+        .then(r => r.json())
+        .then(data => {
+            if (data.status !== 'success' || !data.registros?.length) {
+                body.innerHTML = '<small class="text-muted">No hay cambios registrados</small>';
+                return;
+            }
+            body.innerHTML = data.registros.map(r => {
+                const fecha = r.fecha ? new Date(r.fecha).toLocaleString() : '-';
+                const puedeDeshacer = data.tiene_deshacer && !r.deshacer_aplicado && (r.accion === 'ACTUALIZAR_AVISO_PLD');
+                return `<div class="d-flex justify-content-between align-items-center py-1 border-bottom small">
+                    <span>${escapeHtml(r.accion || 'Cambio')} por ${escapeHtml(r.usuario_nombre || 'Sistema')} - ${escapeHtml(fecha)}</span>
+                    ${puedeDeshacer ? `<button class="btn btn-sm btn-outline-secondary" onclick="deshacerCambio(${r.id_bitacora}); return false;"><i class="fa-solid fa-undo me-1"></i>Deshacer</button>` : ''}
+                </div>`;
+            }).join('');
+        })
+        .catch(() => { body.innerHTML = '<small class="text-danger">Error al cargar</small>'; });
+}
+
+function deshacerCambio(idBitacora) {
+    fetch('api/deshacer_cambio_pld.php', { method: 'POST', headers: {'Content-Type': 'application/json'}, body: JSON.stringify({id_bitacora: idBitacora}) })
+        .then(r=>r.json())
+        .then(data=>{
+            if (data.status === 'success') {
+                Swal.fire({ icon: 'success', title: 'Cambio deshecho', text: data.message });
+                const idAviso = document.getElementById('aviso_id_aviso').value;
+                if (idAviso) {
+                    cargarBitacoraAviso(idAviso);
+                    refreshFormularioAviso(idAviso);
+                }
+                cargarAvisos();
+            } else {
+                Swal.fire({ icon: 'error', title: 'Error', text: data.message || 'No se pudo deshacer' });
+            }
+        });
+}
+
+function refreshFormularioAviso(idAviso) {
+    fetch('api/get_avisos_pld.php')
+        .then(res => res.json())
+        .then(data => {
+            if (data.status !== 'success') return;
+            const aviso = data.avisos.find(a => a.id_aviso == idAviso);
+            if (!aviso) return;
+            document.getElementById('aviso_folio_sppld').value = aviso.folio_sppld || '';
+            document.getElementById('aviso_fecha_presentacion').value = aviso.fecha_presentacion || '';
+            document.getElementById('aviso_estatus').value = aviso.estatus || 'pendiente';
+            document.getElementById('aviso-alerta-por-vencer').classList.add('d-none');
+            document.getElementById('aviso-alerta-vencido').classList.add('d-none');
+            const hoy = todayLocalMidnight();
+            const deadline = parseDateLocal(aviso.fecha_deadline);
+            const sinFolio = !aviso.folio_sppld || String(aviso.folio_sppld).trim() === '';
+            if (deadline && sinFolio) {
+                const dias = Math.ceil((deadline - hoy) / (1000*60*60*24));
+                if (deadline < hoy) document.getElementById('aviso-alerta-vencido').classList.remove('d-none');
+                else if (dias <= 7) document.getElementById('aviso-alerta-por-vencer').classList.remove('d-none');
+            }
+        })
+        .catch(() => {});
+}
+
 function verAviso(idAviso) {
-    // Cambiar a tab de avisos y filtrar
     document.getElementById('avisos-tab').click();
-    // TODO: Scroll al aviso específico
+}
+
+function descargarXmlOperacion(idOperacion) {
+    window.location.href = 'api/descargar_xml_operacion.php?id=' + idOperacion;
 }
 </script>
 

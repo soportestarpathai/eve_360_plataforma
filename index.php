@@ -231,6 +231,17 @@ foreach ($rawMenu as $row) {
 foreach ($ref as &$node) { if (empty($node['submenu'])) unset($node['submenu']); }
 unset($node);
 
+// Reportes apunta a Conservación PLD; quitar "Conservación PLD" como ítem apartado
+foreach ($menuTree as &$item) {
+    if (isset($item['label']) && $item['label'] === 'Reportes') {
+        $item['link'] = 'conservacion_pld.php';
+    }
+}
+unset($item);
+$menuTree = array_values(array_filter($menuTree, function ($item) {
+    return (isset($item['label']) && $item['label'] !== 'Conservación PLD');
+}));
+
 $logger->debug('Menu: Estructura cargada', [
     'companyType' => $currentCompanyType,
     'menuItems' => count($rawMenu)
@@ -801,14 +812,12 @@ try {
                             </div>
                             <span class="quick-action-label">Configurar EBR</span>
                         </a>
-                        <?php if (file_exists('admin/reports.php')): ?>
-                        <a href="admin/reports.php" class="quick-action-btn">
+                        <a href="conservacion_pld.php" class="quick-action-btn">
                             <div class="quick-action-icon" style="background: linear-gradient(135deg, #FF6B6B 0%, #EE5A6F 100%);">
-                                <i class="fa-solid fa-chart-line"></i>
+                                <i class="fa-solid fa-chart-pie"></i>
                             </div>
                             <span class="quick-action-label">Reportes</span>
                         </a>
-                        <?php endif; ?>
                     </div>
                 </div>
             </div>

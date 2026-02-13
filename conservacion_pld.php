@@ -15,9 +15,17 @@ requirePLDHabilitado($pdo, false);
 $page_title = "Conservación de Información PLD";
 include 'templates/header.php';
 ?>
-
+<title>Conservación PLD - <?= htmlspecialchars($appConfig['nombre_empresa'] ?? 'EVE 360') ?></title>
 <link rel="stylesheet" href="assets/css/operaciones_pld.css">
+</head>
+<body>
 
+<?php
+$is_sub_page = true;
+include 'templates/top_bar.php';
+?>
+
+<div class="content-wrapper">
 <div class="container-fluid py-4">
     <!-- Header -->
     <div class="d-flex justify-content-between align-items-center mb-4">
@@ -355,6 +363,9 @@ include 'templates/header.php';
         </div>
     </div>
 </div>
+
+</div><!-- /.container-fluid -->
+</div><!-- /.content-wrapper -->
 
 <script src="https://cdn.jsdelivr.net/npm/sweetalert2@11"></script>
 <script>

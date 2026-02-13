@@ -6,6 +6,7 @@
 
 session_start();
 require_once __DIR__ . '/../config/db.php';
+require_once __DIR__ . '/../config/pld_permisos.php';
 header('Content-Type: application/json');
 
 if (!isset($_SESSION['user_id'])) {
@@ -59,6 +60,11 @@ try {
                 WHERE a.id_status = 1";
     }
     
+    $incluirHistorico = (isset($_GET['historico']) && $_GET['historico'] === '1');
+    if ($incluirHistorico) {
+        $sql = str_replace('WHERE a.id_status = 1', 'WHERE (a.id_status = 1 OR a.id_status = 0)', $sql);
+    }
+    
     $params = [];
     
     if ($id_cliente) {
@@ -103,23 +109,46 @@ try {
         }
     }
     unset($aviso); // Liberar referencia
+
+    $id_usuario = $_SESSION['user_id'] ?? 0;
+    foreach ($avisos as &$a) {
+        $a['puede_modificar'] = canModifyPLD($pdo, $id_usuario, (int)($a['id_cliente'] ?? 0));
+    }
+    unset($a);
     
-    // Contar por estatus
+    // Contar por estatus y por vencer (sin folio, deadline en 1-7 días)
     $contadores = [
         'pendientes' => 0,
         'presentados' => 0,
         'vencidos' => 0,
+        'vencidos_sin_folio' => 0,
+        'por_vencer' => 0,
         'total' => count($avisos)
     ];
+    $hoy = new DateTime('today');
     
     foreach ($avisos as $aviso) {
+        // Con histórico: contar todos los avisos devueltos; sin histórico: solo activos
+        if (!$incluirHistorico && ($aviso['id_status'] ?? 1) != 1) continue;
         $estatus_real = $aviso['estatus_real'];
         if ($estatus_real === 'pendiente') {
             $contadores['pendientes']++;
+            $sinFolio = empty(trim($aviso['folio_sppld'] ?? ''));
+            if ($sinFolio && $aviso['fecha_deadline']) {
+                $deadline = new DateTime($aviso['fecha_deadline']);
+                $dias = $hoy->diff($deadline)->days;
+                if ($deadline >= $hoy && $dias <= 7) {
+                    $contadores['por_vencer']++;
+                }
+            }
         } elseif ($estatus_real === 'presentado') {
             $contadores['presentados']++;
         } elseif ($estatus_real === 'vencido') {
             $contadores['vencidos']++;
+            $sinFolio = empty(trim($aviso['folio_sppld'] ?? ''));
+            if ($sinFolio) {
+                $contadores['vencidos_sin_folio']++;
+            }
         }
     }
     

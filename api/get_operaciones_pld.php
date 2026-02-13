@@ -6,6 +6,7 @@
 
 session_start();
 require_once __DIR__ . '/../config/db.php';
+require_once __DIR__ . '/../config/pld_permisos.php';
 header('Content-Type: application/json');
 
 if (!isset($_SESSION['user_id'])) {
@@ -18,17 +19,33 @@ try {
     $id_cliente = $_GET['id_cliente'] ?? null;
     $fecha_desde = $_GET['fecha_desde'] ?? null;
     $fecha_hasta = $_GET['fecha_hasta'] ?? null;
+    $incluirHistorico = (isset($_GET['historico']) && $_GET['historico'] === '1');
     
-    $sql = "SELECT o.*, 
+    $tieneXmlCols = false;
+    try {
+        $chk = $pdo->query("SELECT COUNT(*) FROM INFORMATION_SCHEMA.COLUMNS WHERE TABLE_SCHEMA = DATABASE() AND TABLE_NAME = 'operaciones_pld' AND COLUMN_NAME = 'xml_contenido'");
+        $tieneXmlCols = ($chk->fetchColumn() > 0);
+    } catch (Exception $e) { /* ignorar */ }
+    
+    $selXml = $tieneXmlCols
+        ? "o.xml_nombre_archivo, CASE WHEN o.xml_contenido IS NOT NULL AND LENGTH(o.xml_contenido) > 0 THEN 1 ELSE 0 END as tiene_xml,"
+        : "NULL as xml_nombre_archivo, 0 as tiene_xml,";
+    
+    $sql = "SELECT o.id_operacion, o.id_cliente, o.id_fraccion, o.id_status, o.tipo_operacion, o.monto, o.monto_uma,
+                   o.fecha_operacion, o.fecha_registro, o.es_sospechosa, o.match_listas_restringidas,
+                   o.requiere_aviso, o.tipo_aviso, o.fecha_deadline_aviso, o.id_aviso_generado,
+                   $selXml
                    c.alias as cliente_alias,
                    COALESCE(cf.nombre, cm.razon_social, 'Sin nombre') as cliente_nombre,
-                   cv.nombre as fraccion_nombre
+                   cv.nombre as fraccion_nombre,
+                   a.folio_sppld, a.fecha_presentacion
             FROM operaciones_pld o
             LEFT JOIN clientes c ON o.id_cliente = c.id_cliente
             LEFT JOIN clientes_fisicas cf ON o.id_cliente = cf.id_cliente
             LEFT JOIN clientes_morales cm ON o.id_cliente = cm.id_cliente
             LEFT JOIN cat_vulnerables cv ON o.id_fraccion = cv.id_vulnerable
-            WHERE o.id_status = 1";
+            LEFT JOIN avisos_pld a ON o.id_aviso_generado = a.id_aviso
+            WHERE " . ($incluirHistorico ? "(o.id_status = 1 OR o.id_status = 0)" : "o.id_status = 1");
     
     $params = [];
     
@@ -52,6 +69,12 @@ try {
     $stmt = $pdo->prepare($sql);
     $stmt->execute($params);
     $operaciones = $stmt->fetchAll(PDO::FETCH_ASSOC);
+
+    $id_usuario = $_SESSION['user_id'] ?? 0;
+    foreach ($operaciones as &$op) {
+        $op['puede_modificar'] = canModifyPLD($pdo, $id_usuario, (int)($op['id_cliente'] ?? 0));
+    }
+    unset($op);
     
     echo json_encode([
         'status' => 'success',
