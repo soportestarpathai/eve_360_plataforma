@@ -204,3 +204,5 @@ Puede ser ambas:
 - `admin/representacion_legal.php` - Interfaz de gestión
 - `config/pld_middleware.php` - Middleware de bloqueo
 - `db/migrations/add_pld_validations_fields.sql` - Estructura de BD
+
+
