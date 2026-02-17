@@ -473,10 +473,10 @@ try {
         --primary-color: <?= !empty($appConfig['color_primario']) ? htmlspecialchars($appConfig['color_primario']) : '#1B8FEA' ?>;
     }
     
-    /* Animación del ticker deshabilitada por rendimiento */
-    /* .ticker-track {
-        animation-duration: <?= max(30, count($tickerItems) * 12) ?>s;
-    } */
+    /* Duración del carrusel según cantidad de ítems */
+    .ticker-track {
+        animation-duration: <?= max(40, count($tickerItems) * 10) ?>s;
+    }
 </style>
 
 <body>

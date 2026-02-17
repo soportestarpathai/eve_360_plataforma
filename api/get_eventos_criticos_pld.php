@@ -7,8 +7,6 @@ header('Content-Type: application/json; charset=utf-8');
 require_once __DIR__ . '/../config/db.php';
 
 try {
-    $pdo = getDBConnection();
-    
     $stmt = $pdo->query("SHOW TABLES LIKE 'eventos_criticos_pld'");
     if ($stmt->rowCount() === 0) {
         echo json_encode(['status' => 'success', 'eventos' => [], 'tabla_no_existe' => true]);

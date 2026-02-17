@@ -8,7 +8,6 @@ require_once __DIR__ . '/../config/db.php';
 require_once __DIR__ . '/../config/pld_conservacion.php';
 
 try {
-    $pdo = getDBConnection();
     $estatus = $_GET['estatus'] ?? null;
     
     $sql = "SELECT * FROM visitas_verificacion_pld WHERE id_status = 1";

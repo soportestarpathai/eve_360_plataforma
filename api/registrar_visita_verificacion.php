@@ -10,7 +10,6 @@ require_once __DIR__ . '/../config/pld_conservacion.php';
 require_once __DIR__ . '/../config/bitacora.php';
 
 try {
-    $pdo = getDBConnection();
     $id_usuario = $_SESSION['id_usuario'] ?? null;
     
     $input = json_decode(file_get_contents('php://input'), true) ?: $_POST;

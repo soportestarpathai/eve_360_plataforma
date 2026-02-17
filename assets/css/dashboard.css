@@ -158,8 +158,7 @@ body {
     white-space: nowrap;
     position: absolute;
     will-change: transform;
-    /* La duración de la animación se define inline desde PHP */
-    /* animation: marquee 60s linear infinite; Removido por rendimiento */ 
+    animation: marquee 60s linear infinite;
 }
 
 .ticker-item {
@@ -176,14 +175,14 @@ body {
     font-weight: 700;
 }
 
-/* @keyframes marquee {
-    0% { transform: translateX(100vw); }
-    100% { transform: translateX(-100%); }
-} Removido por rendimiento */
+@keyframes marquee {
+    0% { transform: translateX(100vw); }   /* Inicia a la derecha: contenido entra desde la derecha */
+    100% { transform: translateX(-50%); }  /* Se desplaza a la izquierda (loop en -50% por duplicado) */
+}
 
-/* .news-ticker:hover .ticker-track {
+.news-ticker:hover .ticker-track {
     animation-play-state: paused;
-} Removido */
+}
 
 /* --- WATERMARK --- */
 .watermark {
