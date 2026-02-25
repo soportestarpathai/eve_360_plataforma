@@ -36,6 +36,7 @@ try {
         LEFT JOIN clientes_fisicas cf ON c.id_cliente = cf.id_cliente
         LEFT JOIN clientes_morales cm ON c.id_cliente = cm.id_cliente
         WHERE a.id_status = 1
+          AND COALESCE(c.id_status, 1) != 4
           AND (a.folio_sppld IS NULL OR TRIM(a.folio_sppld) = '')
           AND a.estatus IN ('pendiente', 'generado')
           AND (

@@ -1,7 +1,7 @@
 <?php
 /**
  * PLD Middleware
- * Bloquea operaciones PLD según todas las validaciones PLD
+ * Bloquea transacciones PLD según todas las validaciones PLD
  * 
  * VAL-PLD-001: Validación de padrón PLD
  * VAL-PLD-002: Revalidación Periódica
@@ -272,3 +272,4 @@ if (!function_exists('requireConservacionInformacion')) {
         }
     }
 }
+

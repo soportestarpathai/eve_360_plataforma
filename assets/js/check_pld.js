@@ -15,12 +15,45 @@ function toggleType() {
     document.getElementById('resultArea').style.display = 'none';
 }
 
+function applyQuotaState(quota) {
+    const quotaBox = document.getElementById('searchQuotaBox');
+    const quotaAvailable = document.getElementById('quotaAvailable');
+    const quotaUsed = document.getElementById('quotaUsed');
+    const quotaLimit = document.getElementById('quotaLimit');
+    const quotaPeriod = document.getElementById('quotaPeriod');
+
+    if (!quotaBox || !quotaAvailable || !quotaUsed || !quotaLimit || !quotaPeriod || !quota) {
+        return;
+    }
+
+    const limit = Number(quota.limit || 0);
+    const used = Number(quota.used || 0);
+    const available = Number(quota.available || Math.max(0, limit - used));
+    const yearMonth = quota.year_month || '';
+
+    quotaAvailable.textContent = Number.isFinite(available) ? String(Math.max(0, available)) : '0';
+    quotaUsed.textContent = Number.isFinite(used) ? String(Math.max(0, used)) : '0';
+    quotaLimit.textContent = Number.isFinite(limit) ? String(Math.max(0, limit)) : '0';
+    quotaPeriod.textContent = yearMonth ? `(${yearMonth})` : '';
+
+    quotaBox.classList.remove('quota-warning', 'quota-danger');
+    if (available <= 0) {
+        quotaBox.classList.add('quota-danger');
+    } else if (available <= Math.max(3, Math.ceil(limit * 0.1))) {
+        quotaBox.classList.add('quota-warning');
+    }
+}
+
 /**
  * Handle form submission for PLD verification
  */
 document.addEventListener('DOMContentLoaded', function() {
     const pldForm = document.getElementById('pldForm');
     if (!pldForm) return;
+
+    if (window.pldQuotaInitial) {
+        applyQuotaState(window.pldQuotaInitial);
+    }
 
     pldForm.addEventListener('submit', async function(e) {
         e.preventDefault();
@@ -82,6 +115,10 @@ document.addEventListener('DOMContentLoaded', function() {
             resultBox.style.display = 'block';
             
             if (json.status === 'success') {
+                if (json.quota) {
+                    applyQuotaState(json.quota);
+                }
+
                 // Display Search ID for reference
                 if (json.id_busqueda) {
                     searchIdDisplay.innerText = `Folio de Búsqueda: #${json.id_busqueda}`;
@@ -141,6 +178,10 @@ document.addEventListener('DOMContentLoaded', function() {
                     resultBody.innerHTML = '<p class="mb-0">La persona consultada no aparece en ninguna lista de riesgo, PEPs o bloqueados.</p>';
                 }
             } else {
+                if (json.quota) {
+                    applyQuotaState(json.quota);
+                }
+
                 // API Error
                 resultBox.className = 'result-box danger';
                 resultIcon.innerHTML = '<i class="fa-solid fa-circle-xmark fa-2x"></i>';

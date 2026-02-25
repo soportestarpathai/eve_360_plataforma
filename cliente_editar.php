@@ -22,9 +22,9 @@ if (!$isPLDHabilitado) {
     <?php $is_sub_page = true; include 'templates/top_bar.php'; ?>
     <div class="container mt-5">
         <div class="alert alert-danger" role="alert">
-            <h4 class="alert-heading"><i class="fa-solid fa-ban me-2"></i>Operación Bloqueada</h4>
+            <h4 class="alert-heading"><i class="fa-solid fa-ban me-2"></i>Transacción Bloqueada</h4>
             <p><strong>NO HABILITADO PARA OPERAR PLD</strong></p>
-            <p>El sujeto obligado no está habilitado para realizar operaciones PLD.</p>
+            <p>El sujeto obligado no está habilitado para realizar transacciones PLD.</p>
             <hr>
             <p class="mb-0">
                 <strong>Razón:</strong> <?= htmlspecialchars($validationResult['razon'] ?? 'Validación de padrón PLD fallida') ?><br>

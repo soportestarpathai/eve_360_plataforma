@@ -7,6 +7,13 @@ include 'templates/header.php';
 require_once __DIR__ . '/config/pld_validation.php';
 require_once __DIR__ . '/config/pld_middleware.php';
 
+$quotaData = [
+    'limit' => 300,
+    'used' => 0,
+    'available' => 300,
+    'year_month' => date('Y-m')
+];
+
 $isPLDHabilitado = checkHabilitadoPLD($pdo);
 if (!$isPLDHabilitado) {
     $validationResult = validatePatronPLD($pdo);
@@ -17,7 +24,7 @@ if (!$isPLDHabilitado) {
     <?php $is_sub_page = true; include 'templates/top_bar.php'; ?>
     <div class="container mt-5">
         <div class="alert alert-danger" role="alert">
-            <h4 class="alert-heading"><i class="fa-solid fa-ban me-2"></i>Operación Bloqueada</h4>
+            <h4 class="alert-heading"><i class="fa-solid fa-ban me-2"></i>Transacción Bloqueada</h4>
             <p><strong>NO HABILITADO PARA OPERAR PLD</strong></p>
             <p>El sujeto obligado no está habilitado para realizar verificaciones PLD.</p>
             <hr>
@@ -42,8 +49,32 @@ if (!$isPLDHabilitado) {
             </div>
         </div>
     </div>
-    <?php include 'templates/footer.php'; ?>
-    <?php exit; }
+	    <?php include 'templates/footer.php'; ?>
+	    <?php exit; }
+	?>
+<?php
+try {
+    $stmtConfig = $pdo->query("SELECT max_busquedas_api FROM config_empresa WHERE id_config = 1");
+    $cfg = $stmtConfig->fetch(PDO::FETCH_ASSOC);
+    $limit = isset($cfg['max_busquedas_api']) ? (int)$cfg['max_busquedas_api'] : 300;
+    if ($limit <= 0) {
+        $limit = 300;
+    }
+
+    $yearMonth = date('Y-m');
+    $stmtUsage = $pdo->prepare("SELECT search_count FROM search_usage WHERE year_month = ?");
+    $stmtUsage->execute([$yearMonth]);
+    $used = (int)($stmtUsage->fetchColumn() ?: 0);
+
+    $quotaData = [
+        'limit' => $limit,
+        'used' => max(0, $used),
+        'available' => max(0, $limit - $used),
+        'year_month' => $yearMonth
+    ];
+} catch (Exception $e) {
+    // Mantener valores por defecto si falla la lectura de cuota
+}
 ?>
 <title>Verificación Preventiva PLD - <?= htmlspecialchars($appConfig['nombre_empresa']) ?></title>
 <link rel="stylesheet" href="assets/css/check_pld.css">
@@ -59,6 +90,21 @@ if (!$isPLDHabilitado) {
             <div class="check-header-content">
                 <h4 class="mb-0 fw-bold">Verificación Preventiva PLD</h4>
                 <small class="text-muted">Consultar listas de riesgo y PEPs antes de vinculación.</small>
+            </div>
+        </div>
+
+        <div id="searchQuotaBox" class="quota-box">
+            <div class="quota-label">
+                <i class="fa-solid fa-gauge-high me-2"></i>
+                Búsquedas incluidas disponibles este mes
+            </div>
+            <div class="quota-values">
+                <span class="quota-available"><strong id="quotaAvailable"><?= (int)$quotaData['available'] ?></strong> disponibles</span>
+                <span class="quota-divider">|</span>
+                <span><strong id="quotaUsed"><?= (int)$quotaData['used'] ?></strong> usadas</span>
+                <span class="quota-divider">|</span>
+                <span>Límite: <strong id="quotaLimit"><?= (int)$quotaData['limit'] ?></strong></span>
+                <span class="quota-period" id="quotaPeriod">(<?= htmlspecialchars($quotaData['year_month']) ?>)</span>
             </div>
         </div>
 
@@ -123,6 +169,10 @@ if (!$isPLDHabilitado) {
     </div>
 </div>
 
+<script>
+window.pldQuotaInitial = <?= json_encode($quotaData, JSON_UNESCAPED_UNICODE) ?>;
+</script>
 <script src="assets/js/check_pld.js"></script>
 
 <?php include 'templates/footer.php'; ?>
+

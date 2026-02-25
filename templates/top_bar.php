@@ -140,19 +140,36 @@
         
         if (!panel || !bell) return;
 
+        const setPanelVisibility = (visible) => {
+            panel.style.display = visible ? 'block' : 'none';
+        };
+
         bell.addEventListener('click', (e) => {
             e.stopPropagation();
             const isVisible = panel.style.display === 'block';
-            panel.style.display = isVisible ? 'none' : 'block';
-            if(!isVisible) loadNotifs();
+            setPanelVisibility(!isVisible);
+            if (!isVisible) loadNotifs();
         });
         
         document.addEventListener('click', (e) => {
             if (!panel.contains(e.target) && !bell.contains(e.target)) {
-                panel.style.display = 'none';
+                setPanelVisibility(false);
             }
         });
-        window.toggleNotifPanel = () => panel.style.display = 'none';
+
+        window.toggleNotifPanel = () => {
+            const isVisible = panel.style.display === 'block';
+            setPanelVisibility(!isVisible);
+            if (!isVisible) loadNotifs();
+        };
+
+        window.openNotifPanel = () => {
+            setPanelVisibility(true);
+            loadNotifs();
+        };
+
+        window.closeNotifPanel = () => setPanelVisibility(false);
+        window.loadNotifs = loadNotifs;
         loadNotifs(); // Initial load
     }
 
@@ -163,14 +180,19 @@
              const list = document.getElementById('notifList');
              if (!list) return;
              list.innerHTML = '';
-             
-             const count = json.data ? json.data.length : 0;
+
+             const notifications = Array.isArray(json.data) ? json.data : [];
+             const count = notifications.length;
              document.getElementById('notifCount').textContent = count;
              const badge = document.querySelector('.notif-badge');
              if(badge) badge.style.display = count > 0 ? 'block' : 'none';
+
+             document.dispatchEvent(new CustomEvent('notifications:updated', {
+                 detail: { data: notifications }
+             }));
              
-             if(json.data && count > 0) {
-                 json.data.forEach(n => {
+             if(count > 0) {
+                 notifications.forEach(n => {
                     let typeClass = 'bg-light text-dark';
                     const t = n.tipo.toLowerCase();
                     if(t.includes('pld')) typeClass = 'bg-danger-subtle text-danger';
@@ -197,6 +219,11 @@
              } else {
                  list.innerHTML = '<div class="text-center p-4 text-muted small">No hay notificaciones pendientes.</div>';
              }
+        })
+        .catch(() => {
+            document.dispatchEvent(new CustomEvent('notifications:updated', {
+                detail: { data: [] }
+            }));
         });
     }
 

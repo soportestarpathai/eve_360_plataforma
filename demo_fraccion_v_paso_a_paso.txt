@@ -1,0 +1,194 @@
+DEMO FRACCION V (DESARROLLO INMOBILIARIO) - PASO A PASO
+========================================================
+
+Objetivo
+--------
+Demostrar que Fracción V funciona de punta a punta:
+1) Umbral individual (8,025 UMA) dispara aviso.
+2) Acumulación 6 meses dispara aviso de acumulación.
+3) Se genera XML DIN y se puede descargar.
+4) Se generan notificaciones.
+5) Corte mensual interno 15/16 consolida avisos.
+
+
+0) Preparacion tecnica (una sola vez)
+-------------------------------------
+Ejecutar estas migraciones en este orden:
+
+1. db/migrations/add_umbrales_fraccion_v.sql
+2. db/migrations/add_xml_operaciones_pld.sql
+3. db/migrations/fix_tipo_aviso_enum.sql
+4. db/migrations/add_avisos_pld_datos_adicionales.sql
+5. db/migrations/add_aviso_transacciones.sql
+6. db/migrations/add_corte_mensual_avisos_pld.sql
+7. db/migrations/add_operaciones_pld_kyc_snapshot.sql
+8. db/migrations/add_clientes_kyc_info.sql
+
+Verificaciones rapidas SQL:
+
+1. Fraccion V en 8,025 UMA:
+   SELECT fraccion, umbral_aviso_uma, umbral_acumulacion_uma
+   FROM cat_vulnerables
+   WHERE fraccion = 'V';
+
+2. UMA vigente:
+   SELECT nombre, valor, fecha
+   FROM indicadores
+   WHERE nombre LIKE '%UMA%'
+   ORDER BY fecha DESC
+   LIMIT 1;
+
+3. Columnas y tablas nuevas:
+   SHOW COLUMNS FROM operaciones_pld LIKE 'kyc_snapshot_json';
+   SHOW COLUMNS FROM avisos_pld LIKE 'datos_adicionales';
+   SHOW TABLES LIKE 'aviso_transacciones';
+   SHOW TABLES LIKE 'cortes_mensuales_pld';
+   SHOW TABLES LIKE 'corte_mensual_avisos_pld_detalle';
+
+
+1) Login y pantalla base
+------------------------
+1. Inicia sesion en Eve360.
+2. Ir a: menu PLD -> "Transacciones PLD".
+3. Confirmar que abre operaciones_pld.php y ves:
+   - pestaña Transacciones
+   - pestaña Avisos
+   - pestaña Acumulaciones (VAL-PLD-009)
+
+
+2) Caso A - Umbral individual (debe generar aviso)
+--------------------------------------------------
+Escenario:
+- Registrar una transaccion Fraccion V con monto mayor al umbral MXN equivalente.
+
+Pasos:
+1. En Transacciones PLD, clic "Registro DIN (V/V Bis)".
+2. Selecciona un cliente.
+3. Captura monto_desarrollo alto (ejemplo: 1,200,000 MXN).
+4. Selecciona fraccion V.
+5. Guarda.
+
+Resultado esperado:
+1. Mensaje de exito con "Requiere aviso".
+2. Se crea registro en operaciones_pld con:
+   - requiere_aviso = 1
+   - tipo_aviso = umbral_individual (o acumulacion si tambien rebasa acumulacion)
+   - fecha_deadline_aviso = dia 17 del mes siguiente a fecha_operacion
+3. Se crea registro en avisos_pld.
+4. XML DIN generado y descargable desde Transacciones PLD.
+5. Notificacion inmediata para admin/responsable.
+
+SQL de validacion:
+1. SELECT id_operacion, id_cliente, monto, monto_uma, fecha_operacion, requiere_aviso, tipo_aviso, fecha_deadline_aviso, id_aviso_generado
+   FROM operaciones_pld
+   ORDER BY id_operacion DESC
+   LIMIT 5;
+
+2. SELECT id_aviso, id_cliente, tipo_aviso, monto, fecha_operacion, fecha_deadline, estatus
+   FROM avisos_pld
+   ORDER BY id_aviso DESC
+   LIMIT 5;
+
+3. SELECT id_notificacion, id_usuario, tipo, mensaje, fecha_generacion
+   FROM notificaciones
+   WHERE tipo IN ('aviso_requerido_pld','xml_aviso_generado_pld')
+   ORDER BY id_notificacion DESC
+   LIMIT 10;
+
+
+3) Caso B - Acumulacion 6 meses (debe generar aviso de acumulacion)
+-------------------------------------------------------------------
+Escenario:
+- Registrar varias transacciones por debajo del umbral individual,
+  pero cuya suma en 6 meses rebase el umbral.
+
+Pasos:
+1. Usa el mismo cliente y misma fraccion V.
+2. Registra transaccion 1 con monto medio (ejemplo: 450,000 MXN).
+3. Registra transaccion 2 con monto medio (ejemplo: 500,000 MXN).
+4. Ambas dentro de ventana <= 6 meses.
+
+Resultado esperado:
+1. Al rebase acumulado, se crea/actualiza aviso tipo acumulacion.
+2. No se duplican avisos de acumulacion para la misma ventana.
+3. Se actualiza operaciones_pld_acumulacion.
+4. Se llena trazabilidad en aviso_transacciones.
+
+SQL de validacion:
+1. SELECT id_acumulacion, id_cliente, id_fraccion, tipo_acto, fecha_primera_operacion, fecha_ultima_operacion, monto_acumulado, monto_acumulado_uma, cantidad_operaciones, requiere_aviso, id_aviso_generado
+   FROM operaciones_pld_acumulacion
+   WHERE id_cliente = <ID_CLIENTE_DEMO>
+   ORDER BY id_acumulacion DESC;
+
+2. SELECT id_aviso, tipo_aviso, fecha_operacion, monto, datos_adicionales
+   FROM avisos_pld
+   WHERE id_cliente = <ID_CLIENTE_DEMO>
+   ORDER BY id_aviso DESC;
+
+3. SELECT id_aviso, id_operacion, id_cliente, tipo_relacion
+   FROM aviso_transacciones
+   WHERE id_cliente = <ID_CLIENTE_DEMO>
+   ORDER BY id_aviso_transaccion DESC;
+
+
+4) Validacion de KYC snapshot en transaccion
+--------------------------------------------
+1. En Transacciones PLD (registro simplificado), selecciona cliente y valida preview KYC.
+2. Registra transaccion.
+3. Verifica snapshot en BD:
+
+   SELECT id_operacion, kyc_snapshot_json
+   FROM operaciones_pld
+   WHERE id_cliente = <ID_CLIENTE_DEMO>
+   ORDER BY id_operacion DESC
+   LIMIT 3;
+
+
+5) Demo de corte mensual interno (15/16 o force)
+------------------------------------------------
+Objetivo:
+- Consolidar avisos del periodo y mostrar "listo para presentar".
+
+Opcion A (dia 15/16):
+1. Ejecutar:
+   php tools/generar_corte_mensual_avisos_pld.php --mes=2 --anio=2026
+
+Opcion B (cualquier dia):
+1. Ejecutar:
+   php tools/generar_corte_mensual_avisos_pld.php --mes=2 --anio=2026 --force=1
+
+Resultado esperado:
+1. Se crea/actualiza un registro en cortes_mensuales_pld.
+2. Se insertan filas detalle en corte_mensual_avisos_pld_detalle.
+3. Se calculan totales de XML generados y pendientes.
+4. Notificacion tipo corte_mensual_pld a administradores.
+
+SQL de validacion:
+1. SELECT * FROM cortes_mensuales_pld ORDER BY id_corte DESC LIMIT 5;
+2. SELECT * FROM corte_mensual_avisos_pld_detalle ORDER BY id_detalle DESC LIMIT 20;
+3. SELECT id_notificacion, tipo, mensaje, fecha_generacion
+   FROM notificaciones
+   WHERE tipo = 'corte_mensual_pld'
+   ORDER BY id_notificacion DESC
+   LIMIT 5;
+
+
+6) Guion corto para presentacion (3-5 minutos)
+----------------------------------------------
+1. "Primero registro una transaccion DIN de Fraccion V por arriba de umbral."
+2. "El sistema la marca con requiere_aviso y calcula deadline automatico."
+3. "Se genera aviso, notificacion inmediata y XML descargable."
+4. "Ahora registro dos transacciones menores que acumuladas rebasan en 6 meses."
+5. "Se genera aviso de acumulacion sin duplicados y con trazabilidad de operaciones."
+6. "Finalmente ejecuto corte mensual y queda bandeja lista para presentacion."
+
+
+Checklist final de demo exitosa
+-------------------------------
+[ ] Umbral individual dispara aviso.
+[ ] Acumulacion 6 meses dispara aviso.
+[ ] XML DIN se genera y descarga.
+[ ] Notificaciones inmediatas aparecen.
+[ ] Corte mensual genera cabecera y detalle.
+[ ] Trazabilidad aviso <-> transacciones visible en BD.
+

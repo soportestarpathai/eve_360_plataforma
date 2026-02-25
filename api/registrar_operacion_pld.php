@@ -1,6 +1,6 @@
 <?php
 /**
- * API Endpoint: Registrar Operación PLD (VAL-PLD-008)
+ * API Endpoint: Registrar Transacción PLD (VAL-PLD-008)
  * Registra una operación y valida si requiere aviso por umbral individual
  */
 
@@ -63,7 +63,7 @@ try {
             exit;
         }
         
-        // Registrar operación PLD
+        // Registrar transacción PLD
         $result = registrarOperacionPLD($pdo, $data);
         
         if ($result['success'] ?? false) {
@@ -73,7 +73,7 @@ try {
             
             echo json_encode([
                 'status' => 'success',
-                'message' => $result['message'] ?? 'Operación registrada correctamente',
+                'message' => $result['message'] ?? 'Transacción registrada correctamente',
                 'id_operacion' => $result['id_operacion'] ?? null,
                 'id_aviso' => $result['id_aviso'] ?? null,
                 'requiere_aviso' => $result['requiere_aviso'] ?? false,
@@ -86,7 +86,7 @@ try {
             http_response_code(400);
             echo json_encode([
                 'status' => 'error',
-                'message' => $result['message'] ?? 'Error desconocido al registrar operación',
+                'message' => $result['message'] ?? 'Error desconocido al registrar transacción',
                 'debug' => $result
             ]);
         }
@@ -104,3 +104,4 @@ try {
         'message' => 'Error al procesar solicitud: ' . $e->getMessage()
     ]);
 }
+

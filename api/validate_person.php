@@ -5,6 +5,17 @@ require_once '../config/pld_middleware.php';
 require_once '../config/pld_expediente.php'; // VAL-PLD-005, VAL-PLD-006
 header('Content-Type: application/json');
 
+function buildQuotaPayload($limit, $used, $yearMonth) {
+    $limitInt = max(0, (int)$limit);
+    $usedInt = max(0, (int)$used);
+    return [
+        'limit' => $limitInt,
+        'used' => $usedInt,
+        'available' => max(0, $limitInt - $usedInt),
+        'year_month' => $yearMonth
+    ];
+}
+
 if (!isset($_SESSION['user_id'])) {
     http_response_code(401);
     echo json_encode(['status' => 'error', 'message' => 'Unauthorized']);
@@ -16,20 +27,29 @@ requirePLDHabilitado($pdo, true);
 
 // --- 1. CHECK LIMIT (Read Only) ---
 $currentMonth = date('Y-m');
+$limit = 300;
+$currentCount = 0;
 try {
     $stmt_config = $pdo->query("SELECT max_busquedas_api FROM config_empresa WHERE id_config = 1");
     $config = $stmt_config->fetch(PDO::FETCH_ASSOC);
-    $limit = $config ? $config['max_busquedas_api'] : 300; 
+    $limit = $config ? (int)$config['max_busquedas_api'] : 300;
+    if ($limit <= 0) {
+        $limit = 300;
+    }
 
     // Added backticks here too for safety
     $stmt_check = $pdo->prepare("SELECT search_count FROM `search_usage` WHERE `year_month` = ?");
     $stmt_check->execute([$currentMonth]);
     $usage = $stmt_check->fetch(PDO::FETCH_ASSOC);
     
-    $currentCount = $usage ? $usage['search_count'] : 0;
+    $currentCount = $usage ? (int)$usage['search_count'] : 0;
     
     if ($currentCount >= $limit) {
-        echo json_encode(['status' => 'error', 'message' => "Límite mensual ($limit) alcanzado."]);
+        echo json_encode([
+            'status' => 'error',
+            'message' => "Límite mensual ($limit) alcanzado.",
+            'quota' => buildQuotaPayload($limit, $currentCount, $currentMonth)
+        ]);
         exit;
     }
 } catch (Exception $e) { 
@@ -43,7 +63,11 @@ $data = json_decode($rawInput, true);
 // Validate JSON parsing
 if (json_last_error() !== JSON_ERROR_NONE || !is_array($data)) {
     http_response_code(400);
-    echo json_encode(['status' => 'error', 'message' => 'Invalid JSON data']);
+    echo json_encode([
+        'status' => 'error',
+        'message' => 'Invalid JSON data',
+        'quota' => buildQuotaPayload($limit, $currentCount, $currentMonth)
+    ]);
     exit;
 }
 
@@ -53,6 +77,7 @@ $materno = cleanString(trim($data['materno'] ?? ''));
 $tipo_persona_input = $data['tipo_persona'] ?? ''; 
 $id_cliente = $data['id_cliente'] ?? null; 
 $save_history = $data['save_history'] ?? false;
+$use_cache = filter_var($data['use_cache'] ?? false, FILTER_VALIDATE_BOOLEAN);
 
 // VAL-PLD-005 y VAL-PLD-006: Validar expediente si hay cliente asociado (solo lectura, sin actualizar flags)
 // Las consultas PLD se permiten incluso si el expediente está incompleto.
@@ -80,18 +105,30 @@ if ($id_cliente) {
 if ($tipo_persona_input === 'fisica') {
     if (empty($nombre) || empty($paterno)) {
         http_response_code(400);
-        echo json_encode(['status' => 'error', 'message' => 'Nombre y Apellido Paterno son requeridos para persona física']);
+        echo json_encode([
+            'status' => 'error',
+            'message' => 'Nombre y Apellido Paterno son requeridos para persona física',
+            'quota' => buildQuotaPayload($limit, $currentCount, $currentMonth)
+        ]);
         exit;
     }
 } else if ($tipo_persona_input === 'moral') {
     if (empty($nombre) || strlen($nombre) < 3) {
         http_response_code(400);
-        echo json_encode(['status' => 'error', 'message' => 'Razón Social es requerida (mínimo 3 caracteres) para persona moral']);
+        echo json_encode([
+            'status' => 'error',
+            'message' => 'Razón Social es requerida (mínimo 3 caracteres) para persona moral',
+            'quota' => buildQuotaPayload($limit, $currentCount, $currentMonth)
+        ]);
         exit;
     }
 } else {
     http_response_code(400);
-    echo json_encode(['status' => 'error', 'message' => 'Tipo de persona inválido o no especificado']);
+    echo json_encode([
+        'status' => 'error',
+        'message' => 'Tipo de persona inválido o no especificado',
+        'quota' => buildQuotaPayload($limit, $currentCount, $currentMonth)
+    ]);
     exit;
 } 
 
@@ -103,8 +140,44 @@ function cleanString($str) {
 
 $tipo_persona = 'fisica'; 
 if (in_array(strtolower($tipo_persona_input), ['moral', 'm'])) { $tipo_persona = 'moral'; }
+$fullName = trim(preg_replace('/\s+/', ' ', "$nombre $paterno $materno"));
 
-// --- 2. EXECUTE API REQUEST ---
+// --- 2. TRY CACHE (Optional, no quota consumption) ---
+if ($use_cache && $fullName !== '') {
+    try {
+        $stmtCache = $pdo->prepare("
+            SELECT id_busqueda, resultado_json, riesgo_detectado
+            FROM clientes_busquedas_listas
+            WHERE id_usuario = ? AND nombre_buscado = ?
+            ORDER BY fecha_busqueda DESC
+            LIMIT 1
+        ");
+        $stmtCache->execute([$_SESSION['user_id'], $fullName]);
+        $cached = $stmtCache->fetch(PDO::FETCH_ASSOC);
+
+        if ($cached) {
+            $cachedHits = json_decode($cached['resultado_json'] ?? '[]', true);
+            if (!is_array($cachedHits)) {
+                $cachedHits = [];
+            }
+            $cachedFound = !empty($cachedHits);
+
+            echo json_encode([
+                'status' => 'success',
+                'found' => $cachedFound,
+                'data' => $cachedHits,
+                'id_busqueda' => (int)$cached['id_busqueda'],
+                'cached' => true,
+                'quota' => buildQuotaPayload($limit, $currentCount, $currentMonth)
+            ]);
+            exit;
+        }
+    } catch (Exception $e) {
+        error_log("PLD cache lookup failed: " . $e->getMessage());
+    }
+}
+
+// --- 3. EXECUTE API REQUEST ---
 $endpoint = "https://gt-servicios.com/prolistas/Busquedaapi/searchperson";
 $apiKey = "KYC-ukJY0of8NoX40FS0po5odlM0n63wcgXvQq1H7mvaYpZTeLM4lCbUCyQjl3ieH4M=";
 
@@ -125,20 +198,29 @@ $httpCode = curl_getinfo($ch, CURLINFO_HTTP_CODE);
 curl_close($ch);
 
 if ($httpCode < 200 || $httpCode >= 300 || $response === false) {
-    echo json_encode(['status' => 'error', 'message' => "API Error: HTTP $httpCode"]);
+    echo json_encode([
+        'status' => 'error',
+        'message' => "API Error: HTTP $httpCode",
+        'quota' => buildQuotaPayload($limit, $currentCount, $currentMonth)
+    ]);
     exit;
 }
 
-// --- 3. INCREMENT COUNTER (Fixed Syntax) ---
+// --- 4. INCREMENT COUNTER (Fixed Syntax) ---
 try {
     // FIX: Added backticks (`) around table and column names to prevent SQL syntax errors
     $pdo->prepare("INSERT INTO `search_usage` (`year_month`, `search_count`) VALUES (?, 1) ON DUPLICATE KEY UPDATE `search_count` = `search_count` + 1")->execute([$currentMonth]);
+    $currentCount++;
 } catch (Exception $e) {
-    echo json_encode(['status' => 'error', 'message' => 'DB Error (Usage): ' . $e->getMessage()]);
+    echo json_encode([
+        'status' => 'error',
+        'message' => 'DB Error (Usage): ' . $e->getMessage(),
+        'quota' => buildQuotaPayload($limit, $currentCount, $currentMonth)
+    ]);
     exit;
 }
 
-// --- 4. PARSE RESPONSE ---
+// --- 5. PARSE RESPONSE ---
 $jsonResponse = json_decode($response, true);
 $mappedHits = [];
 $found = false;
@@ -172,12 +254,11 @@ if (json_last_error() === JSON_ERROR_NONE) {
     }
 }
 
-// --- 5. SAVE HISTORY ---
+// --- 6. SAVE HISTORY ---
 $id_busqueda = null;
 if ($save_history) {
     try {
         $stmt = $pdo->prepare("INSERT INTO clientes_busquedas_listas (id_cliente, id_usuario, nombre_buscado, resultado_json, riesgo_detectado) VALUES (?, ?, ?, ?, ?)");
-        $fullName = trim("$nombre $paterno $materno");
         $jsonHits = json_encode($mappedHits, JSON_UNESCAPED_UNICODE);
         $riesgoVal = $found ? 1 : 0;
         $userId = $_SESSION['user_id'];
@@ -186,7 +267,11 @@ if ($save_history) {
         $id_busqueda = $pdo->lastInsertId();
 
     } catch (Exception $e) {
-        echo json_encode(['status' => 'error', 'message' => 'DB Error (History): ' . $e->getMessage()]);
+        echo json_encode([
+            'status' => 'error',
+            'message' => 'DB Error (History): ' . $e->getMessage(),
+            'quota' => buildQuotaPayload($limit, $currentCount, $currentMonth)
+        ]);
         exit;
     }
 }
@@ -195,6 +280,8 @@ echo json_encode([
     'status' => 'success',
     'found' => $found,
     'data' => $mappedHits,
-    'id_busqueda' => $id_busqueda
+    'id_busqueda' => $id_busqueda,
+    'cached' => false,
+    'quota' => buildQuotaPayload($limit, $currentCount, $currentMonth)
 ]);
 ?>

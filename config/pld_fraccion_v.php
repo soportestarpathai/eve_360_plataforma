@@ -108,7 +108,7 @@ if (!function_exists('validateProhibicionEfectivoInmobiliario')) {
                 return [
                     'permitido' => false,
                     'codigo' => 'RESTRICCION_EFECTIVO',
-                    'mensaje' => 'Operaciones inmobiliarias ≥ ' . number_format($umbral) . ' UMA no pueden realizarse en efectivo ni metales preciosos'
+                    'mensaje' => 'Transacciones inmobiliarias ≥ ' . number_format($umbral) . ' UMA no pueden realizarse en efectivo ni metales preciosos'
                 ];
             }
         }

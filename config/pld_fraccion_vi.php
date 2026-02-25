@@ -121,7 +121,7 @@ if (!function_exists('validateProhibicionEfectivoMetalesJoyas')) {
                 return [
                     'permitido' => false,
                     'codigo' => 'RESTRICCION_EFECTIVO',
-                    'mensaje' => 'Operaciones ≥ ' . number_format($umbral) . ' UMA no pueden realizarse en efectivo ni metales preciosos (Fracción VI)'
+                    'mensaje' => 'Transacciones ≥ ' . number_format($umbral) . ' UMA no pueden realizarse en efectivo ni metales preciosos (Fracción VI)'
                 ];
             }
         }

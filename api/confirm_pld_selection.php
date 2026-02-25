@@ -17,11 +17,73 @@ if (!isset($_SESSION['user_id'])) {
 requirePLDHabilitado($pdo, true);
 
 $id_usuario_actual = $_SESSION['user_id'];
-$data = json_decode(file_get_contents("php://input"), true);
-$id_busqueda = $data['id_busqueda'] ?? 0;
-$seleccion = $data['seleccion'] ?? ''; 
-$comentarios = $data['comentarios'] ?? '';
-$riesgo_final = $data['riesgo_final'] ?? 0; 
+
+function getRequestData(): array {
+    $contentType = $_SERVER['CONTENT_TYPE'] ?? '';
+    if (stripos($contentType, 'multipart/form-data') !== false) {
+        return $_POST ?? [];
+    }
+    $raw = file_get_contents("php://input");
+    $decoded = json_decode($raw, true);
+    return is_array($decoded) ? $decoded : [];
+}
+
+function hasColumn(PDO $pdo, string $table, string $column): bool {
+    $stmt = $pdo->prepare("SHOW COLUMNS FROM `$table` LIKE ?");
+    $stmt->execute([$column]);
+    return (bool)$stmt->fetch(PDO::FETCH_ASSOC);
+}
+
+function saveSupportFile(int $idBusqueda): ?string {
+    if (!isset($_FILES['documento_soporte']) || !is_array($_FILES['documento_soporte'])) {
+        return null;
+    }
+
+    $file = $_FILES['documento_soporte'];
+    if (($file['error'] ?? UPLOAD_ERR_NO_FILE) === UPLOAD_ERR_NO_FILE) {
+        return null;
+    }
+    if (($file['error'] ?? UPLOAD_ERR_OK) !== UPLOAD_ERR_OK) {
+        throw new Exception('Error al subir documento de soporte (código: ' . $file['error'] . ').');
+    }
+
+    $maxBytes = 10 * 1024 * 1024; // 10 MB
+    if (($file['size'] ?? 0) > $maxBytes) {
+        throw new Exception('El documento de soporte excede 10 MB.');
+    }
+
+    $allowed = ['pdf', 'png', 'jpg', 'jpeg', 'doc', 'docx'];
+    $extension = strtolower(pathinfo($file['name'] ?? '', PATHINFO_EXTENSION));
+    if (!in_array($extension, $allowed, true)) {
+        throw new Exception('Tipo de archivo no permitido para documento de soporte.');
+    }
+
+    $baseName = pathinfo($file['name'] ?? 'soporte', PATHINFO_FILENAME);
+    $safeBase = preg_replace('/[^a-zA-Z0-9_-]/', '_', $baseName);
+    $safeBase = trim($safeBase, '_');
+    if ($safeBase === '') {
+        $safeBase = 'soporte';
+    }
+
+    $targetDir = dirname(__DIR__) . '/uploads/pld_soportes/';
+    if (!is_dir($targetDir) && !mkdir($targetDir, 0755, true)) {
+        throw new Exception('No fue posible crear la carpeta de soportes PLD.');
+    }
+
+    $fileName = date('Ymd_His') . '_busq_' . $idBusqueda . '_' . $safeBase . '_' . bin2hex(random_bytes(4)) . '.' . $extension;
+    $targetPath = $targetDir . $fileName;
+    if (!move_uploaded_file($file['tmp_name'], $targetPath)) {
+        throw new Exception('No fue posible guardar el documento de soporte.');
+    }
+
+    return 'uploads/pld_soportes/' . $fileName;
+}
+
+$data = getRequestData();
+$id_busqueda = (int)($data['id_busqueda'] ?? 0);
+$seleccion = $data['seleccion'] ?? '';
+$comentarios = trim((string)($data['comentarios'] ?? ''));
+$riesgo_final = (int)($data['riesgo_final'] ?? 0);
 
 if (!$id_busqueda) {
     echo json_encode(['status' => 'error', 'message' => 'ID Busqueda Missing']);
@@ -51,14 +113,31 @@ try {
         $seleccion = json_encode($seleccion, JSON_UNESCAPED_UNICODE);
     }
 
-    $stmt = $pdo->prepare("UPDATE clientes_busquedas_listas SET coincidencia_seleccionada = ?, riesgo_detectado = ?, comentarios = ? WHERE id_busqueda = ?");
-    $stmt->execute([$seleccion, $riesgo_final, $comentarios, $id_busqueda]);
+    $documento_soporte = saveSupportFile($id_busqueda);
+    $hasDocumentoSoporte = hasColumn($pdo, 'clientes_busquedas_listas', 'documento_soporte');
+    $comentariosGuardar = $comentarios;
+    if ($documento_soporte && !$hasDocumentoSoporte) {
+        $comentariosGuardar = trim($comentariosGuardar . "\n[Documento de soporte: " . $documento_soporte . "]");
+    }
+
+    if ($hasDocumentoSoporte) {
+        $stmt = $pdo->prepare("UPDATE clientes_busquedas_listas SET coincidencia_seleccionada = ?, riesgo_detectado = ?, comentarios = ?, documento_soporte = ? WHERE id_busqueda = ?");
+        $stmt->execute([$seleccion, $riesgo_final, $comentariosGuardar, $documento_soporte, $id_busqueda]);
+    } else {
+        $stmt = $pdo->prepare("UPDATE clientes_busquedas_listas SET coincidencia_seleccionada = ?, riesgo_detectado = ?, comentarios = ? WHERE id_busqueda = ?");
+        $stmt->execute([$seleccion, $riesgo_final, $comentariosGuardar, $id_busqueda]);
+    }
     
     // Log Change
     $newSearch = $oldSearch;
     $newSearch['coincidencia_seleccionada'] = $seleccion;
     $newSearch['riesgo_detectado'] = $riesgo_final;
-    $newSearch['comentarios'] = $comentarios;
+    $newSearch['comentarios'] = $comentariosGuardar;
+    if ($hasDocumentoSoporte) {
+        $newSearch['documento_soporte'] = $documento_soporte;
+    } elseif ($documento_soporte) {
+        $newSearch['documento_soporte'] = $documento_soporte;
+    }
     
     logChange($pdo, $id_usuario_actual, "CONFIRMAR_PLD", "clientes_busquedas_listas", $id_busqueda, $oldSearch, $newSearch);
 

@@ -2,6 +2,32 @@
 <title>Configuración General y Menús</title>
 
 <?php
+function ensureContractFolioColumns(PDO $pdo): void {
+    $requiredColumns = [
+        'contrato_prefijo' => "VARCHAR(20) NOT NULL DEFAULT ''",
+        'contrato_siguiente' => "INT NOT NULL DEFAULT 1",
+        'contrato_longitud' => "INT NOT NULL DEFAULT 6",
+        'contrato_rellenar_ceros' => "TINYINT(1) NOT NULL DEFAULT 1"
+    ];
+
+    foreach ($requiredColumns as $column => $definition) {
+        $stmt = $pdo->prepare("
+            SELECT COUNT(*) 
+            FROM INFORMATION_SCHEMA.COLUMNS 
+            WHERE TABLE_SCHEMA = DATABASE()
+              AND TABLE_NAME = 'config_empresa'
+              AND COLUMN_NAME = ?
+        ");
+        $stmt->execute([$column]);
+        $exists = (int)$stmt->fetchColumn() > 0;
+        if (!$exists) {
+            $pdo->exec("ALTER TABLE config_empresa ADD COLUMN {$column} {$definition}");
+        }
+    }
+}
+
+ensureContractFolioColumns($pdo);
+
 // --- ACTIONS HANDLER ---
 if ($_SERVER['REQUEST_METHOD'] === 'POST') {
     
@@ -32,6 +58,15 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
             // LOGIC: Check if "Actividad Vulnerable" (ID 1) is selected
             $id_tipo_empresa = $_POST['id_tipo_empresa'];
             $id_vulnerable = 0; // Default to 0
+            $contratoPrefijo = trim((string)($_POST['contrato_prefijo'] ?? ''));
+            $contratoSiguiente = max(1, (int)($_POST['contrato_siguiente'] ?? 1));
+            $contratoLongitud = (int)($_POST['contrato_longitud'] ?? 6);
+            $contratoRellenarCeros = isset($_POST['contrato_rellenar_ceros']) ? 1 : 0;
+            if ($contratoLongitud < 1) {
+                $contratoLongitud = 1;
+            } elseif ($contratoLongitud > 12) {
+                $contratoLongitud = 12;
+            }
 
             if ($id_tipo_empresa == 1) {
                 // If it is vulnerable, use the selected ID
@@ -43,13 +78,15 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
                 UPDATE config_empresa SET 
                     nombre_empresa = ?, logo_url = ?, color_primario = ?, 
                     max_usuarios = ?, max_busquedas_api = ?, 
-                    id_tipo_empresa = ?, id_vulnerable = ?
+                    id_tipo_empresa = ?, id_vulnerable = ?,
+                    contrato_prefijo = ?, contrato_siguiente = ?, contrato_longitud = ?, contrato_rellenar_ceros = ?
                 WHERE id_config = 1
             ");
             $stmt->execute([
                 $_POST['nombre_empresa'], $logoPath, $_POST['color_primario'],
                 $_POST['max_usuarios'], $_POST['max_busquedas_api'], 
-                $id_tipo_empresa, $id_vulnerable
+                $id_tipo_empresa, $id_vulnerable,
+                $contratoPrefijo, $contratoSiguiente, $contratoLongitud, $contratoRellenarCeros
             ]);
             echo '<div class="alert alert-success mt-3">Configuración actualizada.</div>';
         } catch (Exception $e) {
@@ -126,7 +163,11 @@ if (!$config) {
         'max_usuarios' => 10,
         'max_busquedas_api' => 500,
         'id_tipo_empresa' => 1,
-        'id_vulnerable' => 0
+        'id_vulnerable' => 0,
+        'contrato_prefijo' => '',
+        'contrato_siguiente' => 1,
+        'contrato_longitud' => 6,
+        'contrato_rellenar_ceros' => 1
     ];
 } else {
     // Set defaults for null values
@@ -137,6 +178,10 @@ if (!$config) {
     $config['max_busquedas_api'] = $config['max_busquedas_api'] ?? 500;
     $config['id_tipo_empresa'] = $config['id_tipo_empresa'] ?? 1;
     $config['id_vulnerable'] = $config['id_vulnerable'] ?? 0;
+    $config['contrato_prefijo'] = $config['contrato_prefijo'] ?? '';
+    $config['contrato_siguiente'] = $config['contrato_siguiente'] ?? 1;
+    $config['contrato_longitud'] = $config['contrato_longitud'] ?? 6;
+    $config['contrato_rellenar_ceros'] = $config['contrato_rellenar_ceros'] ?? 1;
 }
 
 // 2. Company Types
@@ -248,6 +293,42 @@ $menuItems = $stmtMenu->fetchAll(PDO::FETCH_ASSOC);
                             <div class="col-md-6 mb-3">
                                 <label class="form-label fw-bold">Límite Búsquedas API</label>
                                 <input type="number" name="max_busquedas_api" class="form-control" value="<?= $config['max_busquedas_api'] ?>" required>
+                            </div>
+                        </div>
+
+                        <hr>
+                        <h5 class="mb-3 text-primary">Folio de Contrato</h5>
+                        <div class="row">
+                            <div class="col-md-4 mb-3">
+                                <label class="form-label fw-bold">Prefijo</label>
+                                <input type="text" name="contrato_prefijo" id="contrato_prefijo" class="form-control" maxlength="20" value="<?= htmlspecialchars($config['contrato_prefijo']) ?>" placeholder="Ej: EVE-">
+                            </div>
+                            <div class="col-md-4 mb-3">
+                                <label class="form-label fw-bold">Siguiente consecutivo</label>
+                                <input type="number" name="contrato_siguiente" id="contrato_siguiente" class="form-control" min="1" step="1" value="<?= (int)$config['contrato_siguiente'] ?>" required>
+                            </div>
+                            <div class="col-md-4 mb-3">
+                                <label class="form-label fw-bold">Longitud numérica</label>
+                                <input type="number" name="contrato_longitud" id="contrato_longitud" class="form-control" min="1" max="12" step="1" value="<?= (int)$config['contrato_longitud'] ?>" required>
+                            </div>
+                            <div class="col-md-12 mb-2">
+                                <div class="form-check">
+                                    <input class="form-check-input" type="checkbox" id="contrato_rellenar_ceros" name="contrato_rellenar_ceros" value="1" <?= ((int)$config['contrato_rellenar_ceros'] === 1) ? 'checked' : '' ?>>
+                                    <label class="form-check-label fw-bold" for="contrato_rellenar_ceros">
+                                        Rellenar con ceros a la izquierda (ej. 000123)
+                                    </label>
+                                </div>
+                            </div>
+                            <div class="col-12">
+                                <?php
+                                $previewBase = max(1, (int)$config['contrato_siguiente']);
+                                $previewLen = max(1, min(12, (int)$config['contrato_longitud']));
+                                $previewSeq = ((int)$config['contrato_rellenar_ceros'] === 1)
+                                    ? str_pad((string)$previewBase, $previewLen, '0', STR_PAD_LEFT)
+                                    : (string)$previewBase;
+                                $previewFolio = (string)($config['contrato_prefijo'] ?? '') . $previewSeq;
+                                ?>
+                                <small class="text-muted">Vista previa del folio: <strong id="contractPreview"><?= htmlspecialchars($previewFolio) ?></strong></small>
                             </div>
                         </div>
 
@@ -675,8 +756,33 @@ $menuItems = $stmtMenu->fetchAll(PDO::FETCH_ASSOC);
         }
     }
 
+    function updateContractPreview() {
+        const prefix = (document.getElementById('contrato_prefijo')?.value || '').trim();
+        const nextRaw = parseInt(document.getElementById('contrato_siguiente')?.value || '1', 10);
+        const lengthRaw = parseInt(document.getElementById('contrato_longitud')?.value || '6', 10);
+        const fillZeros = document.getElementById('contrato_rellenar_ceros')?.checked === true;
+        const next = Number.isFinite(nextRaw) && nextRaw > 0 ? nextRaw : 1;
+        const length = Number.isFinite(lengthRaw) ? Math.max(1, Math.min(12, lengthRaw)) : 6;
+        const sequence = fillZeros ? String(next).padStart(length, '0') : String(next);
+        const folio = prefix + sequence;
+        const preview = document.getElementById('contractPreview');
+        if (preview) preview.textContent = folio;
+    }
+
     // Run on load to set initial state
-    document.addEventListener('DOMContentLoaded', toggleVulnerable);
+    document.addEventListener('DOMContentLoaded', function() {
+        toggleVulnerable();
+        updateContractPreview();
+        ['contrato_prefijo', 'contrato_siguiente', 'contrato_longitud'].forEach((id) => {
+            const el = document.getElementById(id);
+            if (!el) return;
+            el.addEventListener('input', updateContractPreview);
+        });
+        const fill = document.getElementById('contrato_rellenar_ceros');
+        if (fill) {
+            fill.addEventListener('change', updateContractPreview);
+        }
+    });
 
     // --- 2. MENU EDIT FUNCTIONS ---
     function editMenu(data) {
@@ -947,7 +1053,7 @@ $menuItems = $stmtMenu->fetchAll(PDO::FETCH_ASSOC);
                                         Swal.fire({
                                             icon: 'warning',
                                             title: '⚠️ ADVERTENCIA',
-                                            html: `${data.mensaje}<br><br><strong>Se detectó una BAJA. Las operaciones PLD han sido bloqueadas.</strong>`,
+                                            html: `${data.mensaje}<br><br><strong>Se detectó una BAJA. Las transacciones PLD han sido bloqueadas.</strong>`,
                                             confirmButtonColor: '#d33'
                                         }).then(() => {
                                             location.reload();

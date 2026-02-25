@@ -1,6 +1,6 @@
 <?php
 /**
- * Baja lógica (soft delete) de operación PLD.
+ * Baja lógica (soft delete) de transacción PLD.
  * Mantiene histórico: id_status = 0.
  * Requiere permiso admin o responsable PLD. Bitácora registrada.
  */
@@ -23,7 +23,7 @@ $id_operacion = (int)($data['id_operacion'] ?? $data['id'] ?? 0);
 
 if (!$id_operacion) {
     http_response_code(400);
-    echo json_encode(['status' => 'error', 'message' => 'ID de operación requerido']);
+    echo json_encode(['status' => 'error', 'message' => 'ID de transacción requerido']);
     exit;
 }
 
@@ -34,7 +34,7 @@ try {
 
     if (!$op) {
         http_response_code(404);
-        echo json_encode(['status' => 'error', 'message' => 'Operación no encontrada']);
+        echo json_encode(['status' => 'error', 'message' => 'Transacción no encontrada']);
         exit;
     }
 
@@ -54,7 +54,7 @@ try {
 
     echo json_encode([
         'status' => 'success',
-        'message' => 'Operación dada de baja (histórico conservado)',
+        'message' => 'Transacción dada de baja (histórico conservado)',
         'id_operacion' => $id_operacion
     ]);
 
@@ -63,3 +63,4 @@ try {
     http_response_code(500);
     echo json_encode(['status' => 'error', 'message' => $e->getMessage()]);
 }
+

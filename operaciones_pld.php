@@ -9,10 +9,10 @@ if (!checkHabilitadoPLD($pdo)) {
     exit;
 }
 
-$page_title = 'Operaciones PLD';
+$page_title = 'Transacciones PLD';
 include 'templates/header.php'; 
 ?>
-<title>Operaciones PLD - <?= htmlspecialchars($appConfig['nombre_empresa']) ?></title>
+<title>Transacciones PLD - <?= htmlspecialchars($appConfig['nombre_empresa']) ?></title>
 <link rel="stylesheet" href="assets/css/operaciones_pld.css">
 </head>
 <body>
@@ -27,9 +27,9 @@ include 'templates/top_bar.php';
         <div class="page-header-title">
             <h2 class="fw-bold text-primary mb-0">
                 <i class="fa-solid fa-file-invoice-dollar me-2"></i>
-                Operaciones PLD
+                Transacciones PLD
             </h2>
-            <p class="text-muted">Registro y gestión de operaciones sujetas a aviso PLD</p>
+            <p class="text-muted">Registro y gestión de transacciones sujetas a aviso PLD</p>
         </div>
         <div class="page-header-actions">
             <div class="btn-group shadow-sm">
@@ -59,13 +59,13 @@ include 'templates/top_bar.php';
                         VAL-PLD-008 | Aviso por Umbral Individual
                     </h5>
                     <p class="mb-2">
-                        <strong>Generalidad:</strong> Las operaciones que superen el umbral configurado (en UMAs) deben avisarse al SPPLD antes del <strong>día 17 del mes siguiente</strong> a la fecha de operación.
+                        <strong>Generalidad:</strong> Las transacciones que superen el umbral configurado (en UMAs) deben avisarse al SPPLD antes del <strong>día 17 del mes siguiente</strong> a la fecha de transacción.
                     </p>
                     <div class="row mt-2">
                         <div class="col-md-6">
                             <small class="text-muted">
                                 <i class="fa-solid fa-check-circle me-1 text-success"></i>
-                                <strong>Validaciones:</strong> Monto ≥ umbral configurado (UMAs) | Fecha de operación válida
+                                <strong>Validaciones:</strong> Monto ≥ umbral configurado (UMAs) | Fecha de transacción válida
                             </small>
                         </div>
                         <div class="col-md-6">
@@ -93,25 +93,25 @@ include 'templates/top_bar.php';
                         VAL-PLD-009 | Aviso por Acumulación (6 meses)
                     </h5>
                     <p class="mb-2">
-                        <strong>Generalidad:</strong> La acumulación por tipo de acto genera obligación de aviso. Se calcula una <strong>ventana móvil de 6 meses</strong> desde la primera operación hacia adelante.
+                        <strong>Generalidad:</strong> La acumulación por tipo de acto genera obligación de aviso. Se calcula una <strong>ventana móvil de 6 meses</strong> desde la primera transacción hacia adelante.
                     </p>
                     <div class="row mt-2">
                         <div class="col-md-6">
                             <small class="text-muted">
                                 <i class="fa-solid fa-check-circle me-1 text-success"></i>
-                                <strong>Validaciones:</strong> Suma acumulada en ventana de 6 meses | Cómputo desde la primera operación
+                                <strong>Validaciones:</strong> Suma acumulada en ventana de 6 meses | Cómputo desde la primera transacción
                             </small>
                         </div>
                         <div class="col-md-6">
                             <small class="text-muted">
                                 <i class="fa-solid fa-exclamation-triangle me-1 text-warning"></i>
-                                <strong>Resultado:</strong> Rebase → <code>GENERAR_AVISO</code> | Deadline → día 17 del mes siguiente a la primera operación
+                                <strong>Resultado:</strong> Rebase → <code>GENERAR_AVISO</code> | Deadline → día 17 del mes siguiente a la primera transacción
                             </small>
                         </div>
                     </div>
                     <div class="alert alert-info mt-2 mb-0">
                         <i class="fa-solid fa-lightbulb me-2"></i>
-                        <strong>Nota:</strong> La acumulación se calcula sumando todas las operaciones del mismo cliente (y fracción/tipo si se especifica) en los últimos 6 meses desde la fecha de la operación actual.
+                        <strong>Nota:</strong> La acumulación se calcula sumando todas las transacciones del mismo cliente (y fracción/tipo si se especifica) en los últimos 6 meses desde la fecha de la transacción actual.
                     </div>
                 </div>
             </div>
@@ -128,7 +128,7 @@ include 'templates/top_bar.php';
                 <div class="card-body">
                     <i class="fa-solid fa-file-invoice-dollar fa-2x text-primary mb-2"></i>
                     <h4 class="mb-0" id="total-operaciones">-</h4>
-                    <small class="text-muted">Total Operaciones</small>
+                    <small class="text-muted">Total Transacciones</small>
                 </div>
             </div>
         </div>
@@ -168,7 +168,7 @@ include 'templates/top_bar.php';
     <ul class="nav nav-tabs mb-4" id="operacionesTabs" role="tablist">
         <li class="nav-item" role="presentation">
             <button class="nav-link active" id="operaciones-tab" data-bs-toggle="tab" data-bs-target="#operaciones" type="button" role="tab">
-                <i class="fa-solid fa-list me-2"></i>Operaciones
+                <i class="fa-solid fa-list me-2"></i>Transacciones
             </button>
         </li>
         <li class="nav-item" role="presentation">
@@ -184,7 +184,7 @@ include 'templates/top_bar.php';
         </li>
         <li class="nav-item" role="presentation">
             <button class="nav-link" id="informes-tab" data-bs-toggle="tab" data-bs-target="#informes" type="button" role="tab">
-                <i class="fa-solid fa-file-circle-check me-2"></i>Informes No Operaciones (VAL-PLD-012)
+                <i class="fa-solid fa-file-circle-check me-2"></i>Informes No Transacciones (VAL-PLD-012)
             </button>
         </li>
     </ul>
@@ -197,7 +197,7 @@ include 'templates/top_bar.php';
                 <div class="card-body">
                     <div class="form-check mb-3">
                         <input class="form-check-input" type="checkbox" id="chk-historico-op" onchange="cargarOperaciones()">
-                        <label class="form-check-label" for="chk-historico-op">Incluir histórico (operaciones dadas de baja)</label>
+                        <label class="form-check-label" for="chk-historico-op">Incluir histórico (transacciones dadas de baja)</label>
                     </div>
                     <div class="table-responsive">
                         <table class="table table-hover" id="tabla-operaciones">
@@ -217,7 +217,7 @@ include 'templates/top_bar.php';
                             <tbody id="operaciones-tbody">
                                 <tr>
                                     <td colspan="9" class="text-center">
-                                        <i class="fa-solid fa-spinner fa-spin me-2"></i>Cargando operaciones...
+                                        <i class="fa-solid fa-spinner fa-spin me-2"></i>Cargando transacciones...
                                     </td>
                                 </tr>
                             </tbody>
@@ -267,7 +267,7 @@ include 'templates/top_bar.php';
                         <table class="table table-hover" id="tabla-avisos">
                             <thead>
                                 <tr>
-                                    <th>Fecha Operación</th>
+                                    <th>Fecha Transacción</th>
                                     <th>Cliente</th>
                                     <th>Tipo Aviso</th>
                                     <th>Monto</th>
@@ -296,7 +296,7 @@ include 'templates/top_bar.php';
                 <div class="card-body">
                     <div class="alert alert-info mb-3">
                         <i class="fa-solid fa-info-circle me-2"></i>
-                        <strong>Ventana Móvil de 6 Meses:</strong> Las acumulaciones se calculan sumando todas las operaciones del mismo cliente en los últimos 6 meses desde la fecha de cada operación.
+                        <strong>Ventana Móvil de 6 Meses:</strong> Las acumulaciones se calculan sumando todas las transacciones del mismo cliente en los últimos 6 meses desde la fecha de cada transacción.
                     </div>
                     <div class="table-responsive">
                         <table class="table table-hover" id="tabla-acumulaciones">
@@ -304,9 +304,9 @@ include 'templates/top_bar.php';
                                 <tr>
                                     <th>Cliente</th>
                                     <th>Fracción</th>
-                                    <th>Primera Operación</th>
-                                    <th>Última Operación</th>
-                                    <th>Cantidad Operaciones</th>
+                                    <th>Primera Transacción</th>
+                                    <th>Última Transacción</th>
+                                    <th>Cantidad Transacciones</th>
                                     <th>Monto Acumulado</th>
                                     <th>Monto (UMA)</th>
                                     <th>Días en Ventana</th>
@@ -328,13 +328,13 @@ include 'templates/top_bar.php';
             </div>
         </div>
 
-        <!-- Tab Informes de No Operaciones -->
+        <!-- Tab Informes de No Transacciones -->
         <div class="tab-pane fade" id="informes" role="tabpanel">
             <div class="card">
                 <div class="card-body">
                     <div class="alert alert-warning mb-3">
                         <i class="fa-solid fa-exclamation-triangle me-2"></i>
-                        <strong>VAL-PLD-012 | Informe de No Operaciones:</strong> Si no hubo operaciones avisables en un periodo, debe presentarse un informe antes del día 17 del mes siguiente.
+                        <strong>VAL-PLD-012 | Informe de No Transacciones:</strong> Si no hubo transacciones avisables en un periodo, debe presentarse un informe antes del día 17 del mes siguiente.
                     </div>
                     
                     <!-- Periodos Pendientes -->
@@ -381,13 +381,13 @@ include 'templates/top_bar.php';
     </div>
 </div>
 
-<!-- Modal Registrar Operación -->
+<!-- Modal Registrar Transacción -->
 <div class="modal fade" id="modalOperacion" tabindex="-1">
     <div class="modal-dialog modal-lg">
         <div class="modal-content">
             <div class="modal-header">
                 <h5 class="modal-title">
-                    <i class="fa-solid fa-file-invoice-dollar me-2"></i>Registrar Operación PLD
+                    <i class="fa-solid fa-file-invoice-dollar me-2"></i>Registrar Transacción PLD
                 </h5>
                 <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
             </div>
@@ -400,8 +400,36 @@ include 'templates/top_bar.php';
                                 <option value="">-- Seleccione Cliente --</option>
                             </select>
                         </div>
+                        <div class="col-12 mb-3">
+                            <div id="operacion-kyc-preview" class="border rounded-3 p-3 bg-light d-none">
+                                <div class="d-flex align-items-center justify-content-between flex-wrap gap-2 mb-2">
+                                    <small class="text-muted mb-0">
+                                        <i class="fa-solid fa-user-check me-1"></i>
+                                        Datos KYC del cliente (solo lectura)
+                                    </small>
+                                    <small class="text-muted mb-0" id="operacion-kyc-contrato-wrap">
+                                        <i class="fa-solid fa-file-signature me-1"></i>Contrato:
+                                        <strong id="operacion-kyc-contrato">-</strong>
+                                    </small>
+                                </div>
+                                <div class="row g-2 small">
+                                    <div class="col-md-4"><strong>Nombre / Razón:</strong> <span id="operacion-kyc-nombre">-</span></div>
+                                    <div class="col-md-4"><strong>Tipo persona:</strong> <span id="operacion-kyc-tipo">-</span></div>
+                                    <div class="col-md-4"><strong>Nacionalidad:</strong> <span id="operacion-kyc-pais">-</span></div>
+                                    <div class="col-md-4"><strong>RFC:</strong> <span id="operacion-kyc-rfc">-</span></div>
+                                    <div class="col-md-4"><strong>CURP:</strong> <span id="operacion-kyc-curp">-</span></div>
+                                    <div class="col-md-4"><strong>Fecha Nac/Const:</strong> <span id="operacion-kyc-fecha">-</span></div>
+                                    <div class="col-md-4"><strong>Actividad:</strong> <span id="operacion-kyc-actividad">-</span></div>
+                                    <div class="col-md-4"><strong>Origen recursos:</strong> <span id="operacion-kyc-origen">-</span></div>
+                                    <div class="col-md-4"><strong>Ocupación:</strong> <span id="operacion-kyc-ocupacion">-</span></div>
+                                    <div class="col-md-4"><strong>Empleo actual:</strong> <span id="operacion-kyc-empleo">-</span></div>
+                                    <div class="col-md-4"><strong>Antigüedad:</strong> <span id="operacion-kyc-antiguedad">-</span></div>
+                                    <div class="col-md-4"><strong>Familiar PEP:</strong> <span id="operacion-kyc-pep">-</span></div>
+                                </div>
+                            </div>
+                        </div>
                         <div class="col-md-6 mb-3">
-                            <label class="form-label">Fecha de Operación *</label>
+                            <label class="form-label">Fecha de Transacción *</label>
                             <input type="date" class="form-control" id="operacion_fecha" required value="<?= date('Y-m-d') ?>">
                         </div>
                         <div class="col-md-6 mb-3">
@@ -425,23 +453,23 @@ include 'templates/top_bar.php';
                             </small>
                         </div>
                         <div class="col-md-6 mb-3">
-                            <label class="form-label">Tipo de Operación (Opcional)</label>
+                            <label class="form-label">Tipo de Transacción (Opcional)</label>
                             <input type="text" class="form-control" id="operacion_tipo" placeholder="Ej: Venta, Compra, etc.">
                         </div>
                         <div class="col-12 mb-3">
                             <hr>
                             <h6 class="text-danger">
                                 <i class="fa-solid fa-exclamation-triangle me-2"></i>
-                                VAL-PLD-010 | Operación Sospechosa (Aviso 24H)
+                                VAL-PLD-010 | Transacción Sospechosa (Aviso 24H)
                             </h6>
                         </div>
                         <div class="col-md-6 mb-3">
                             <label class="form-label">
-                                Operación Sospechosa
+                                Transacción Sospechosa
                                 <i class="fa-solid fa-info-circle ms-1 text-info" 
                                    data-bs-toggle="tooltip" 
                                    data-bs-placement="top" 
-                                   title="Si la operación presenta indicios de posible ilícito, debe avisarse en 24 horas"></i>
+                                   title="Si la transacción presenta indicios de posible ilícito, debe avisarse en 24 horas"></i>
                             </label>
                             <div class="form-check form-switch">
                                 <input class="form-check-input" type="checkbox" id="operacion_sospechosa">
@@ -488,7 +516,7 @@ include 'templates/top_bar.php';
             <div class="modal-footer">
                 <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Cancelar</button>
                 <button type="button" class="btn btn-primary" onclick="guardarOperacion()">
-                    <i class="fa-solid fa-save me-2"></i>Registrar Operación
+                    <i class="fa-solid fa-save me-2"></i>Registrar Transacción
                 </button>
             </div>
         </div>
@@ -510,7 +538,7 @@ include 'templates/top_bar.php';
                 <div class="alert alert-info mb-3">
                     <h6 class="alert-heading"><i class="fa-solid fa-calendar-days me-2"></i>Reglas de plazo para vencimiento</h6>
                     <ul class="mb-0 small">
-                        <li><strong>Avisos normales (umbral, acumulación):</strong> Día 17 del mes siguiente a la fecha de operación.</li>
+                        <li><strong>Avisos normales (umbral, acumulación):</strong> Día 17 del mes siguiente a la fecha de transacción.</li>
                         <li><strong>Avisos 24H (sospechosa, listas restringidas):</strong> 24 horas desde la fecha de conocimiento.</li>
                         <li>Capture el <strong>folio SPPLD</strong> al subir el aviso al SAT para llevar control.</li>
                     </ul>
@@ -576,6 +604,7 @@ include 'templates/top_bar.php';
 let clientesList = [];
 let fraccionesList = [];
 let puedeModificarPLD = false;
+const kycCacheOperacion = new Map();
 
 function escapeHtml(s) {
     if (s == null || s === undefined) return '';
@@ -659,6 +688,14 @@ document.addEventListener('DOMContentLoaded', function() {
             }
         });
     }
+
+    const operacionCliente = document.getElementById('operacion_id_cliente');
+    if (operacionCliente) {
+        operacionCliente.addEventListener('change', function() {
+            cargarKYCOperacion(this.value);
+            checkPermisoPLD(this.value || null);
+        });
+    }
 });
 
 function cargarClientes() {
@@ -676,6 +713,81 @@ function cargarClientes() {
             });
         })
         .catch(err => console.error('Error al cargar clientes:', err));
+}
+
+function limpiarKYCOperacion() {
+    const preview = document.getElementById('operacion-kyc-preview');
+    if (preview) {
+        preview.classList.add('d-none');
+    }
+}
+
+function valorKYC(value, fallback = '-') {
+    if (value === null || value === undefined) return fallback;
+    const text = String(value).trim();
+    return text !== '' ? text : fallback;
+}
+
+function renderKYCOperacion(kyc) {
+    const preview = document.getElementById('operacion-kyc-preview');
+    if (!preview || !kyc) return;
+
+    document.getElementById('operacion-kyc-contrato').textContent = valorKYC(kyc.no_contrato);
+    document.getElementById('operacion-kyc-nombre').textContent = valorKYC(kyc.denominacion_razon || kyc.razon_social || kyc.nombre);
+    document.getElementById('operacion-kyc-tipo').textContent = valorKYC(kyc.tipo_persona);
+    document.getElementById('operacion-kyc-pais').textContent = valorKYC(kyc.pais_nacionalidad_nombre || kyc.pais_nacionalidad);
+    document.getElementById('operacion-kyc-rfc').textContent = valorKYC(kyc.rfc);
+    document.getElementById('operacion-kyc-curp').textContent = valorKYC(kyc.curp);
+    document.getElementById('operacion-kyc-fecha').textContent = valorKYC(kyc.fecha_nacimiento || kyc.fecha_constitucion);
+    document.getElementById('operacion-kyc-actividad').textContent = valorKYC(kyc.actividad_economica);
+    document.getElementById('operacion-kyc-origen').textContent = valorKYC(kyc.origen_recursos);
+    document.getElementById('operacion-kyc-ocupacion').textContent = valorKYC(kyc.ocupacion);
+    document.getElementById('operacion-kyc-empleo').textContent = valorKYC(kyc.empleo_actual);
+
+    const antiguedad = (kyc.antiguedad_anios !== null && kyc.antiguedad_anios !== undefined && kyc.antiguedad_anios !== '')
+        ? `${kyc.antiguedad_anios} años`
+        : '-';
+    document.getElementById('operacion-kyc-antiguedad').textContent = antiguedad;
+
+    const tienePep = parseInt(kyc.tiene_familiar_pep, 10) === 1;
+    let pepText = tienePep ? 'Sí' : 'No';
+    if (tienePep && kyc.parentesco_familiar_pep) {
+        pepText += ` (${kyc.parentesco_familiar_pep})`;
+    }
+    document.getElementById('operacion-kyc-pep').textContent = pepText;
+
+    preview.classList.remove('d-none');
+}
+
+function cargarKYCOperacion(idCliente) {
+    if (!idCliente) {
+        limpiarKYCOperacion();
+        return;
+    }
+
+    if (kycCacheOperacion.has(String(idCliente))) {
+        renderKYCOperacion(kycCacheOperacion.get(String(idCliente)));
+        return;
+    }
+
+    fetch('api/get_cliente_kyc_pld.php?id=' + encodeURIComponent(idCliente))
+        .then(res => res.json())
+        .then(data => {
+            const currentSelected = document.getElementById('operacion_id_cliente')?.value;
+            if (String(currentSelected || '') !== String(idCliente)) {
+                return;
+            }
+            if (data.status === 'success' && data.kyc) {
+                kycCacheOperacion.set(String(idCliente), data.kyc);
+                renderKYCOperacion(data.kyc);
+            } else {
+                limpiarKYCOperacion();
+            }
+        })
+        .catch(err => {
+            console.error('Error al cargar KYC del cliente:', err);
+            limpiarKYCOperacion();
+        });
 }
 
 function cargarFracciones() {
@@ -712,11 +824,11 @@ function cargarOperaciones() {
                 renderOperaciones(data.operaciones || []);
             } else {
                 document.getElementById('operaciones-tbody').innerHTML = 
-                    '<tr><td colspan="9" class="text-center text-danger">Error al cargar operaciones</td></tr>';
+                    '<tr><td colspan="9" class="text-center text-danger">Error al cargar transacciones</td></tr>';
             }
         })
         .catch(err => {
-            console.error('Error al cargar operaciones:', err);
+            console.error('Error al cargar transacciones:', err);
             document.getElementById('operaciones-tbody').innerHTML = 
                 '<tr><td colspan="9" class="text-center text-danger">Error de conexión</td></tr>';
         });
@@ -729,8 +841,8 @@ function renderOperaciones(operaciones) {
             <tr>
                 <td colspan="9" class="text-center text-muted py-5">
                     <i class="fa-solid fa-inbox fa-3x mb-3 d-block" style="opacity: 0.3;"></i>
-                    <p class="mb-0">No hay operaciones registradas</p>
-                    <small>Haz clic en "Registrar Operación" para comenzar</small>
+                    <p class="mb-0">No hay transacciones registradas</p>
+                    <small>Haz clic en "Registrar Transacción" para comenzar</small>
                 </td>
             </tr>
         `;
@@ -868,7 +980,7 @@ function actualizarTotalOperaciones() {
                 document.getElementById('total-operaciones').textContent = (data.operaciones || []).length;
             }
         })
-        .catch(err => console.error('Error al cargar total operaciones:', err));
+        .catch(err => console.error('Error al cargar total transacciones:', err));
 }
 
 function cargarInformes() {
@@ -999,7 +1111,7 @@ function renderInformes(informes) {
 
 function registrarInforme(mes, anio) {
     Swal.fire({
-        title: 'Registrar Informe de No Operaciones',
+        title: 'Registrar Informe de No Transacciones',
         html: `
             <form id="formInforme">
                 <div class="mb-3">
@@ -1108,7 +1220,7 @@ function renderAcumulaciones(acumulaciones) {
                 <td colspan="11" class="text-center text-muted py-5">
                     <i class="fa-solid fa-layer-group fa-3x mb-3 d-block" style="opacity: 0.3;"></i>
                     <p class="mb-0">No hay acumulaciones registradas</p>
-                    <small>Las acumulaciones se generan automáticamente al registrar operaciones</small>
+                    <small>Las acumulaciones se generan automáticamente al registrar transacciones</small>
                 </td>
             </tr>
         `;
@@ -1233,7 +1345,7 @@ function renderAvisos(avisos) {
             infoAdicional = `
                 <br><small class="text-muted">
                     <i class="fa-solid fa-info-circle me-1"></i>
-                    <strong>${cantidadOps}</strong> operaciones acumuladas |
+                    <strong>${cantidadOps}</strong> transacciones acumuladas |
                     Primera: <strong>${fechaPrimera}</strong> |
                     Monto: <strong>${escapeHtml(String(montoUMA))} UMAs</strong>
                 </small>
@@ -1298,7 +1410,7 @@ function renderAvisos(avisos) {
 }
 
 function bajaOperacion(id) {
-    Swal.fire({ title: '¿Dar de baja esta operación?', text: 'Se conservará en histórico.', icon: 'warning', showCancelButton: true, confirmButtonText: 'Sí, dar de baja' })
+    Swal.fire({ title: '¿Dar de baja esta transacción?', text: 'Se conservará en histórico.', icon: 'warning', showCancelButton: true, confirmButtonText: 'Sí, dar de baja' })
         .then(r=>{ if (r.isConfirmed) {
             fetch('api/baja_operacion_pld.php', { method: 'POST', headers: {'Content-Type': 'application/json'}, body: JSON.stringify({id_operacion: id}) })
                 .then(res=>res.json()).then(d=>{
@@ -1361,6 +1473,7 @@ function abrirModalOperacion() {
     document.getElementById('operacion_fecha').value = new Date().toISOString().split('T')[0];
     document.getElementById('fecha-conocimiento-sospecha').style.display = 'none';
     document.getElementById('fecha-conocimiento-match').style.display = 'none';
+    limpiarKYCOperacion();
     const modal = new bootstrap.Modal(document.getElementById('modalOperacion'));
     modal.show();
 }
@@ -1401,7 +1514,7 @@ function guardarOperacion() {
         if (data.status === 'success') {
             Swal.fire({
                 icon: 'success',
-                title: 'Operación Registrada',
+                title: 'Transacción Registrada',
                 html: data.requiere_aviso 
                     ? `<p>${data.message}</p>
                        <p><strong>⚠️ Requiere Aviso</strong></p>
@@ -1426,7 +1539,7 @@ function guardarOperacion() {
     })
     .catch(err => {
         console.error('Error:', err);
-        let errorMessage = 'Error al registrar operación';
+        let errorMessage = 'Error al registrar transacción';
         if (err.message) {
             errorMessage = err.message;
         }
@@ -1606,3 +1719,4 @@ function descargarXmlOperacion(idOperacion) {
 </script>
 
 <?php include 'templates/footer.php'; ?>
+

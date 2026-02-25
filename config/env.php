@@ -44,4 +44,12 @@ return [
     // CORS (si se necesita en el futuro)
     'CORS_ENABLED' => filter_var($_ENV['CORS_ENABLED'] ?? false, FILTER_VALIDATE_BOOLEAN),
     'CORS_ALLOWED_ORIGINS' => $_ENV['CORS_ALLOWED_ORIGINS'] ?? '*',
+    
+    // Starpath AI - Extracción de documentos (INE)
+    'STARPATH_API_URL' => $_ENV['STARPATH_API_URL'] ?? 'https://www.starpathai.mx/api/documents/extract/',
+    'STARPATH_API_TOKEN' => $_ENV['STARPATH_API_TOKEN'] ?? 'starpath-docs-8f3k2m9xPqR7nL4vY1wZ',
+    // SSL: en desarrollo local (WAMP) suele faltar CA bundle. true=verificar (producción), false=omitir (solo desarrollo)
+    'STARPATH_SSL_VERIFY' => filter_var($_ENV['STARPATH_SSL_VERIFY'] ?? false, FILTER_VALIDATE_BOOLEAN),
+    // true = incluir en errores: httpCode, raw response preview (para depurar 500)
+    'STARPATH_DEBUG' => filter_var($_ENV['STARPATH_DEBUG'] ?? false, FILTER_VALIDATE_BOOLEAN),
 ];

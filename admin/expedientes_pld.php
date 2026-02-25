@@ -482,9 +482,9 @@ function validateExpediente(idCliente) {
         html += '</div>';
         
         if (data.valido) {
-            html += '<div class="alert alert-success mt-3"><i class="fa-solid fa-check-circle me-2"></i><strong>Expediente válido para operaciones PLD</strong></div>';
+            html += '<div class="alert alert-success mt-3"><i class="fa-solid fa-check-circle me-2"></i><strong>Expediente válido para transacciones PLD</strong></div>';
         } else {
-            html += '<div class="alert alert-danger mt-3"><i class="fa-solid fa-times-circle me-2"></i><strong>Expediente NO válido - Bloquea operaciones PLD</strong></div>';
+            html += '<div class="alert alert-danger mt-3"><i class="fa-solid fa-times-circle me-2"></i><strong>Expediente NO válido - Bloquea transacciones PLD</strong></div>';
         }
         
         Swal.fire({
@@ -521,3 +521,4 @@ function updateFechaExpediente(idCliente) {
 </script>
 
 <?php include '../templates/footer.php'; ?>
+

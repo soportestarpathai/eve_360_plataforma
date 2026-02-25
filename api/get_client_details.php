@@ -33,7 +33,7 @@ try {
         SELECT c.*, s.nombre as status_nombre 
         FROM clientes c
         LEFT JOIN cat_status s ON c.id_status = s.id_status
-        WHERE c.id_cliente = ?
+        WHERE c.id_cliente = ? AND c.id_status != 4
     ");
     $stmt->execute([$id_cliente]);
     $details['general'] = $stmt->fetch(PDO::FETCH_ASSOC);

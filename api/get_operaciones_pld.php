@@ -45,7 +45,7 @@ try {
             LEFT JOIN clientes_morales cm ON o.id_cliente = cm.id_cliente
             LEFT JOIN cat_vulnerables cv ON o.id_fraccion = cv.id_vulnerable
             LEFT JOIN avisos_pld a ON o.id_aviso_generado = a.id_aviso
-            WHERE " . ($incluirHistorico ? "(o.id_status = 1 OR o.id_status = 0)" : "o.id_status = 1");
+            WHERE " . ($incluirHistorico ? "(o.id_status = 1 OR o.id_status = 0)" : "o.id_status = 1") . " AND COALESCE(c.id_status, 1) != 4";
     
     $params = [];
     
@@ -86,6 +86,6 @@ try {
     error_log("Error en get_operaciones_pld.php: " . $e->getMessage());
     echo json_encode([
         'status' => 'error',
-        'message' => 'Error al obtener operaciones: ' . $e->getMessage()
+        'message' => 'Error al obtener transacciones: ' . $e->getMessage()
     ]);
 }

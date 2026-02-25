@@ -1,6 +1,6 @@
 <?php
 /**
- * API: Descargar XML de operación PLD (DIN)
+ * API: Descargar XML de transacción PLD (DIN)
  */
 session_start();
 require_once __DIR__ . '/../config/db.php';
@@ -27,7 +27,7 @@ try {
     if (!$row || empty($row['xml_contenido'])) {
         http_response_code(404);
         header('Content-Type: application/json');
-        echo json_encode(['status' => 'error', 'message' => 'XML no encontrado para esta operación']);
+        echo json_encode(['status' => 'error', 'message' => 'XML no encontrado para esta transacción']);
         exit;
     }
 
@@ -42,3 +42,4 @@ try {
     header('Content-Type: text/plain');
     echo 'Error: ' . $e->getMessage();
 }
+

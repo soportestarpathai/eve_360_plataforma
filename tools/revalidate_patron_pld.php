@@ -4,7 +4,7 @@
  * 
  * Uso:
  * - Ejecutar manualmente: php tools/revalidate_patron_pld.php
- * - Ejecutar vía cron cada 3 meses: 0 0 1 */3 * php /ruta/al/proyecto/tools/revalidate_patron_pld.php
+ * - Ejecutar vía cron cada 3 meses (cron trimestral): 0 0 1 mes_1_4_7_10 * php /ruta/al/proyecto/tools/revalidate_patron_pld.php
  * - Ejecutar vía cron diario para verificar: 0 9 * * * php /ruta/al/proyecto/tools/revalidate_patron_pld.php
  */
 
@@ -54,7 +54,7 @@ try {
     
     if (!$validationResult['habilitado']) {
         echo "⚠️  ADVERTENCIA: El sujeto obligado NO está habilitado para operar PLD.\n";
-        echo "   Las operaciones PLD están bloqueadas.\n";
+        echo "   Las transacciones PLD están bloqueadas.\n";
     }
     
     $logger->info('PLD Revalidation Script: Ejecutado', [
@@ -69,3 +69,4 @@ try {
     $logger->error('PLD Revalidation Script Error', ['error' => $e->getMessage()]);
     exit(1);
 }
+

@@ -450,7 +450,7 @@ include 'templates/header.php';
                                 <i class="fa-solid fa-exclamation-triangle me-2"></i>
                                 <strong>Representación Legal Requerida</strong>
                                 <p class="mb-0 small"><?= htmlspecialchars($validacionRepresentacion['razon'] ?? 'Falta representación legal documentada') ?></p>
-                                <p class="mb-0 small text-danger"><strong>Esto puede bloquear operaciones PLD</strong></p>
+                                <p class="mb-0 small text-danger"><strong>Esto puede bloquear transacciones PLD</strong></p>
                             </div>
                         <?php endif; ?>
                         
@@ -587,7 +587,7 @@ include 'templates/header.php';
                     
                     <div class="alert alert-info">
                         <i class="fa-solid fa-info-circle me-2"></i>
-                        <strong>Importante:</strong> La representación legal es requerida para realizar operaciones PLD. Sin ella, algunas operaciones pueden estar bloqueadas.
+                        <strong>Importante:</strong> La representación legal es requerida para realizar transacciones PLD. Sin ella, algunas transacciones pueden estar bloqueadas.
                     </div>
                 </div>
                 <div class="modal-footer">
@@ -620,3 +620,4 @@ include 'templates/header.php';
 </script>
 
 <?php include 'templates/footer.php'; ?>
+

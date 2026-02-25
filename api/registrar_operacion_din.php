@@ -1,6 +1,6 @@
 <?php
 /**
- * API: Registrar Operación DIN (Desarrollo Inmobiliario) - Fracción V/V Bis
+ * API: Registrar Transacción DIN (Desarrollo Inmobiliario) - Fracción V/V Bis
  * Genera XML según XSD, almacena en operaciones_pld, valida aviso
  */
 session_start();
@@ -79,7 +79,7 @@ $result = registrarOperacionPLD($pdo, $operacionData);
 
 if (!($result['success'] ?? false)) {
     http_response_code(400);
-    echo json_encode(['status' => 'error', 'message' => $result['message'] ?? 'Error al registrar operación']);
+    echo json_encode(['status' => 'error', 'message' => $result['message'] ?? 'Error al registrar transacción']);
     exit;
 }
 
@@ -104,13 +104,56 @@ if ($xml) {
             // Columnas no existen aún, ejecutar migración
         }
     }
+
+    // Notificación: XML generado y disponible para descarga.
+    if (function_exists('pldTableExists') && pldTableExists($pdo, 'notificaciones') && function_exists('pldObtenerUsuariosNotificacion')) {
+        $usuarios = pldObtenerUsuariosNotificacion($pdo, $id_cliente);
+        $tieneIdAviso = function_exists('pldColumnExists') && pldColumnExists($pdo, 'notificaciones', 'id_aviso');
+        $tieneIdOperacion = function_exists('pldColumnExists') && pldColumnExists($pdo, 'notificaciones', 'id_operacion');
+        $tipoNotif = 'xml_aviso_generado_pld';
+        $mensaje = "XML DIN generado para transacción #{$id_operacion}. Descárguelo desde Transacciones PLD > XML.";
+        $idAviso = (int)($result['id_aviso'] ?? 0);
+
+        foreach ($usuarios as $idUsuarioNotif) {
+            $idUsuarioNotif = (int)$idUsuarioNotif;
+            if ($idUsuarioNotif <= 0) continue;
+
+            $stmtEx = $pdo->prepare("
+                SELECT 1 FROM notificaciones
+                WHERE id_usuario = ?
+                  AND tipo = ?
+                  AND mensaje = ?
+                  AND estado != 'descartado'
+                  AND fecha_generacion > DATE_SUB(NOW(), INTERVAL 24 HOUR)
+                LIMIT 1
+            ");
+            $stmtEx->execute([$idUsuarioNotif, $tipoNotif, $mensaje]);
+            if ($stmtEx->fetch()) continue;
+
+            $cols = ['id_usuario', 'id_cliente', 'tipo', 'mensaje'];
+            $vals = [$idUsuarioNotif, $id_cliente, $tipoNotif, $mensaje];
+            if ($tieneIdAviso) {
+                $cols[] = 'id_aviso';
+                $vals[] = $idAviso > 0 ? $idAviso : null;
+            }
+            if ($tieneIdOperacion) {
+                $cols[] = 'id_operacion';
+                $vals[] = $id_operacion;
+            }
+
+            $sqlInsert = "INSERT INTO notificaciones (" . implode(', ', $cols) . ")
+                          VALUES (" . implode(', ', array_fill(0, count($cols), '?')) . ")";
+            $stmtIn = $pdo->prepare($sqlInsert);
+            $stmtIn->execute($vals);
+        }
+    }
 }
 
 logChange($pdo, $_SESSION['user_id'], 'REGISTRAR_OPERACION_DIN', 'operaciones_pld', $id_operacion, null, $operacionData);
 
 echo json_encode([
     'status' => 'success',
-    'message' => 'Operación DIN registrada. XML generado.',
+    'message' => 'Transacción DIN registrada. XML generado.',
     'id_operacion' => $id_operacion,
     'id_aviso' => $result['id_aviso'] ?? null,
     'requiere_aviso' => $result['requiere_aviso'] ?? false,
@@ -119,3 +162,4 @@ echo json_encode([
     'xml_generado' => !empty($xml),
     'xml_errores' => $gen['errors'] ?? null,
 ]);
+

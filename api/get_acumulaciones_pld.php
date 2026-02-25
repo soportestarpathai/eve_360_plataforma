@@ -28,7 +28,8 @@ try {
             LEFT JOIN clientes_fisicas cf ON a.id_cliente = cf.id_cliente
             LEFT JOIN clientes_morales cm ON a.id_cliente = cm.id_cliente
             LEFT JOIN cat_vulnerables cv ON a.id_fraccion = cv.id_vulnerable
-            WHERE a.id_status = 1";
+            WHERE a.id_status = 1
+              AND COALESCE(c.id_status, 1) != 4";
     
     $params = [];
     

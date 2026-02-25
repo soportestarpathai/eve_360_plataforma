@@ -30,6 +30,10 @@ try {
     $catalogs['paises'] = fetchCatalog($pdo, 'cat_pais');
     $catalogs['tipos_identificacion'] = fetchCatalog($pdo, 'cat_tipo_identificaciones');
     $catalogs['tipos_contacto'] = fetchCatalog($pdo, 'cat_tipo_contacto');
+    $catalogs['actividades'] = fetchCatalog($pdo, 'cat_actividades');
+    $catalogs['ocupaciones'] = fetchCatalog($pdo, 'cat_ocupacion');
+    $catalogs['profesiones'] = fetchCatalog($pdo, 'cat_profesion');
+    $catalogs['origenes_recursos'] = fetchCatalog($pdo, 'cat_origen_recursos');
     
     // Fetch vulnerable activities (fracciones PLD)
     try {

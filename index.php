@@ -107,6 +107,7 @@ try {
             SUM(CASE WHEN id_status = 0 THEN 1 ELSE 0 END) as inactivos,
             SUM(CASE WHEN id_status = 2 THEN 1 ELSE 0 END) as pendientes
         FROM clientes
+        WHERE id_status != 4
     ");
     $clientStats = $stmtStats->fetch(PDO::FETCH_ASSOC);
     $statsData['total_clientes'] = (int)($clientStats['total'] ?? 0);
@@ -231,10 +232,21 @@ foreach ($rawMenu as $row) {
 foreach ($ref as &$node) { if (empty($node['submenu'])) unset($node['submenu']); }
 unset($node);
 
-// Reportes apunta a Conservación PLD; quitar "Conservación PLD" como ítem apartado
+// Reportes: submenú con 4 opciones; Operaciones PLD se muestra como "Transacciones"
 foreach ($menuTree as &$item) {
-    if (isset($item['label']) && $item['label'] === 'Reportes') {
-        $item['link'] = 'conservacion_pld.php';
+    if (isset($item['label'])) {
+        if ($item['label'] === 'Operaciones PLD') {
+            $item['label'] = 'Transacciones';
+        }
+        if ($item['label'] === 'Reportes') {
+            $item['link'] = '#';
+            $item['submenu'] = [
+                [ 'label' => 'Conservación y Verificación PLD', 'icon' => 'fa-archive', 'link' => 'conservacion_pld.php' ],
+                [ 'label' => 'Reporte de riesgos', 'icon' => 'fa-chart-line', 'link' => 'reporte_riesgos.php' ],
+                [ 'label' => 'Reporte de transacciones', 'icon' => 'fa-file-invoice-dollar', 'link' => 'reporte_transacciones.php' ],
+                [ 'label' => 'Bitácora de actividad de usuarios (SAT)', 'icon' => 'fa-clock-rotate-left', 'link' => 'bitacora_actividad.php' ],
+            ];
+        }
     }
 }
 unset($item);
@@ -273,6 +285,7 @@ try {
             COUNT(*) as total
         FROM clientes
         WHERE fecha_apertura IS NOT NULL 
+          AND id_status != 4
           AND fecha_apertura BETWEEN ? AND ?
         GROUP BY DATE_FORMAT(fecha_apertura, '%Y-%m')
         ORDER BY mes ASC
@@ -292,8 +305,8 @@ try {
     }
     
     // Optimizado: Calcular acumulados hasta cada mes usando consultas preparadas eficientes
-    $stmtAct = $pdo->prepare("SELECT COUNT(*) FROM clientes WHERE id_status = 1 AND fecha_apertura IS NOT NULL AND fecha_apertura <= ?");
-    $stmtInact = $pdo->prepare("SELECT COUNT(*) FROM clientes WHERE id_status = 0 AND fecha_apertura IS NOT NULL AND fecha_apertura <= ?");
+    $stmtAct = $pdo->prepare("SELECT COUNT(*) FROM clientes WHERE id_status = 1 AND id_status != 4 AND fecha_apertura IS NOT NULL AND fecha_apertura <= ?");
+    $stmtInact = $pdo->prepare("SELECT COUNT(*) FROM clientes WHERE id_status = 0 AND id_status != 4 AND fecha_apertura IS NOT NULL AND fecha_apertura <= ?");
     
     foreach ($months as $month) {
         $endDate = date('Y-m-t', strtotime($month . '-01'));
@@ -383,7 +396,7 @@ try {
         FROM clientes c
         LEFT JOIN clientes_fisicas cf ON c.id_cliente = cf.id_cliente
         LEFT JOIN clientes_morales cm ON c.id_cliente = cm.id_cliente
-        WHERE c.fecha_apertura IS NOT NULL
+        WHERE c.fecha_apertura IS NOT NULL AND c.id_status != 4
         ORDER BY c.fecha_apertura DESC
         LIMIT 5
     ");
@@ -408,6 +421,7 @@ if (isset($_SESSION['user_id'])) {
             LEFT JOIN clientes_fisicas cf ON c.id_cliente = cf.id_cliente
             LEFT JOIN clientes_morales cm ON c.id_cliente = cm.id_cliente
             WHERE n.id_usuario = ?
+              AND (n.id_cliente IS NULL OR COALESCE(c.id_status, 1) != 4)
             ORDER BY n.fecha_generacion DESC
             LIMIT 5
         ");
@@ -564,6 +578,7 @@ try {
         <!-- Statistics Cards (Duralux Style) -->
         <div class="row g-4 mb-4">
             <div class="col-lg-3 col-md-6">
+                <a href="clientes.php" class="stat-card-link text-decoration-none text-dark d-block">
                 <div class="stat-card">
                     <div class="stat-icon" style="background: linear-gradient(135deg, #1B8FEA 0%, #0B3C8A 100%);">
                         <i class="fa-solid fa-users"></i>
@@ -577,9 +592,11 @@ try {
                         </small>
                     </div>
                 </div>
+                </a>
             </div>
             
             <div class="col-lg-3 col-md-6">
+                <a href="clientes.php?estatus=activos" class="stat-card-link text-decoration-none text-dark d-block">
                 <div class="stat-card">
                     <div class="stat-icon" style="background: linear-gradient(135deg, #2ED1FF 0%, #1B8FEA 100%);">
                         <i class="fa-solid fa-user-check"></i>
@@ -593,9 +610,11 @@ try {
                         </small>
                     </div>
                 </div>
+                </a>
             </div>
             
             <div class="col-lg-3 col-md-6">
+                <a href="clientes.php?estatus=pendientes" class="stat-card-link text-decoration-none text-dark d-block">
                 <div class="stat-card">
                     <div class="stat-icon" style="background: linear-gradient(135deg, #0B486B 0%, #0B3C8A 100%);">
                         <i class="fa-solid fa-user-clock"></i>
@@ -609,9 +628,11 @@ try {
                         </small>
                     </div>
                 </div>
+                </a>
             </div>
             
             <div class="col-lg-3 col-md-6">
+                <a href="notificaciones.php" class="stat-card-link text-decoration-none text-dark d-block">
                 <div class="stat-card">
                     <div class="stat-icon" style="background: linear-gradient(135deg, #FF6B6B 0%, #EE5A6F 100%);">
                         <i class="fa-solid fa-bell"></i>
@@ -625,6 +646,7 @@ try {
                         </small>
                     </div>
                 </div>
+                </a>
             </div>
         </div>
         
@@ -643,7 +665,7 @@ try {
             </div>
 
             <div class="col-lg-5">
-                <div class="chart-card">
+                <div class="chart-card risk-chart-card" id="riskChartCard">
                     <h4 class="text-center mb-4">
                         <i class="fa-solid fa-chart-pie me-2"></i>Perfil de Riesgo
                     </h4>
@@ -657,19 +679,61 @@ try {
                             <p class="small text-muted mt-2 mb-0">No hay clientes activos para analizar</p>
                         </div>
                     <?php else: ?>
-                        <div style="position: relative; height: 300px; width: 100%;">
-                            <canvas id="riskChart"></canvas>
+                        <div id="riskChartLink" class="risk-chart-link d-block text-decoration-none" title="Ver Reporte de riesgos" role="link" tabindex="0" aria-label="Ir al Reporte de riesgos">
+                            <div style="position: relative; height: 300px; width: 100%; cursor: pointer;">
+                                <canvas id="riskChart"></canvas>
+                            </div>
                         </div>
                         <div class="text-center mt-4">
                             <p class="small mb-0" style="color: var(--eve-blue-deep); font-weight: 500;">
                                 <i class="fa-solid fa-info-circle me-2" style="color: var(--eve-blue-medium);"></i>
                             Distribución de Clientes Activos por Nivel de Riesgo
                             </p>
+                            <p class="small mt-1 mb-0 text-muted">
+                                <i class="fa-solid fa-hand-pointer me-1"></i>Clic en la gráfica para ir al Reporte de riesgos
+                            </p>
                         </div>
                     <?php endif; ?>
                 </div>
             </div>
 
+        </div>
+
+        <!-- Quick Actions Widget -->
+        <div class="row g-4 mt-4">
+            <div class="col-12">
+                <div class="quick-actions-widget">
+                    <h5 class="widget-title mb-4">
+                        <i class="fa-solid fa-bolt me-2"></i>Acciones Rápidas
+                    </h5>
+                    <div class="quick-actions-grid">
+                        <a href="cliente_nuevo.php" class="quick-action-btn">
+                            <div class="quick-action-icon" style="background: linear-gradient(135deg, #1B8FEA 0%, #0B3C8A 100%);">
+                                <i class="fa-solid fa-user-plus"></i>
+                            </div>
+                            <span class="quick-action-label">Nuevo Cliente</span>
+                        </a>
+                        <a href="clientes.php" class="quick-action-btn">
+                            <div class="quick-action-icon" style="background: linear-gradient(135deg, #2ED1FF 0%, #1B8FEA 100%);">
+                                <i class="fa-solid fa-users"></i>
+                            </div>
+                            <span class="quick-action-label">Ver Clientes</span>
+                        </a>
+                        <a href="config_ebr.php" class="quick-action-btn">
+                            <div class="quick-action-icon" style="background: linear-gradient(135deg, #0B486B 0%, #0B3C8A 100%);">
+                                <i class="fa-solid fa-sliders"></i>
+                            </div>
+                            <span class="quick-action-label">Configurar EBR</span>
+                        </a>
+                        <a href="conservacion_pld.php" class="quick-action-btn">
+                            <div class="quick-action-icon" style="background: linear-gradient(135deg, #FF6B6B 0%, #EE5A6F 100%);">
+                                <i class="fa-solid fa-chart-pie"></i>
+                            </div>
+                            <span class="quick-action-label">Reportes</span>
+                        </a>
+                    </div>
+                </div>
+            </div>
         </div>
         
         <!-- Info Widgets Section -->
@@ -731,18 +795,18 @@ try {
                         <h5 class="widget-title">
                             <i class="fa-solid fa-bell me-2"></i>Notificaciones Recientes
                         </h5>
-                        <a href="#" class="widget-link" onclick="toggleNotifPanel(); return false;">
+                        <a href="notificaciones.php" class="widget-link" onclick="if (typeof openNotifPanel === 'function') { openNotifPanel(); return false; }">
                             Ver todas <i class="fa-solid fa-arrow-right ms-2"></i>
                         </a>
                     </div>
                     <div class="widget-body">
-                        <?php if (empty($recentNotifications)): ?>
-                            <div class="empty-widget">
-                                <i class="fa-solid fa-bell-slash fa-3x mb-3"></i>
-                                <p class="mb-0">No hay notificaciones</p>
-                            </div>
-                        <?php else: ?>
-                            <div class="notification-list">
+                        <div class="notification-list" id="dashboardNotifList">
+                            <?php if (empty($recentNotifications)): ?>
+                                <div class="empty-widget">
+                                    <i class="fa-solid fa-bell-slash fa-3x mb-3"></i>
+                                    <p class="mb-0">No hay notificaciones</p>
+                                </div>
+                            <?php else: ?>
                                 <?php foreach ($recentNotifications as $notif): 
                                     $timeAgo = '';
                                     $notifDate = new DateTime($notif['fecha_generacion']);
@@ -763,7 +827,7 @@ try {
                                     elseif (stripos($notif['tipo'], 'vencida') !== false) $notifClass = 'notification-warning';
                                     elseif (stripos($notif['tipo'], 'kyc') !== false) $notifClass = 'notification-warning';
                                 ?>
-                                    <div class="notification-item <?= $notifClass ?>">
+                                    <div class="notification-item <?= $notifClass ?>" id="dash-notif-<?= (int)$notif['id_notificacion'] ?>">
                                         <div class="notification-icon">
                                             <i class="fa-solid fa-circle-exclamation"></i>
                                         </div>
@@ -779,45 +843,8 @@ try {
                                         </a>
                                     </div>
                                 <?php endforeach; ?>
-                            </div>
-                        <?php endif; ?>
-                    </div>
-                </div>
-            </div>
-        </div>
-        
-        <!-- Quick Actions Widget -->
-        <div class="row g-4 mt-4">
-            <div class="col-12">
-                <div class="quick-actions-widget">
-                    <h5 class="widget-title mb-4">
-                        <i class="fa-solid fa-bolt me-2"></i>Acciones Rápidas
-                    </h5>
-                    <div class="quick-actions-grid">
-                        <a href="cliente_nuevo.php" class="quick-action-btn">
-                            <div class="quick-action-icon" style="background: linear-gradient(135deg, #1B8FEA 0%, #0B3C8A 100%);">
-                                <i class="fa-solid fa-user-plus"></i>
-                            </div>
-                            <span class="quick-action-label">Nuevo Cliente</span>
-                        </a>
-                        <a href="clientes.php" class="quick-action-btn">
-                            <div class="quick-action-icon" style="background: linear-gradient(135deg, #2ED1FF 0%, #1B8FEA 100%);">
-                                <i class="fa-solid fa-users"></i>
-                            </div>
-                            <span class="quick-action-label">Ver Clientes</span>
-                        </a>
-                        <a href="config_ebr.php" class="quick-action-btn">
-                            <div class="quick-action-icon" style="background: linear-gradient(135deg, #0B486B 0%, #0B3C8A 100%);">
-                                <i class="fa-solid fa-sliders"></i>
-                            </div>
-                            <span class="quick-action-label">Configurar EBR</span>
-                        </a>
-                        <a href="conservacion_pld.php" class="quick-action-btn">
-                            <div class="quick-action-icon" style="background: linear-gradient(135deg, #FF6B6B 0%, #EE5A6F 100%);">
-                                <i class="fa-solid fa-chart-pie"></i>
-                            </div>
-                            <span class="quick-action-label">Reportes</span>
-                        </a>
+                            <?php endif; ?>
+                        </div>
                     </div>
                 </div>
             </div>
@@ -827,7 +854,7 @@ try {
         <div class="row g-4 mt-4">
             <!-- Gráfico de Barras: Clientes por Mes -->
             <div class="col-lg-6">
-                <div class="chart-card">
+                <div class="chart-card report-chart-card" id="monthlyChartCard">
                     <h4 class="mb-4">
                         <i class="fa-solid fa-chart-column me-2"></i>Clientes por Mes
                     </h4>
@@ -845,7 +872,7 @@ try {
             
             <!-- Gráfico de Líneas: Activos vs Inactivos -->
             <div class="col-lg-6">
-                <div class="chart-card">
+                <div class="chart-card report-chart-card" id="statusChartCard">
                     <h4 class="mb-4">
                         <i class="fa-solid fa-chart-line me-2"></i>Activos vs Inactivos
                     </h4>
@@ -863,7 +890,7 @@ try {
             
             <!-- Gráfico de Barras Horizontal: Top Niveles de Riesgo -->
             <div class="col-lg-6">
-                <div class="chart-card">
+                <div class="chart-card report-chart-card" id="topRiskChartCard">
                     <h4 class="mb-4">
                         <i class="fa-solid fa-chart-bar me-2"></i>Top Niveles de Riesgo
                     </h4>
@@ -881,7 +908,7 @@ try {
             
             <!-- Gráfico de Área: Distribución Acumulada -->
             <div class="col-lg-6">
-                <div class="chart-card">
+                <div class="chart-card report-chart-card" id="areaChartCard">
                     <h4 class="mb-4">
                         <i class="fa-solid fa-area-chart me-2"></i>Distribución Acumulada
                     </h4>
@@ -911,6 +938,139 @@ try {
     const monthlyClients = <?= json_encode($monthlyClients) ?>;
     const statusComparison = <?= json_encode($statusComparison) ?>;
     const topRiskLevels = <?= json_encode($topRiskLevels) ?>;
+</script>
+<script>
+    (function() {
+        const dashboardNotifList = document.getElementById('dashboardNotifList');
+        if (!dashboardNotifList) return;
+
+        const escapeHtml = (value) => {
+            return String(value || '')
+                .replace(/&/g, '&amp;')
+                .replace(/</g, '&lt;')
+                .replace(/>/g, '&gt;')
+                .replace(/"/g, '&quot;')
+                .replace(/'/g, '&#39;');
+        };
+
+        const getNotifClass = (tipo) => {
+            const t = String(tipo || '').toLowerCase();
+            if (t.includes('pld')) return 'notification-danger';
+            if (t.includes('pep') || t.includes('listas')) return 'notification-dark';
+            if (t.includes('vencida') || t.includes('kyc') || t.includes('incompleto')) return 'notification-warning';
+            return 'notification-default';
+        };
+
+        const formatRelativeTime = (fecha) => {
+            const date = new Date(fecha);
+            if (Number.isNaN(date.getTime())) return 'Hace un momento';
+
+            const seconds = Math.floor((Date.now() - date.getTime()) / 1000);
+            if (seconds < 60) return 'Hace menos de 1 min';
+
+            const minutes = Math.floor(seconds / 60);
+            if (minutes < 60) return `Hace ${minutes} min`;
+
+            const hours = Math.floor(minutes / 60);
+            if (hours < 24) return `Hace ${hours} hora${hours === 1 ? '' : 's'}`;
+
+            const days = Math.floor(hours / 24);
+            return `Hace ${days} día${days === 1 ? '' : 's'}`;
+        };
+
+        const renderDashboardNotifications = (notifications) => {
+            if (!Array.isArray(notifications) || notifications.length === 0) {
+                dashboardNotifList.innerHTML = `
+                    <div class="empty-widget">
+                        <i class="fa-solid fa-bell-slash fa-3x mb-3"></i>
+                        <p class="mb-0">No hay notificaciones</p>
+                    </div>
+                `;
+                return;
+            }
+
+            dashboardNotifList.innerHTML = notifications.map((n) => {
+                const idNotif = Number(n.id_notificacion) || 0;
+                const idCliente = Number(n.id_cliente) || 0;
+                const notifClass = getNotifClass(n.tipo);
+                const detailUrl = idCliente > 0 ? `cliente_detalle.php?id=${idCliente}` : 'notificaciones.php';
+
+                return `
+                    <div class="notification-item ${notifClass}" id="dash-notif-${idNotif}">
+                        <div class="notification-icon">
+                            <i class="fa-solid fa-circle-exclamation"></i>
+                        </div>
+                        <div class="notification-content">
+                            <h6 class="notification-title">${escapeHtml(n.tipo || 'Notificación')}</h6>
+                            <p class="notification-text">${escapeHtml(n.nombre_cliente || 'Cliente Desconocido')}</p>
+                            <small class="notification-time">
+                                <i class="fa-solid fa-clock me-1"></i>${formatRelativeTime(n.fecha_generacion)}
+                            </small>
+                            <div class="notification-actions">
+                                <button type="button" class="btn btn-sm btn-outline-warning py-0 px-2 text-dark" data-notif-action="snooze" data-notif-id="${idNotif}">
+                                    <i class="fa-regular fa-clock me-1"></i>Posponer
+                                </button>
+                                <button type="button" class="btn btn-sm btn-outline-secondary py-0 px-2" data-notif-action="dismiss" data-notif-id="${idNotif}">
+                                    <i class="fa-solid fa-xmark me-1"></i>Descartar
+                                </button>
+                            </div>
+                        </div>
+                        <a href="${detailUrl}" class="notification-action" title="Abrir cliente">
+                            <i class="fa-solid fa-arrow-right"></i>
+                        </a>
+                    </div>
+                `;
+            }).join('');
+        };
+
+        const reloadNotifications = () => {
+            if (typeof window.loadNotifs === 'function') {
+                window.loadNotifs();
+                return;
+            }
+
+            fetch('api/get_notifications.php')
+                .then((res) => res.json())
+                .then((json) => {
+                    renderDashboardNotifications(Array.isArray(json.data) ? json.data : []);
+                })
+                .catch(() => {
+                    renderDashboardNotifications([]);
+                });
+        };
+
+        const handleDashboardNotifAction = (id, action) => {
+            fetch('api/notification_action.php', {
+                method: 'POST',
+                body: JSON.stringify({ id, action })
+            })
+            .then((res) => res.json())
+            .then((json) => {
+                if (json.status === 'success') {
+                    reloadNotifications();
+                }
+            });
+        };
+
+        dashboardNotifList.addEventListener('click', (event) => {
+            const actionBtn = event.target.closest('[data-notif-action]');
+            if (!actionBtn) return;
+
+            event.preventDefault();
+            const id = Number(actionBtn.dataset.notifId || 0);
+            const action = actionBtn.dataset.notifAction;
+            if (!id || !action) return;
+
+            handleDashboardNotifAction(id, action);
+        });
+
+        document.addEventListener('notifications:updated', (event) => {
+            const notifications = event.detail && Array.isArray(event.detail.data) ? event.detail.data : [];
+            renderDashboardNotifications(notifications);
+        });
+
+        reloadNotifications();
+    })();
 </script>
 <script src="assets/js/dashboard.js"></script>
 

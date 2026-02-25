@@ -5,12 +5,13 @@
  * 
  * VAL-PLD-008: Aviso por Umbral Individual
  * VAL-PLD-009: Aviso por Acumulación (6 meses)
- * VAL-PLD-010: Aviso por Operación Sospechosa
+ * VAL-PLD-010: Aviso por Transacción Sospechosa
  * VAL-PLD-011: Aviso por Listas Restringidas
- * VAL-PLD-012: Informe de No Operaciones
+ * VAL-PLD-012: Informe de No Transacciones
  */
 
 require_once __DIR__ . '/../config/db.php';
+require_once __DIR__ . '/pld_cliente_kyc.php';
 
 if (!function_exists('calcularDeadlineAviso')) {
     
@@ -45,9 +46,10 @@ if (!function_exists('validateAvisoUmbralIndividual')) {
      * @param int $id_cliente ID del cliente
      * @param float $monto Monto de la operación en MXN
      * @param int|null $id_fraccion ID de la fracción (opcional)
+     * @param string|null $fechaOperacion Fecha de la transacción (Y-m-d). Se usa para deadline.
      * @return array Resultado de la validación
      */
-    function validateAvisoUmbralIndividual($pdo, $id_cliente, $monto, $id_fraccion = null) {
+    function validateAvisoUmbralIndividual($pdo, $id_cliente, $monto, $id_fraccion = null, $fechaOperacion = null) {
         try {
             // Obtener umbral configurado (en UMAs)
             $stmt = $pdo->query("SELECT valor FROM indicadores WHERE nombre LIKE '%UMA%' ORDER BY fecha DESC LIMIT 1");
@@ -76,7 +78,8 @@ if (!function_exists('validateAvisoUmbralIndividual')) {
             $requiereAviso = $monto >= $umbralMXN;
             
             if ($requiereAviso) {
-                $fechaDeadline = calcularDeadlineAviso(new DateTime());
+                $fechaBase = $fechaOperacion ?: date('Y-m-d');
+                $fechaDeadline = calcularDeadlineAviso($fechaBase);
                 
                 return [
                     'requiere_aviso' => true,
@@ -147,7 +150,7 @@ if (!function_exists('validateAvisoAcumulacion')) {
             
             $umbralMXN = $umbralUMA * $valorUMA;
             
-            // Calcular ventana móvil de 6 meses desde la fecha de operación actual
+            // Calcular ventana móvil de 6 meses desde la fecha de transacción actual
             $fechaOperacionObj = new DateTime($fechaOperacion);
             $fechaInicioVentana = clone $fechaOperacionObj;
             $fechaInicioVentana->modify('-6 months');
@@ -206,7 +209,7 @@ if (!function_exists('validateAvisoAcumulacion')) {
                     'umbral_mxn' => $umbralMXN,
                     'fecha_deadline' => $fechaDeadline,
                     'codigo' => 'GENERAR_AVISO',
-                    'mensaje' => "Acumulación de {$cantidadOperaciones} operaciones en 6 meses rebasa el umbral de " . number_format($umbralUMA, 2) . " UMAs"
+                    'mensaje' => "Acumulación de {$cantidadOperaciones} transacciones en 6 meses rebasa el umbral de " . number_format($umbralUMA, 2) . " UMAs"
                 ];
             }
             
@@ -236,7 +239,7 @@ if (!function_exists('validateAvisoAcumulacion')) {
 if (!function_exists('validateAvisoSospechosa')) {
     
     /**
-     * Valida si una operación sospechosa requiere aviso 24H
+     * Valida si una transacción sospechosa requiere aviso 24H
      * VAL-PLD-010
      * 
      * @param PDO $pdo Conexión a la base de datos
@@ -354,7 +357,7 @@ if (!function_exists('validateInformeNoOperaciones')) {
             if ($huboOperaciones) {
                 return [
                     'requiere_informe' => false,
-                    'razon' => 'Hubo operaciones avisables en el periodo'
+                    'razon' => 'Hubo transacciones avisables en el periodo'
                 ];
             }
             
@@ -395,10 +398,317 @@ if (!function_exists('validateInformeNoOperaciones')) {
     }
 }
 
+if (!function_exists('pldObtenerUsuariosNotificacion')) {
+    /**
+     * Obtiene usuarios a notificar para eventos PLD:
+     * - Administradores
+     * - Responsables PLD del cliente (si tabla existe)
+     */
+    function pldObtenerUsuariosNotificacion($pdo, $id_cliente = null) {
+        $usuarios = [];
+
+        $stmtAdmin = $pdo->query("
+            SELECT DISTINCT u.id_usuario
+            FROM usuarios u
+            INNER JOIN usuarios_permisos up ON u.id_usuario = up.id_usuario
+            WHERE u.id_status_usuario = 1
+              AND up.administracion > 0
+        ");
+        while ($r = $stmtAdmin->fetch(PDO::FETCH_ASSOC)) {
+            $usuarios[(int)$r['id_usuario']] = true;
+        }
+
+        if ($id_cliente && function_exists('pldTableExists') && pldTableExists($pdo, 'clientes_responsable_pld')) {
+            $stmtResp = $pdo->prepare("
+                SELECT id_usuario_responsable
+                FROM clientes_responsable_pld
+                WHERE id_cliente = ?
+                  AND activo = 1
+                  AND (fecha_baja IS NULL OR fecha_baja > CURDATE())
+            ");
+            $stmtResp->execute([$id_cliente]);
+            while ($r = $stmtResp->fetch(PDO::FETCH_ASSOC)) {
+                $usuarios[(int)$r['id_usuario_responsable']] = true;
+            }
+        }
+
+        return array_keys($usuarios);
+    }
+}
+
+if (!function_exists('pldRegistrarNotificacionAvisoRequerido')) {
+    /**
+     * Crea notificación inmediata al detectar/generar aviso PLD.
+     */
+    function pldRegistrarNotificacionAvisoRequerido($pdo, $data) {
+        if (!function_exists('pldTableExists') || !pldTableExists($pdo, 'notificaciones')) {
+            return 0;
+        }
+
+        $id_cliente = isset($data['id_cliente']) ? (int)$data['id_cliente'] : 0;
+        $id_aviso = isset($data['id_aviso']) ? (int)$data['id_aviso'] : 0;
+        $id_operacion = isset($data['id_operacion']) ? (int)$data['id_operacion'] : 0;
+        $tipo_aviso = $data['tipo_aviso'] ?? 'umbral_individual';
+        $fecha_deadline = $data['fecha_deadline'] ?? null;
+        $monto = isset($data['monto']) ? (float)$data['monto'] : 0.0;
+        $xml_generado = !empty($data['xml_generado']) ? 1 : 0;
+
+        if ($id_cliente <= 0 || $id_aviso <= 0) {
+            return 0;
+        }
+
+        $tipoNotif = 'aviso_requerido_pld';
+        $mensaje = sprintf(
+            'Aviso PLD requerido (%s). Monto: $%s MXN. Deadline: %s. XML: %s.',
+            $tipo_aviso,
+            number_format($monto, 2, '.', ','),
+            $fecha_deadline ?: 'N/D',
+            $xml_generado ? 'GENERADO' : 'PENDIENTE'
+        );
+
+        $usuarios = pldObtenerUsuariosNotificacion($pdo, $id_cliente);
+        if (empty($usuarios)) {
+            return 0;
+        }
+
+        $tieneIdAviso = function_exists('pldColumnExists') && pldColumnExists($pdo, 'notificaciones', 'id_aviso');
+        $tieneIdOperacion = function_exists('pldColumnExists') && pldColumnExists($pdo, 'notificaciones', 'id_operacion');
+
+        $generadas = 0;
+        foreach ($usuarios as $id_usuario) {
+            $id_usuario = (int)$id_usuario;
+            if ($id_usuario <= 0) continue;
+
+            if ($tieneIdAviso) {
+                $stmtEx = $pdo->prepare("
+                    SELECT 1
+                    FROM notificaciones
+                    WHERE id_usuario = ?
+                      AND id_aviso = ?
+                      AND tipo = ?
+                      AND estado != 'descartado'
+                      AND fecha_generacion > DATE_SUB(NOW(), INTERVAL 24 HOUR)
+                    LIMIT 1
+                ");
+                $stmtEx->execute([$id_usuario, $id_aviso, $tipoNotif]);
+            } else {
+                $stmtEx = $pdo->prepare("
+                    SELECT 1
+                    FROM notificaciones
+                    WHERE id_usuario = ?
+                      AND tipo = ?
+                      AND mensaje = ?
+                      AND estado != 'descartado'
+                      AND fecha_generacion > DATE_SUB(NOW(), INTERVAL 24 HOUR)
+                    LIMIT 1
+                ");
+                $stmtEx->execute([$id_usuario, $tipoNotif, $mensaje]);
+            }
+            if ($stmtEx->fetch()) {
+                continue;
+            }
+
+            $cols = ['id_usuario', 'id_cliente', 'tipo', 'mensaje'];
+            $vals = [$id_usuario, $id_cliente, $tipoNotif, $mensaje];
+            if ($tieneIdAviso) {
+                $cols[] = 'id_aviso';
+                $vals[] = $id_aviso;
+            }
+            if ($tieneIdOperacion) {
+                $cols[] = 'id_operacion';
+                $vals[] = $id_operacion > 0 ? $id_operacion : null;
+            }
+
+            $sql = "INSERT INTO notificaciones (" . implode(', ', $cols) . ")
+                    VALUES (" . implode(', ', array_fill(0, count($cols), '?')) . ")";
+            $stmtIns = $pdo->prepare($sql);
+            $stmtIns->execute($vals);
+            $generadas++;
+        }
+
+        return $generadas;
+    }
+}
+
+if (!function_exists('pldBuscarAvisoAcumulacionExistente')) {
+    /**
+     * Busca aviso de acumulación existente para la misma ventana/fracción/tipo de acto.
+     */
+    function pldBuscarAvisoAcumulacionExistente($pdo, $id_cliente, $fecha_primera_operacion, $id_fraccion = null, $tipo_acto = null) {
+        if (!$id_cliente || !$fecha_primera_operacion) {
+            return null;
+        }
+
+        $sql = "SELECT id_aviso
+                FROM avisos_pld
+                WHERE id_cliente = ?
+                  AND tipo_aviso = 'acumulacion'
+                  AND id_status = 1
+                  AND fecha_operacion = ?";
+        $params = [(int)$id_cliente, $fecha_primera_operacion];
+
+        $tieneDatos = function_exists('pldColumnExists') && pldColumnExists($pdo, 'avisos_pld', 'datos_adicionales');
+        if ($tieneDatos) {
+            if ($id_fraccion !== null && $id_fraccion !== '') {
+                $sql .= " AND CAST(JSON_UNQUOTE(JSON_EXTRACT(datos_adicionales, '$.id_fraccion')) AS SIGNED) = ?";
+                $params[] = (int)$id_fraccion;
+            }
+            if ($tipo_acto !== null && trim((string)$tipo_acto) !== '') {
+                $sql .= " AND JSON_UNQUOTE(JSON_EXTRACT(datos_adicionales, '$.tipo_acto')) = ?";
+                $params[] = trim((string)$tipo_acto);
+            }
+        } elseif (($id_fraccion !== null && $id_fraccion !== '') || ($tipo_acto !== null && trim((string)$tipo_acto) !== '')) {
+            // Sin metadatos no es posible diferenciar con seguridad fracción/tipo de acto.
+            return null;
+        }
+
+        $sql .= " ORDER BY id_aviso DESC LIMIT 1";
+        $stmt = $pdo->prepare($sql);
+        $stmt->execute($params);
+        $row = $stmt->fetch(PDO::FETCH_ASSOC);
+
+        return $row ? (int)$row['id_aviso'] : null;
+    }
+}
+
+if (!function_exists('registrarAvisoAcumulacion')) {
+    /**
+     * Upsert de acumulación en tabla operaciones_pld_acumulacion.
+     */
+    function registrarAvisoAcumulacion($pdo, $data) {
+        if (!function_exists('pldTableExists') || !pldTableExists($pdo, 'operaciones_pld_acumulacion')) {
+            return null;
+        }
+
+        $id_cliente = isset($data['id_cliente']) ? (int)$data['id_cliente'] : 0;
+        if ($id_cliente <= 0) return null;
+
+        $id_fraccion = $data['id_fraccion'] ?? null;
+        $tipo_acto = $data['tipo_acto'] ?? null;
+        $fecha_primera = $data['fecha_primera_operacion'] ?? date('Y-m-d');
+        $fecha_ultima = $data['fecha_ultima_operacion'] ?? $fecha_primera;
+        $monto_acumulado = isset($data['monto_acumulado']) ? (float)$data['monto_acumulado'] : 0.0;
+        $monto_acumulado_uma = isset($data['monto_acumulado_uma']) ? (float)$data['monto_acumulado_uma'] : null;
+        $cantidad_operaciones = isset($data['cantidad_operaciones']) ? (int)$data['cantidad_operaciones'] : 1;
+        $id_aviso_generado = isset($data['id_aviso_generado']) ? (int)$data['id_aviso_generado'] : null;
+        $fecha_deadline_aviso = $data['fecha_deadline_aviso'] ?? calcularDeadlineAviso($fecha_primera);
+
+        $stmtExist = $pdo->prepare("
+            SELECT id_acumulacion
+            FROM operaciones_pld_acumulacion
+            WHERE id_cliente = ?
+              AND (id_fraccion <=> ?)
+              AND (tipo_acto <=> ?)
+              AND fecha_primera_operacion = ?
+              AND id_status = 1
+            ORDER BY id_acumulacion DESC
+            LIMIT 1
+        ");
+        $stmtExist->execute([$id_cliente, $id_fraccion, $tipo_acto, $fecha_primera]);
+        $exist = $stmtExist->fetch(PDO::FETCH_ASSOC);
+
+        if ($exist) {
+            $id_acumulacion = (int)$exist['id_acumulacion'];
+            $stmtUpd = $pdo->prepare("
+                UPDATE operaciones_pld_acumulacion
+                SET fecha_ultima_operacion = ?,
+                    monto_acumulado = ?,
+                    monto_acumulado_uma = ?,
+                    cantidad_operaciones = ?,
+                    requiere_aviso = 1,
+                    fecha_deadline_aviso = ?,
+                    id_aviso_generado = ?
+                WHERE id_acumulacion = ?
+            ");
+            $stmtUpd->execute([
+                $fecha_ultima, $monto_acumulado, $monto_acumulado_uma, $cantidad_operaciones,
+                $fecha_deadline_aviso, $id_aviso_generado, $id_acumulacion
+            ]);
+            return $id_acumulacion;
+        }
+
+        $stmtIns = $pdo->prepare("
+            INSERT INTO operaciones_pld_acumulacion
+            (id_cliente, id_fraccion, tipo_acto, fecha_primera_operacion, fecha_ultima_operacion,
+             monto_acumulado, monto_acumulado_uma, cantidad_operaciones, requiere_aviso,
+             fecha_deadline_aviso, id_aviso_generado, id_status)
+            VALUES (?, ?, ?, ?, ?, ?, ?, ?, 1, ?, ?, 1)
+        ");
+        $stmtIns->execute([
+            $id_cliente, $id_fraccion, $tipo_acto, $fecha_primera, $fecha_ultima,
+            $monto_acumulado, $monto_acumulado_uma, $cantidad_operaciones,
+            $fecha_deadline_aviso, $id_aviso_generado
+        ]);
+
+        return (int)$pdo->lastInsertId();
+    }
+}
+
+if (!function_exists('vincularOperacionAvisoPLD')) {
+    /**
+     * Vincula aviso con operación para trazabilidad.
+     */
+    function vincularOperacionAvisoPLD($pdo, $id_aviso, $id_operacion, $id_cliente = null, $tipo_relacion = 'operacion') {
+        if (!function_exists('pldTableExists') || !pldTableExists($pdo, 'aviso_transacciones')) {
+            return false;
+        }
+        if ((int)$id_aviso <= 0 || (int)$id_operacion <= 0) {
+            return false;
+        }
+
+        $stmt = $pdo->prepare("
+            INSERT IGNORE INTO aviso_transacciones
+            (id_aviso, id_operacion, id_cliente, tipo_relacion, id_status)
+            VALUES (?, ?, ?, ?, 1)
+        ");
+        $stmt->execute([(int)$id_aviso, (int)$id_operacion, $id_cliente ? (int)$id_cliente : null, $tipo_relacion]);
+        return true;
+    }
+}
+
+if (!function_exists('vincularVentanaAcumulacionAvisoPLD')) {
+    /**
+     * Vincula todas las transacciones de la ventana de 6 meses al aviso de acumulación.
+     */
+    function vincularVentanaAcumulacionAvisoPLD($pdo, $id_aviso, $id_cliente, $fecha_inicio, $fecha_fin, $id_fraccion = null, $tipo_acto = null) {
+        if (!function_exists('pldTableExists') || !pldTableExists($pdo, 'aviso_transacciones')) {
+            return 0;
+        }
+
+        $sql = "SELECT id_operacion
+                FROM operaciones_pld
+                WHERE id_cliente = ?
+                  AND fecha_operacion >= ?
+                  AND fecha_operacion <= ?
+                  AND id_status = 1";
+        $params = [(int)$id_cliente, $fecha_inicio, $fecha_fin];
+        if ($id_fraccion !== null && $id_fraccion !== '') {
+            $sql .= " AND id_fraccion = ?";
+            $params[] = (int)$id_fraccion;
+        }
+        if ($tipo_acto !== null && trim((string)$tipo_acto) !== '') {
+            $sql .= " AND tipo_operacion = ?";
+            $params[] = trim((string)$tipo_acto);
+        }
+
+        $stmt = $pdo->prepare($sql);
+        $stmt->execute($params);
+        $ops = $stmt->fetchAll(PDO::FETCH_ASSOC);
+
+        $count = 0;
+        foreach ($ops as $op) {
+            if (vincularOperacionAvisoPLD($pdo, $id_aviso, (int)$op['id_operacion'], (int)$id_cliente, 'acumulacion')) {
+                $count++;
+            }
+        }
+        return $count;
+    }
+}
+
 if (!function_exists('registrarOperacionPLD')) {
     
     /**
-     * Registra una operación PLD y valida si requiere aviso
+     * Registra una transacción PLD y valida si requiere aviso
      * VAL-PLD-008, VAL-PLD-009
      * 
      * @param PDO $pdo Conexión a la base de datos
@@ -431,7 +741,7 @@ if (!function_exists('registrarOperacionPLD')) {
             $montoUMA = $monto / $valorUMA;
             
             // Validar umbral individual (VAL-PLD-008)
-            $validacionUmbral = validateAvisoUmbralIndividual($pdo, $id_cliente, $monto, $id_fraccion);
+            $validacionUmbral = validateAvisoUmbralIndividual($pdo, $id_cliente, $monto, $id_fraccion, $fecha_operacion);
             $requiere_aviso = $validacionUmbral['requiere_aviso'] ?? false;
             $tipo_aviso = null;
             $fecha_deadline_aviso = null;
@@ -460,7 +770,7 @@ if (!function_exists('registrarOperacionPLD')) {
                 }
             }
             
-            // Validar operación sospechosa (VAL-PLD-010)
+            // Validar transacción sospechosa (VAL-PLD-010)
             // IMPORTANTE: Los avisos 24H tienen prioridad sobre otros tipos
             if ($es_sospechosa) {
                 $validacionSospechosa = validateAvisoSospechosa($pdo, $id_cliente, $fecha_conocimiento_sospecha);
@@ -484,22 +794,49 @@ if (!function_exists('registrarOperacionPLD')) {
                 }
             }
             
+            $kycSnapshotJson = null;
+            $snapshotDisponible = false;
+            if (function_exists('pldColumnExists')) {
+                $snapshotDisponible = pldColumnExists($pdo, 'operaciones_pld', 'kyc_snapshot_json');
+            }
+            if ($snapshotDisponible && function_exists('pldGetClienteKycData')) {
+                $kycSnapshot = pldGetClienteKycData($pdo, (int)$id_cliente);
+                if (is_array($kycSnapshot)) {
+                    $kycSnapshot['capturado_en'] = date('Y-m-d H:i:s');
+                    $kycSnapshotJson = json_encode($kycSnapshot, JSON_UNESCAPED_UNICODE | JSON_UNESCAPED_SLASHES);
+                }
+            }
+
             // Insertar operación
-            $stmt = $pdo->prepare("INSERT INTO operaciones_pld 
-                                   (id_cliente, id_fraccion, tipo_operacion, monto, monto_uma, fecha_operacion,
-                                    es_sospechosa, fecha_conocimiento_sospecha, match_listas_restringidas, 
-                                    fecha_conocimiento_match, requiere_aviso, tipo_aviso, fecha_deadline_aviso, id_status)
-                                   VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, 1)");
-            
-            $stmt->execute([
-                $id_cliente, $id_fraccion, $tipo_operacion, $monto, $montoUMA, $fecha_operacion,
-                $es_sospechosa, $fecha_conocimiento_sospecha, $match_listas_restringidas,
-                $fecha_conocimiento_match, $requiere_aviso ? 1 : 0, $tipo_aviso, $fecha_deadline_aviso
-            ]);
+            if ($snapshotDisponible) {
+                $stmt = $pdo->prepare("INSERT INTO operaciones_pld
+                                       (id_cliente, id_fraccion, tipo_operacion, monto, monto_uma, fecha_operacion,
+                                        es_sospechosa, fecha_conocimiento_sospecha, match_listas_restringidas,
+                                        fecha_conocimiento_match, requiere_aviso, tipo_aviso, fecha_deadline_aviso,
+                                        kyc_snapshot_json, id_status)
+                                       VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, 1)");
+                $stmt->execute([
+                    $id_cliente, $id_fraccion, $tipo_operacion, $monto, $montoUMA, $fecha_operacion,
+                    $es_sospechosa, $fecha_conocimiento_sospecha, $match_listas_restringidas,
+                    $fecha_conocimiento_match, $requiere_aviso ? 1 : 0, $tipo_aviso, $fecha_deadline_aviso,
+                    $kycSnapshotJson
+                ]);
+            } else {
+                $stmt = $pdo->prepare("INSERT INTO operaciones_pld
+                                       (id_cliente, id_fraccion, tipo_operacion, monto, monto_uma, fecha_operacion,
+                                        es_sospechosa, fecha_conocimiento_sospecha, match_listas_restringidas,
+                                        fecha_conocimiento_match, requiere_aviso, tipo_aviso, fecha_deadline_aviso, id_status)
+                                       VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, 1)");
+                $stmt->execute([
+                    $id_cliente, $id_fraccion, $tipo_operacion, $monto, $montoUMA, $fecha_operacion,
+                    $es_sospechosa, $fecha_conocimiento_sospecha, $match_listas_restringidas,
+                    $fecha_conocimiento_match, $requiere_aviso ? 1 : 0, $tipo_aviso, $fecha_deadline_aviso
+                ]);
+            }
             
             $id_operacion = $pdo->lastInsertId();
             
-            // Si requiere aviso, generar registro de aviso pendiente
+            // Si requiere aviso, generar/actualizar registro de aviso pendiente
             $id_aviso = null;
             if ($requiere_aviso) {
                 // Para acumulación, usar monto acumulado en lugar del monto individual
@@ -514,26 +851,86 @@ if (!function_exists('registrarOperacionPLD')) {
                 } elseif ($match_listas_restringidas && $tipo_aviso === 'listas_restringidas') {
                     $tipoAvisoParaRegistro = 'listas_restringidas_24h';
                 }
-                
-                $id_aviso = registrarAvisoPLD($pdo, [
-                    'id_cliente' => $id_cliente,
-                    'id_operacion' => $id_operacion,
-                    'tipo_aviso' => $tipoAvisoParaRegistro,
-                    'fecha_operacion' => $fecha_operacion,
-                    'fecha_conocimiento' => $es_sospechosa ? $fecha_conocimiento_sospecha : ($match_listas_restringidas ? $fecha_conocimiento_match : null),
-                    'monto' => $montoAviso,
-                    'fecha_deadline' => $fecha_deadline_aviso,
-                    'datos_adicionales' => ($tipo_aviso === 'acumulacion') ? [
+
+                $fechaOperacionAviso = $fecha_operacion;
+                $datosAdicionalesAviso = null;
+
+                if ($tipo_aviso === 'acumulacion') {
+                    $fechaOperacionAviso = $validacionAcumulacion['fecha_primera_operacion'] ?? $fecha_operacion;
+                    $datosAdicionalesAviso = [
                         'cantidad_operaciones' => $validacionAcumulacion['cantidad_operaciones'] ?? 1,
                         'fecha_primera_operacion' => $validacionAcumulacion['fecha_primera_operacion'] ?? $fecha_operacion,
                         'fecha_ultima_operacion' => $fecha_operacion,
-                        'monto_acumulado_uma' => $validacionAcumulacion['monto_acumulado_uma'] ?? null
-                    ] : null
-                ]);
-                
-                // Actualizar operación con id_aviso
+                        'fecha_inicio_ventana' => $validacionAcumulacion['fecha_inicio_ventana'] ?? null,
+                        'monto_acumulado_uma' => $validacionAcumulacion['monto_acumulado_uma'] ?? null,
+                        'id_fraccion' => $id_fraccion ? (int)$id_fraccion : null,
+                        'tipo_acto' => $tipo_operacion ?: null
+                    ];
+
+                    // Evitar duplicar avisos de acumulación para la misma ventana.
+                    $id_aviso_existente = pldBuscarAvisoAcumulacionExistente(
+                        $pdo,
+                        $id_cliente,
+                        $fechaOperacionAviso,
+                        $id_fraccion,
+                        $tipo_operacion
+                    );
+
+                    if ($id_aviso_existente) {
+                        $id_aviso = $id_aviso_existente;
+                        if (function_exists('pldColumnExists') && pldColumnExists($pdo, 'avisos_pld', 'datos_adicionales')) {
+                            $stmtUpdAviso = $pdo->prepare("
+                                UPDATE avisos_pld
+                                SET monto = ?,
+                                    fecha_deadline = ?,
+                                    datos_adicionales = ?,
+                                    estatus = CASE
+                                        WHEN estatus IN ('cancelado', 'presentado') THEN estatus
+                                        ELSE 'generado'
+                                    END
+                                WHERE id_aviso = ?
+                            ");
+                            $stmtUpdAviso->execute([
+                                $montoAviso,
+                                $fecha_deadline_aviso,
+                                json_encode($datosAdicionalesAviso, JSON_UNESCAPED_UNICODE | JSON_UNESCAPED_SLASHES),
+                                $id_aviso
+                            ]);
+                        } else {
+                            $stmtUpdAviso = $pdo->prepare("
+                                UPDATE avisos_pld
+                                SET monto = ?,
+                                    fecha_deadline = ?,
+                                    estatus = CASE
+                                        WHEN estatus IN ('cancelado', 'presentado') THEN estatus
+                                        ELSE 'generado'
+                                    END
+                                WHERE id_aviso = ?
+                            ");
+                            $stmtUpdAviso->execute([$montoAviso, $fecha_deadline_aviso, $id_aviso]);
+                        }
+                    }
+                }
+
+                if (!$id_aviso) {
+                    $id_aviso = registrarAvisoPLD($pdo, [
+                        'id_cliente' => $id_cliente,
+                        'id_operacion' => $id_operacion,
+                        'tipo_aviso' => $tipoAvisoParaRegistro,
+                        'fecha_operacion' => $fechaOperacionAviso,
+                        'fecha_conocimiento' => $es_sospechosa ? $fecha_conocimiento_sospecha : ($match_listas_restringidas ? $fecha_conocimiento_match : null),
+                        'monto' => $montoAviso,
+                        'fecha_deadline' => $fecha_deadline_aviso,
+                        'datos_adicionales' => $datosAdicionalesAviso
+                    ]);
+                }
+
+                // Actualizar transacción con id_aviso
                 $stmt = $pdo->prepare("UPDATE operaciones_pld SET id_aviso_generado = ? WHERE id_operacion = ?");
                 $stmt->execute([$id_aviso, $id_operacion]);
+
+                // Trazabilidad aviso-transacción.
+                vincularOperacionAvisoPLD($pdo, $id_aviso, $id_operacion, $id_cliente, $tipo_aviso === 'acumulacion' ? 'acumulacion' : 'operacion');
                 
                 // VAL-PLD-013: Registrar automáticamente para conservación
                 if (function_exists('registrarConservacionInformacion')) {
@@ -554,14 +951,37 @@ if (!function_exists('registrarOperacionPLD')) {
                         'monto_acumulado' => $validacionAcumulacion['monto_acumulado'] ?? $monto,
                         'monto_acumulado_uma' => $validacionAcumulacion['monto_acumulado_uma'] ?? null,
                         'cantidad_operaciones' => $validacionAcumulacion['cantidad_operaciones'] ?? 1,
-                        'id_aviso_generado' => $id_aviso
+                        'id_aviso_generado' => $id_aviso,
+                        'fecha_deadline_aviso' => $fecha_deadline_aviso
                     ]);
+
+                    // En acumulación, vincular todas las transacciones de la ventana al aviso.
+                    vincularVentanaAcumulacionAvisoPLD(
+                        $pdo,
+                        $id_aviso,
+                        $id_cliente,
+                        $validacionAcumulacion['fecha_inicio_ventana'] ?? $fecha_operacion,
+                        $fecha_operacion,
+                        $id_fraccion,
+                        $tipo_operacion
+                    );
                 }
+
+                // Notificación inmediata al detectar aviso.
+                pldRegistrarNotificacionAvisoRequerido($pdo, [
+                    'id_cliente' => $id_cliente,
+                    'id_aviso' => $id_aviso,
+                    'id_operacion' => $id_operacion,
+                    'tipo_aviso' => $tipoAvisoParaRegistro,
+                    'fecha_deadline' => $fecha_deadline_aviso,
+                    'monto' => $montoAviso,
+                    'xml_generado' => false
+                ]);
             }
             
             return [
                 'success' => true,
-                'message' => 'Operación registrada correctamente',
+                'message' => 'Transacción registrada correctamente',
                 'id_operacion' => $id_operacion,
                 'id_aviso' => $id_aviso,
                 'requiere_aviso' => $requiere_aviso,
@@ -575,7 +995,7 @@ if (!function_exists('registrarOperacionPLD')) {
             error_log("Error en registrarOperacionPLD: " . $e->getMessage());
             return [
                 'success' => false,
-                'message' => 'Error al registrar operación: ' . $e->getMessage()
+                'message' => 'Error al registrar transacción: ' . $e->getMessage()
             ];
         }
     }
@@ -599,6 +1019,7 @@ if (!function_exists('registrarAvisoPLD')) {
             $monto = $data['monto'] ?? null;
             $fecha_deadline = $data['fecha_deadline'] ?? null;
             $id_operacion = $data['id_operacion'] ?? null;
+            $datos_adicionales = $data['datos_adicionales'] ?? null;
             
             if (!$id_cliente || !$tipo_aviso) {
                 throw new Exception('Datos incompletos: id_cliente y tipo_aviso son requeridos');
@@ -608,15 +1029,31 @@ if (!function_exists('registrarAvisoPLD')) {
             if (!$fecha_deadline) {
                 $fecha_deadline = calcularDeadlineAviso($fecha_operacion);
             }
-            
-            $stmt = $pdo->prepare("INSERT INTO avisos_pld 
-                                   (id_cliente, tipo_aviso, fecha_operacion, fecha_conocimiento, monto, 
-                                    fecha_deadline, estatus, id_status)
-                                   VALUES (?, ?, ?, ?, ?, ?, 'pendiente', 1)");
-            
-            $stmt->execute([
-                $id_cliente, $tipo_aviso, $fecha_operacion, $fecha_conocimiento, $monto, $fecha_deadline
-            ]);
+
+            $hasDatosAdicionales = function_exists('pldColumnExists') && pldColumnExists($pdo, 'avisos_pld', 'datos_adicionales');
+            $hasIdOperacion = function_exists('pldColumnExists') && pldColumnExists($pdo, 'avisos_pld', 'id_operacion');
+
+            $columns = ['id_cliente', 'tipo_aviso', 'fecha_operacion', 'fecha_conocimiento', 'monto', 'fecha_deadline', 'estatus', 'id_status'];
+            $params = [$id_cliente, $tipo_aviso, $fecha_operacion, $fecha_conocimiento, $monto, $fecha_deadline, 'pendiente', 1];
+
+            if ($hasDatosAdicionales) {
+                $columns[] = 'datos_adicionales';
+                if (is_array($datos_adicionales)) {
+                    $params[] = json_encode($datos_adicionales, JSON_UNESCAPED_UNICODE | JSON_UNESCAPED_SLASHES);
+                } else {
+                    $params[] = $datos_adicionales;
+                }
+            }
+
+            if ($hasIdOperacion) {
+                $columns[] = 'id_operacion';
+                $params[] = $id_operacion ? (int)$id_operacion : null;
+            }
+
+            $sql = "INSERT INTO avisos_pld (" . implode(', ', $columns) . ")
+                    VALUES (" . implode(', ', array_fill(0, count($columns), '?')) . ")";
+            $stmt = $pdo->prepare($sql);
+            $stmt->execute($params);
             
             $id_aviso = $pdo->lastInsertId();
             
@@ -657,12 +1094,12 @@ if (!function_exists('requireAvisoUmbralIndividual')) {
                 echo json_encode([
                     'status' => 'error',
                     'code' => 'AVISO_REQUERIDO',
-                    'message' => 'Operación requiere aviso por umbral individual',
+                    'message' => 'Transacción requiere aviso por umbral individual',
                     'detalles' => $result
                 ]);
                 exit;
             } else {
-                throw new Exception('AVISO_REQUERIDO: Operación requiere aviso por umbral individual');
+                throw new Exception('AVISO_REQUERIDO: Transacción requiere aviso por umbral individual');
             }
         }
         
@@ -696,15 +1133,16 @@ if (!function_exists('requireAvisoAcumulacion')) {
                 echo json_encode([
                     'status' => 'error',
                     'code' => 'GENERAR_AVISO',
-                    'message' => 'Operación requiere aviso por acumulación (ventana móvil 6 meses)',
+                    'message' => 'Transacción requiere aviso por acumulación (ventana móvil 6 meses)',
                     'detalles' => $result
                 ]);
                 exit;
             } else {
-                throw new Exception('GENERAR_AVISO: Operación requiere aviso por acumulación');
+                throw new Exception('GENERAR_AVISO: Transacción requiere aviso por acumulación');
             }
         }
         
         return null;
     }
 }
+

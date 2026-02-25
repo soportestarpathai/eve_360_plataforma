@@ -32,7 +32,8 @@ try {
             LEFT JOIN clientes_morales cm ON c.id_cliente = cm.id_cliente
             LEFT JOIN operaciones_pld op ON c.id_operacion = op.id_operacion
             LEFT JOIN avisos_pld a ON c.id_aviso = a.id_aviso
-            WHERE c.id_status = 1";
+            WHERE c.id_status = 1
+              AND COALESCE(cl.id_status, 1) != 4";
     $params = [];
     
     if ($id_cliente) {

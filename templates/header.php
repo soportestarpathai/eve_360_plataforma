@@ -36,18 +36,19 @@ try {
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0"> <!-- Critical for mobile -->
     <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css" rel="stylesheet">
-    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.1/css/all.min.css">
     <style>
         :root {
             --primary-color: <?= htmlspecialchars($appConfig['color_primario']) ?>;
+            --header-height: 70px;
         }
         
         /* Global styles */
-        body { background-color: #f0f2f5; }
+        body { background-color: #f0f2f5; padding-top: var(--header-height); }
         
         /* --- Styles for Top Bar - EVE 360 Design --- */
         .top-banner {
-            height: 70px;
+            height: var(--header-height);
             background: linear-gradient(135deg, #082d6e 0%, #073a56 100%);
             box-shadow: 0 4px 12px rgba(11, 60, 138, 0.4);
             padding: 0 1.5rem;
@@ -55,7 +56,11 @@ try {
             justify-content: space-between;
             align-items: center;
             z-index: 1000;
-            position: relative;
+            position: fixed;
+            top: 0;
+            left: 0;
+            right: 0;
+            width: 100%;
         }
 
         .top-bar-left { 
@@ -195,6 +200,7 @@ try {
                 padding: 0 1rem;
                 height: 65px;
             }
+            :root { --header-height: 65px; }
 
             .app-brand span,
             .navbar-brand span {
@@ -221,6 +227,7 @@ try {
                 padding: 0 0.75rem;
                 height: 60px;
             }
+            :root { --header-height: 60px; }
 
             .app-brand span,
             .navbar-brand span {

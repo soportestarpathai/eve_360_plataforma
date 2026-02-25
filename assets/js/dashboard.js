@@ -164,17 +164,82 @@ function goBack() {
 window.goBack = goBack;
 
 /**
+ * Construye URL de reporte con filtros (query string)
+ */
+function buildReportUrl(baseUrl, filters) {
+    const params = new URLSearchParams();
+    Object.keys(filters || {}).forEach((key) => {
+        const value = filters[key];
+        if (value !== undefined && value !== null && value !== '') {
+            params.set(key, String(value));
+        }
+    });
+
+    const query = params.toString();
+    if (!query) return baseUrl;
+    return `${baseUrl}${baseUrl.includes('?') ? '&' : '?'}${query}`;
+}
+
+/**
+ * Redirige a reporte con filtros
+ */
+function navigateToReport(baseUrl, filters) {
+    window.location.href = buildReportUrl(baseUrl, filters);
+}
+
+/**
+ * Hace clicable la tarjeta de una gráfica para ir a reporte
+ */
+function makeReportCardClickable(cardId, reportUrl, defaultFilters) {
+    const card = document.getElementById(cardId);
+    if (!card || card.dataset.reportBound === '1') return;
+
+    card.dataset.reportBound = '1';
+    card.setAttribute('role', 'link');
+    card.setAttribute('tabindex', '0');
+
+    card.addEventListener('click', (event) => {
+        if (event.target.closest('canvas')) return; // El canvas gestiona su propio click con filtros
+        if (event.target.closest('a, button, input, select, textarea')) return;
+        navigateToReport(reportUrl, defaultFilters);
+    });
+
+    card.addEventListener('keydown', (event) => {
+        if (event.key === 'Enter' || event.key === ' ') {
+            event.preventDefault();
+            navigateToReport(reportUrl, defaultFilters);
+        }
+    });
+}
+
+/**
  * Inicializa el gráfico de riesgo
  * Nota: riskLabels, riskCounts, riskColors deben estar disponibles globalmente desde index.php
+ * Hover: muestra % y cantidad; el segmento se separa (hoverOffset).
+ * Clic: lleva al Reporte de riesgos.
  */
 function initChart() {
     const ctx = document.getElementById('riskChart');
     if (!ctx) return;
+    const chartLink = document.getElementById('riskChartLink');
+    const reportUrl = 'reporte_riesgos.php';
 
-    // Verificar que los datos estén disponibles
     if (typeof riskLabels === 'undefined' || typeof riskCounts === 'undefined' || typeof riskColors === 'undefined') {
         console.warn('Dashboard: Datos del gráfico no disponibles');
         return;
+    }
+
+    const navigateToRiskReport = () => {
+        window.location.href = reportUrl;
+    };
+
+    if (chartLink) {
+        chartLink.addEventListener('keydown', (event) => {
+            if (event.key === 'Enter' || event.key === ' ') {
+                event.preventDefault();
+                navigateToRiskReport();
+            }
+        });
     }
 
     new Chart(ctx, {
@@ -186,12 +251,26 @@ function initChart() {
                 backgroundColor: riskColors,
                 borderWidth: 2,
                 borderColor: '#ffffff',
-                hoverOffset: 10
+                hoverBorderWidth: 4,
+                hoverBorderColor: '#ffffff',
+                hoverOffset: 20
             }]
         },
         options: {
             responsive: true,
             maintainAspectRatio: false,
+            interaction: {
+                mode: 'index',
+                intersect: false
+            },
+            onClick: function(evt, elements) {
+                if (elements.length > 0) {
+                    navigateToRiskReport();
+                }
+            },
+            onHover: function(evt, elements) {
+                ctx.style.cursor = elements.length > 0 ? 'pointer' : 'default';
+            },
             plugins: {
                 legend: {
                     position: 'bottom',
@@ -202,20 +281,25 @@ function initChart() {
                     }
                 },
                 tooltip: {
+                    enabled: true,
                     callbacks: {
                         label: function(context) {
-                            let label = context.label || '';
-                            let value = context.raw || 0;
-                            let total = context.chart._metasets[context.datasetIndex].total;
-                            let percentage = Math.round((value / total) * 100) + '%';
-                            return `${label}: ${value} (${percentage})`;
+                            const label = context.label || '';
+                            const value = Number(context.raw) || 0;
+                            const datasetValues = context.dataset.data || [];
+                            const total = datasetValues.reduce((sum, item) => sum + (Number(item) || 0), 0);
+                            const percentage = total > 0 ? ((value / total) * 100).toFixed(1) : '0.0';
+                            const clientes = value === 1 ? '1 cliente' : value + ' clientes';
+                            return label + ': ' + clientes + ' (' + percentage + '%)';
                         }
                     }
                 }
             },
-            cutout: '60%' // Makes it a nice donut
+            cutout: '60%'
         }
     });
+
+    ctx.style.cursor = 'default';
 }
 
 /**
@@ -223,7 +307,13 @@ function initChart() {
  */
 function initMonthlyChart() {
     const ctx = document.getElementById('monthlyChart');
-    if (!ctx || typeof monthlyClients === 'undefined') return;
+    if (!ctx) return;
+
+    const reportUrl = 'clientes.php';
+    const defaultFilters = {};
+    makeReportCardClickable('monthlyChartCard', reportUrl, defaultFilters);
+
+    if (typeof monthlyClients === 'undefined') return;
 
     new Chart(ctx, {
         type: 'bar',
@@ -242,15 +332,34 @@ function initMonthlyChart() {
         options: {
             responsive: true,
             maintainAspectRatio: false,
+            onClick: function(evt, elements) {
+                if (evt && evt.native && typeof evt.native.stopPropagation === 'function') {
+                    evt.native.stopPropagation();
+                }
+
+                if (elements.length > 0) {
+                    navigateToReport(reportUrl, defaultFilters);
+                    return;
+                }
+
+                navigateToReport(reportUrl, defaultFilters);
+            },
+            onHover: function() {
+                ctx.style.cursor = 'pointer';
+            },
             plugins: {
                 legend: {
                     display: true,
                     position: 'top',
                 },
                 tooltip: {
+                    enabled: true,
                     callbacks: {
                         label: function(context) {
-                            return `Clientes: ${context.parsed.y}`;
+                            const value = Number(context.parsed.y) || 0;
+                            const total = (monthlyClients.data || []).reduce((sum, item) => sum + (Number(item) || 0), 0);
+                            const percentage = total > 0 ? ((value / total) * 100).toFixed(1) : '0.0';
+                            return `Clientes: ${value} (${percentage}%)`;
                         }
                     }
                 }
@@ -265,6 +374,8 @@ function initMonthlyChart() {
             }
         }
     });
+
+    ctx.style.cursor = 'pointer';
 }
 
 /**
@@ -272,7 +383,13 @@ function initMonthlyChart() {
  */
 function initStatusChart() {
     const ctx = document.getElementById('statusChart');
-    if (!ctx || typeof statusComparison === 'undefined') return;
+    if (!ctx) return;
+
+    const reportUrl = 'clientes.php';
+    const defaultFilters = {};
+    makeReportCardClickable('statusChartCard', reportUrl, defaultFilters);
+
+    if (typeof statusComparison === 'undefined') return;
 
     new Chart(ctx, {
         type: 'line',
@@ -306,10 +423,45 @@ function initStatusChart() {
         options: {
             responsive: true,
             maintainAspectRatio: false,
+            interaction: {
+                mode: 'index',
+                intersect: false
+            },
+            onClick: function(evt, elements) {
+                if (evt && evt.native && typeof evt.native.stopPropagation === 'function') {
+                    evt.native.stopPropagation();
+                }
+
+                if (elements.length > 0) {
+                    const point = elements[0];
+                    const estatus = point.datasetIndex === 0 ? 'activos' : 'inactivos';
+                    navigateToReport(reportUrl, Object.assign({}, defaultFilters, { estatus: estatus }));
+                    return;
+                }
+
+                navigateToReport(reportUrl, defaultFilters);
+            },
+            onHover: function() {
+                ctx.style.cursor = 'pointer';
+            },
             plugins: {
                 legend: {
                     display: true,
                     position: 'top',
+                },
+                tooltip: {
+                    enabled: true,
+                    callbacks: {
+                        label: function(context) {
+                            const value = Number(context.parsed.y) || 0;
+                            const idx = context.dataIndex;
+                            const activos = Number(statusComparison.activos[idx]) || 0;
+                            const inactivos = Number(statusComparison.inactivos[idx]) || 0;
+                            const total = activos + inactivos;
+                            const percentage = total > 0 ? ((value / total) * 100).toFixed(1) : '0.0';
+                            return `${context.dataset.label}: ${value} (${percentage}%)`;
+                        }
+                    }
                 }
             },
             scales: {
@@ -319,6 +471,8 @@ function initStatusChart() {
             }
         }
     });
+
+    ctx.style.cursor = 'pointer';
 }
 
 /**
@@ -326,7 +480,13 @@ function initStatusChart() {
  */
 function initTopRiskChart() {
     const ctx = document.getElementById('topRiskChart');
-    if (!ctx || typeof topRiskLevels === 'undefined' || topRiskLevels.labels.length === 0) return;
+    if (!ctx) return;
+
+    const reportUrl = 'reporte_riesgos.php';
+    const defaultFilters = { origen: 'dashboard', grafica: 'top_niveles_riesgo', top: '5' };
+    makeReportCardClickable('topRiskChartCard', reportUrl, defaultFilters);
+
+    if (typeof topRiskLevels === 'undefined' || topRiskLevels.labels.length === 0) return;
 
     new Chart(ctx, {
         type: 'bar',
@@ -345,14 +505,39 @@ function initTopRiskChart() {
             indexAxis: 'y',
             responsive: true,
             maintainAspectRatio: false,
+            interaction: {
+                mode: 'nearest',
+                intersect: false
+            },
+            onClick: function(evt, elements) {
+                if (evt && evt.native && typeof evt.native.stopPropagation === 'function') {
+                    evt.native.stopPropagation();
+                }
+
+                if (elements.length > 0) {
+                    const point = elements[0];
+                    const riskLevel = topRiskLevels.labels[point.index] || '';
+                    navigateToReport(reportUrl, Object.assign({}, defaultFilters, { nivel_riesgo: riskLevel }));
+                    return;
+                }
+
+                navigateToReport(reportUrl, defaultFilters);
+            },
+            onHover: function() {
+                ctx.style.cursor = 'pointer';
+            },
             plugins: {
                 legend: {
                     display: false
                 },
                 tooltip: {
+                    enabled: true,
                     callbacks: {
                         label: function(context) {
-                            return `Clientes: ${context.parsed.x}`;
+                            const value = Number(context.parsed.x) || 0;
+                            const total = (topRiskLevels.data || []).reduce((sum, item) => sum + (Number(item) || 0), 0);
+                            const percentage = total > 0 ? ((value / total) * 100).toFixed(1) : '0.0';
+                            return `Clientes: ${value} (${percentage}%)`;
                         }
                     }
                 }
@@ -367,6 +552,8 @@ function initTopRiskChart() {
             }
         }
     });
+
+    ctx.style.cursor = 'pointer';
 }
 
 /**
@@ -374,7 +561,13 @@ function initTopRiskChart() {
  */
 function initAreaChart() {
     const ctx = document.getElementById('areaChart');
-    if (!ctx || typeof monthlyClients === 'undefined') return;
+    if (!ctx) return;
+
+    const reportUrl = 'reporte_riesgos.php';
+    const defaultFilters = { origen: 'dashboard', grafica: 'distribucion_acumulada', periodo: '6m' };
+    makeReportCardClickable('areaChartCard', reportUrl, defaultFilters);
+
+    if (typeof monthlyClients === 'undefined') return;
 
     // Calcular datos acumulados
     let cumulative = 0;
@@ -405,10 +598,42 @@ function initAreaChart() {
         options: {
             responsive: true,
             maintainAspectRatio: false,
+            interaction: {
+                mode: 'index',
+                intersect: false
+            },
+            onClick: function(evt, elements) {
+                if (evt && evt.native && typeof evt.native.stopPropagation === 'function') {
+                    evt.native.stopPropagation();
+                }
+
+                if (elements.length > 0) {
+                    const point = elements[0];
+                    const monthLabel = monthlyClients.labels[point.index] || '';
+                    navigateToReport(reportUrl, Object.assign({}, defaultFilters, { mes: monthLabel }));
+                    return;
+                }
+
+                navigateToReport(reportUrl, defaultFilters);
+            },
+            onHover: function() {
+                ctx.style.cursor = 'pointer';
+            },
             plugins: {
                 legend: {
                     display: true,
                     position: 'top',
+                },
+                tooltip: {
+                    enabled: true,
+                    callbacks: {
+                        label: function(context) {
+                            const value = Number(context.parsed.y) || 0;
+                            const total = cumulativeData.length > 0 ? Number(cumulativeData[cumulativeData.length - 1]) || 0 : 0;
+                            const percentage = total > 0 ? ((value / total) * 100).toFixed(1) : '0.0';
+                            return `Total acumulado: ${value} (${percentage}%)`;
+                        }
+                    }
                 }
             },
             scales: {
@@ -418,6 +643,8 @@ function initAreaChart() {
             }
         }
     });
+
+    ctx.style.cursor = 'pointer';
 }
 
 /**

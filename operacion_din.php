@@ -9,7 +9,7 @@ if (!checkHabilitadoPLD($pdo)) {
 }
 
 $id_fraccion = (int)($_GET['id_fraccion'] ?? 0);
-$page_title = 'Operación DIN - Desarrollo Inmobiliario';
+$page_title = 'Transacción DIN - Desarrollo Inmobiliario';
 include 'templates/header.php';
 
 $stmt = $pdo->query("SELECT folio_patron_pld FROM config_empresa WHERE id_config = 1");
@@ -38,7 +38,7 @@ $clave_sujeto_obligado = $config['folio_patron_pld'] ?? '';
                 </p>
             </div>
             <a href="operaciones_pld.php" class="btn btn-outline-secondary">
-                <i class="fa-solid fa-arrow-left me-1"></i> Volver a Operaciones PLD
+                <i class="fa-solid fa-arrow-left me-1"></i> Volver a Transacciones PLD
             </a>
         </div>
     </div>
@@ -245,7 +245,7 @@ $clave_sujeto_obligado = $config['folio_patron_pld'] ?? '';
             <div class="card-body">
                 <div class="row">
                     <div class="col-md-4 mb-3">
-                        <label class="form-label">Operación Sospechosa</label>
+                        <label class="form-label">Transacción Sospechosa</label>
                         <div class="form-check form-switch">
                             <input class="form-check-input" type="checkbox" id="es_sospechosa">
                             <label class="form-check-label" for="es_sospechosa">Aviso 24H</label>
@@ -281,7 +281,7 @@ $clave_sujeto_obligado = $config['folio_patron_pld'] ?? '';
 
         <div class="d-flex gap-2">
             <button type="submit" class="btn btn-primary btn-lg">
-                <i class="fa-solid fa-save me-2"></i>Registrar Operación y Generar XML
+                <i class="fa-solid fa-save me-2"></i>Registrar Transacción y Generar XML
             </button>
             <a href="operaciones_pld.php" class="btn btn-secondary btn-lg">Cancelar</a>
         </div>
@@ -454,8 +454,8 @@ function guardarOperacionDIN(e) {
         if (data.status === 'success') {
             Swal.fire({
                 icon: 'success',
-                title: 'Operación registrada',
-                html: (data.requiere_aviso ? '<p><strong>Requiere aviso.</strong> Deadline: ' + (data.fecha_deadline || '') + '</p>' : '<p>Operación registrada sin aviso.</p>') +
+                title: 'Transacción registrada',
+                html: (data.requiere_aviso ? '<p><strong>Requiere aviso.</strong> Deadline: ' + (data.fecha_deadline || '') + '</p>' : '<p>Transacción registrada sin aviso.</p>') +
                       '<p>XML almacenado correctamente.</p>'
             }).then(() => {
                 window.location.href = 'operaciones_pld.php';
@@ -472,3 +472,4 @@ function guardarOperacionDIN(e) {
 </script>
 
 <?php include 'templates/footer.php'; ?>
+

@@ -283,7 +283,7 @@ include 'templates/header.php';
                     <div class="d-flex align-items-center">
                         <i class="fa-solid fa-check-circle fa-2x me-3"></i>
                         <div>
-                            <h6 class="mb-1"><strong>Expediente Válido para Operaciones PLD</strong></h6>
+                            <h6 class="mb-1"><strong>Expediente Válido para Transacciones PLD</strong></h6>
                             <p class="mb-0 small">El expediente está completo y actualizado según VAL-PLD-005 y VAL-PLD-006</p>
                         </div>
                     </div>
@@ -295,8 +295,8 @@ include 'templates/header.php';
                     <div class="d-flex align-items-center">
                         <i class="fa-solid fa-times-circle fa-2x me-3"></i>
                         <div>
-                            <h6 class="mb-1"><strong>Expediente NO Válido - Bloquea Operaciones PLD</strong></h6>
-                            <p class="mb-0 small">El expediente requiere atención antes de permitir operaciones PLD</p>
+                            <h6 class="mb-1"><strong>Expediente NO Válido - Bloquea Transacciones PLD</strong></h6>
+                            <p class="mb-0 small">El expediente requiere atención antes de permitir transacciones PLD</p>
                         </div>
                     </div>
                 </div>
@@ -368,7 +368,7 @@ include 'templates/header.php';
             if (actualizacion.fecha_ultima_actualizacion) {
                 html += `<p class="small mb-2"><strong>Última actualización:</strong> ${actualizacion.fecha_ultima_actualizacion}</p>`;
             }
-            html += '<p class="small text-danger mb-0"><strong>⚠️ Bloquea nuevas operaciones PLD</strong></p>';
+            html += '<p class="small text-danger mb-0"><strong>⚠️ Bloquea nuevas transacciones PLD</strong></p>';
             if (document.getElementById('btnUpdateFecha')) {
                 document.getElementById('btnUpdateFecha').style.display = 'inline-block';
             }

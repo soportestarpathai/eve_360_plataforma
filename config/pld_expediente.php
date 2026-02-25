@@ -375,10 +375,11 @@ if (!function_exists('requireNoNegativaIdentificacion')) {
             echo json_encode([
                 'status' => 'error',
                 'code' => 'OPERACION_RECHAZADA_PLD',
-                'message' => 'No puede realizarse la operación: el cliente registró negativa a proporcionar información de identificación'
+                'message' => 'No puede realizarse la transacción: el cliente registró negativa a proporcionar información de identificación'
             ]);
             exit;
         }
         throw new Exception('OPERACION_RECHAZADA_PLD: Cliente con negativa de identificación');
     }
 }
+

@@ -70,7 +70,7 @@ include 'templates/top_bar.php';
                     </h5>
                     <p class="mb-2">
                         <strong>Generalidad:</strong> La información debe conservarse por al menos <strong>10 años</strong>. 
-                        Esto incluye expedientes, documentos, avisos, operaciones y cualquier cambio o edición.
+                        Esto incluye expedientes, documentos, avisos, transacciones y cualquier cambio o edición.
                     </p>
                     <div class="row mt-2">
                         <div class="col-md-6">
@@ -155,7 +155,7 @@ include 'templates/top_bar.php';
                         <option value="expediente">Expediente</option>
                         <option value="documento">Documento</option>
                         <option value="aviso">Aviso</option>
-                        <option value="operacion">Operación</option>
+                        <option value="operacion">Transacción</option>
                         <option value="cambio">Cambio</option>
                     </select>
                 </div>
@@ -188,7 +188,7 @@ include 'templates/top_bar.php';
                             <th>Fecha Creación</th>
                             <th>Cliente</th>
                             <th>Tipo Evidencia</th>
-                            <th>Operación/Aviso</th>
+                            <th>Transacción/Aviso</th>
                             <th>Archivo</th>
                             <th>Fecha Vencimiento</th>
                             <th>Días Restantes</th>
@@ -235,13 +235,13 @@ include 'templates/top_bar.php';
                                 <option value="expediente">Expediente</option>
                                 <option value="documento">Documento</option>
                                 <option value="aviso">Aviso</option>
-                                <option value="operacion">Operación</option>
+                                <option value="operacion">Transacción</option>
                                 <option value="cambio">Cambio</option>
                             </select>
                         </div>
                         <div class="col-md-6 mb-3">
-                            <label class="form-label">ID Operación (Opcional)</label>
-                            <input type="number" class="form-control" id="conservacion_id_operacion" placeholder="ID de operación PLD">
+                            <label class="form-label">ID Transacción (Opcional)</label>
+                            <input type="number" class="form-control" id="conservacion_id_operacion" placeholder="ID de transacción PLD">
                         </div>
                         <div class="col-md-6 mb-3">
                             <label class="form-label">ID Aviso (Opcional)</label>
@@ -741,3 +741,4 @@ function guardarVisita() {
 </script>
 
 <?php include 'templates/footer.php'; ?>
+

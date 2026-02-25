@@ -49,6 +49,61 @@
     color: #6c757d;
 }
 
+.quota-box {
+    margin-bottom: 1.25rem;
+    padding: 0.85rem 1rem;
+    border-radius: 10px;
+    border: 1px solid #dbe7fb;
+    background: linear-gradient(135deg, #f2f7ff 0%, #f8fbff 100%);
+}
+
+.quota-label {
+    font-size: 0.9rem;
+    color: var(--eve-blue-deep, #0B3C8A);
+    font-weight: 700;
+    margin-bottom: 0.25rem;
+}
+
+.quota-values {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 0.35rem;
+    align-items: center;
+    color: #334155;
+    font-size: 0.875rem;
+}
+
+.quota-available {
+    color: #166534;
+}
+
+.quota-divider {
+    color: #94a3b8;
+}
+
+.quota-period {
+    margin-left: 0.35rem;
+    color: #64748b;
+}
+
+.quota-box.quota-warning {
+    border-color: #fcd34d;
+    background: linear-gradient(135deg, #fffbeb 0%, #fff7d6 100%);
+}
+
+.quota-box.quota-warning .quota-available {
+    color: #92400e;
+}
+
+.quota-box.quota-danger {
+    border-color: #fecaca;
+    background: linear-gradient(135deg, #fff5f5 0%, #ffe8e8 100%);
+}
+
+.quota-box.quota-danger .quota-available {
+    color: #b91c1c;
+}
+
 /* Form Section */
 .form-section-type {
     margin-bottom: 1.5rem;
@@ -254,6 +309,14 @@
         font-size: 0.8rem;
     }
 
+    .quota-box {
+        padding: 0.75rem;
+    }
+
+    .quota-values {
+        font-size: 0.82rem;
+    }
+
     .radio-group {
         gap: 1rem;
     }
@@ -304,6 +367,15 @@
     .check-header-content small {
         font-size: 0.75rem;
         display: block;
+    }
+
+    .quota-label {
+        font-size: 0.82rem;
+    }
+
+    .quota-values {
+        font-size: 0.78rem;
+        gap: 0.25rem;
     }
 
     .form-section-type {

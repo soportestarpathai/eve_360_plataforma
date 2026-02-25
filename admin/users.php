@@ -315,7 +315,7 @@ $users = $stmt->fetchAll(PDO::FETCH_ASSOC);
                         </div>
                         <div class="col-md-4">
                             <div class="card h-100 bg-light border-0"><div class="card-body py-2">
-                                <small class="text-uppercase fw-bold text-muted">Operación</small>
+                                <small class="text-uppercase fw-bold text-muted">Transacción</small>
                                 <div class="form-check"><input class="form-check-input" type="checkbox" name="perm_captura" id="perm_cap"><label class="form-check-label" for="perm_cap">Captura</label></div>
                                 <div class="form-check"><input class="form-check-input" type="checkbox" name="perm_valuacion" id="perm_val"><label class="form-check-label" for="perm_val">Valuación</label></div>
                                 <div class="form-check"><input class="form-check-input" type="checkbox" name="perm_rebalanceo" id="perm_reb"><label class="form-check-label" for="perm_reb">Rebalanceo</label></div>

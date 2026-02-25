@@ -19,6 +19,8 @@ try {
     $id_cliente = $_GET['id_cliente'] ?? null;
     $estatus = $_GET['estatus'] ?? null; // pendiente, presentado, vencido
     $tipo_aviso = $_GET['tipo_aviso'] ?? ($_GET['tipo'] ?? null); // Compatibilidad con ambos nombres
+    $incluirHistorico = (isset($_GET['historico']) && $_GET['historico'] === '1');
+    $filtroEstatusAviso = $incluirHistorico ? "(a.id_status = 1 OR a.id_status = 0)" : "a.id_status = 1";
     
     // Verificar si existe la columna datos_adicionales
     $stmt = $pdo->query("SHOW COLUMNS FROM avisos_pld LIKE 'datos_adicionales'");
@@ -40,7 +42,8 @@ try {
                 LEFT JOIN clientes c ON a.id_cliente = c.id_cliente
                 LEFT JOIN clientes_fisicas cf ON a.id_cliente = cf.id_cliente
                 LEFT JOIN clientes_morales cm ON a.id_cliente = cm.id_cliente
-                WHERE a.id_status = 1";
+                WHERE $filtroEstatusAviso
+                  AND COALESCE(c.id_status, 1) != 4";
     } else {
         $sql = "SELECT a.*, 
                        c.alias as cliente_alias,
@@ -57,12 +60,8 @@ try {
                 LEFT JOIN clientes c ON a.id_cliente = c.id_cliente
                 LEFT JOIN clientes_fisicas cf ON a.id_cliente = cf.id_cliente
                 LEFT JOIN clientes_morales cm ON a.id_cliente = cm.id_cliente
-                WHERE a.id_status = 1";
-    }
-    
-    $incluirHistorico = (isset($_GET['historico']) && $_GET['historico'] === '1');
-    if ($incluirHistorico) {
-        $sql = str_replace('WHERE a.id_status = 1', 'WHERE (a.id_status = 1 OR a.id_status = 0)', $sql);
+                WHERE $filtroEstatusAviso
+                  AND COALESCE(c.id_status, 1) != 4";
     }
     
     $params = [];

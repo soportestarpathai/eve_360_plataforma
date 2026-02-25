@@ -55,6 +55,10 @@ body {
 }
 
 /* --- STATISTICS CARDS (Duralux Style) --- */
+.stat-card-link {
+    height: 100%;
+    display: block;
+}
 .stat-card {
     background: var(--eve-white);
     border-radius: 18px;
@@ -242,7 +246,7 @@ body {
 .donut-center:hover {
     border-color: var(--eve-blue-light);
     box-shadow: 0 12px 35px rgba(11, 60, 138, 0.25);
-    transform: scale(1.02);
+    /* Sin scale para evitar que el centro se mueva o se vea desacomodado */
 }
 
 .donut-center h5 {
@@ -328,6 +332,22 @@ body {
 }
 
 /* --- RIGHT CHART --- */
+.risk-chart-link {
+    cursor: pointer;
+    color: inherit;
+    border-radius: 16px;
+    position: relative;
+    z-index: 1;
+}
+
+.risk-chart-link:focus {
+    outline: none;
+}
+
+.risk-chart-link:focus-visible {
+    outline: 3px solid var(--eve-blue-light);
+    outline-offset: 3px;
+}
 .chart-card {
     background: linear-gradient(135deg, rgba(255, 255, 255, 0.98) 0%, rgba(255, 255, 255, 0.95) 100%);
     border-radius: 24px;
@@ -352,6 +372,7 @@ body {
     height: 200%;
     background: radial-gradient(circle, rgba(27, 143, 234, 0.05) 0%, transparent 70%);
     opacity: 0;
+    pointer-events: none;
     /* transition: opacity 0.4s ease; Removido */
 }
 
@@ -361,6 +382,27 @@ body {
 
 .chart-card:hover {
     box-shadow: 0 15px 50px rgba(11, 60, 138, 0.18);
+    transform: translateY(-5px);
+}
+
+.report-chart-card {
+    cursor: pointer;
+}
+
+.report-chart-card:focus-visible {
+    outline: 3px solid var(--eve-blue-light);
+    outline-offset: 3px;
+}
+
+.risk-chart-card {
+    cursor: pointer;
+    border: 1px solid rgba(27, 143, 234, 0.2);
+}
+
+.risk-chart-card:hover,
+.risk-chart-card:focus-within {
+    border-color: rgba(27, 143, 234, 0.45);
+    box-shadow: 0 18px 55px rgba(11, 60, 138, 0.2);
     transform: translateY(-5px);
 }
 
@@ -381,6 +423,11 @@ body {
     color: var(--eve-blue-medium);
     margin-right: 0.5rem;
     font-size: 1.1rem;
+}
+
+.chart-card canvas {
+    position: relative;
+    z-index: 2;
 }
 
 /* --- ESTADOS VACÍOS --- */
@@ -1019,6 +1066,13 @@ small, .small {
     color: #adb5bd;
     display: flex;
     align-items: center;
+}
+
+.notification-actions {
+    margin-top: 0.5rem;
+    display: flex;
+    flex-wrap: wrap;
+    gap: 0.4rem;
 }
 
 .notification-action {
