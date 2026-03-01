@@ -22,7 +22,7 @@ if ($token) {
             // 3. Log the Activation
             $detalles = json_encode(['info' => 'Activación por correo verificada']);
             // Assuming system ID 0 for automated actions
-            $log = $pdo->prepare("INSERT INTO bitacora (id_usuario, accion, tabla, id_registro, valor_anterior, valor_nuevo, fecha) VALUES (0, 'ACTIVAR', 'usuarios', ?, NULL, ?, NOW())");
+            $log = $pdo->prepare("INSERT INTO bitacora (id_usuario, accion, tabla_afectada, id_afectado, valor_anterior, valor_nuevo, fecha) VALUES (0, 'ACTIVAR', 'usuarios', ?, NULL, ?, NOW())");
             $log->execute([$user['id_usuario'], $detalles]);
 
             $pdo->commit();

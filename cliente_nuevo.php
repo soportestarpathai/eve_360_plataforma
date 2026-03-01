@@ -219,9 +219,11 @@ if (!$isPLDHabilitado) {
                         <div class="col-md-4 mb-3">
                             <label class="form-label">
                                 <i class="fa-solid fa-id-card"></i>
-                                RFC*
+                                RFC / Tax ID*
                             </label>
                             <input type="text" class="form-control" id="fisica_tax_id" name="fisica_tax_id" placeholder="Ej: PERG800101ABC">
+                            <input type="file" class="form-control form-control-sm mt-1" name="fisica_rfc_doc_file" accept=".pdf,.jpg,.jpeg,.png,.doc,.docx" title="Constancia de Situación Fiscal / RFC / Tax ID">
+                            <div class="form-text"><i class="fa-solid fa-paperclip me-1"></i>Adjuntar constancia RFC / Tax ID</div>
                         </div>
                         <div class="col-md-4 mb-3">
                             <label class="form-label">
@@ -229,6 +231,8 @@ if (!$isPLDHabilitado) {
                                 CURP
                             </label>
                             <input type="text" class="form-control" id="fisica_curp" name="fisica_curp" placeholder="Ej: PERG800101HDFRNS01">
+                            <input type="file" class="form-control form-control-sm mt-1" name="fisica_curp_doc_file" accept=".pdf,.jpg,.jpeg,.png,.doc,.docx" title="Documento CURP">
+                            <div class="form-text"><i class="fa-solid fa-paperclip me-1"></i>Adjuntar documento CURP</div>
                         </div>
                     </div>
                 </div>
@@ -253,9 +257,11 @@ if (!$isPLDHabilitado) {
                         <div class="col-md-6 mb-3">
                             <label class="form-label">
                                 <i class="fa-solid fa-id-card"></i>
-                                RFC*
+                                RFC / Tax ID*
                             </label>
                             <input type="text" class="form-control" id="moral_tax_id" name="moral_tax_id" placeholder="Ej: ABC123456DEF">
+                            <input type="file" class="form-control form-control-sm mt-1" name="moral_rfc_doc_file" accept=".pdf,.jpg,.jpeg,.png,.doc,.docx" title="Constancia de Situación Fiscal / RFC / Tax ID">
+                            <div class="form-text"><i class="fa-solid fa-paperclip me-1"></i>Adjuntar constancia RFC / Tax ID</div>
                         </div>
                     </div>
                 </div>

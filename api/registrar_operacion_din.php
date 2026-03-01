@@ -42,14 +42,34 @@ if (isset($data['informe'][0]['aviso'][0]['detalle_operaciones'][0]['datos_opera
     if ($monto <= 0) {
         $aps = $op['aportaciones'][0] ?? [];
         $tipos = $aps['tipo_aportacion'][0] ?? [];
+
+        // recursos_propios > numerario
         $rps = $tipos['recursos_propios'] ?? [];
-        $rp = is_array($rps) && isset($rps[0]) ? $rps[0] : $rps;
+        $rp = is_array($rps) && isset($rps[0]) ? $rps[0] : (is_array($rps) ? $rps : []);
         $daps = $rp['datos_aportacion'] ?? [];
         $da = is_array($daps) && isset($daps[0]) ? $daps[0] : [];
         $ans = $da['aportacion_numerario'] ?? [];
-        $an = is_array($ans) && isset($ans[0]) ? $ans[0] : $ans;
+        $an = is_array($ans) && isset($ans[0]) ? $ans[0] : (is_array($ans) ? $ans : []);
         if (isset($an['monto_aportacion'])) {
             $monto = floatval($an['monto_aportacion']);
+        }
+        // recursos_propios > especie
+        if ($monto <= 0) {
+            $aes = $da['aportacion_especie'] ?? [];
+            $ae = is_array($aes) && isset($aes[0]) ? $aes[0] : (is_array($aes) ? $aes : []);
+            if (isset($ae['monto_estimado'])) $monto = floatval($ae['monto_estimado']);
+        }
+        // prestamo_financiero
+        if ($monto <= 0 && isset($tipos['prestamo_financiero']['datos_prestamo']['monto_prestamo'])) {
+            $monto = floatval($tipos['prestamo_financiero']['datos_prestamo']['monto_prestamo']);
+        }
+        // prestamo_no_financiero
+        if ($monto <= 0 && isset($tipos['prestamo_no_financiero']['datos_prestamo']['monto_prestamo'])) {
+            $monto = floatval($tipos['prestamo_no_financiero']['datos_prestamo']['monto_prestamo']);
+        }
+        // financiamiento_bursatil
+        if ($monto <= 0 && isset($tipos['financiamiento_bursatil']['monto_recibido'])) {
+            $monto = floatval($tipos['financiamiento_bursatil']['monto_recibido']);
         }
     }
 }

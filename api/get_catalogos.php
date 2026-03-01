@@ -35,13 +35,24 @@ try {
     $catalogs['profesiones'] = fetchCatalog($pdo, 'cat_profesion');
     $catalogs['origenes_recursos'] = fetchCatalog($pdo, 'cat_origen_recursos');
     
-    // Fetch vulnerable activities (fracciones PLD)
+    // Fetch vulnerable activities filtered by user's assigned fracciones
     try {
-        $stmtVuln = $pdo->query("SELECT * FROM cat_vulnerables ORDER BY nombre ASC");
+        require_once __DIR__ . '/../config/pld_permisos.php';
+        $userId = $_SESSION['user_id'] ?? null;
+        $userFracciones = $userId ? getUserFraccionesPLD($pdo, $userId) : [];
+
+        if (!empty($userFracciones)) {
+            $placeholders = implode(',', array_fill(0, count($userFracciones), '?'));
+            $stmtVuln = $pdo->prepare("SELECT * FROM cat_vulnerables WHERE fraccion IN ($placeholders) ORDER BY nombre ASC");
+            $stmtVuln->execute($userFracciones);
+        } else {
+            $stmtVuln = $pdo->query("SELECT * FROM cat_vulnerables ORDER BY nombre ASC");
+        }
         $catalogs['vulnerables'] = $stmtVuln->fetchAll(PDO::FETCH_ASSOC);
+        $catalogs['user_fracciones'] = $userFracciones;
     } catch (PDOException $e) {
-        // If table doesn't exist, return empty array
         $catalogs['vulnerables'] = [];
+        $catalogs['user_fracciones'] = [];
     }
 
     echo json_encode(['status' => 'success', 'data' => $catalogs]);

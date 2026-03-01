@@ -539,7 +539,10 @@ try {
     $hasAnyDocuments = (isset($data['doc_tipo']) && is_array($data['doc_tipo']))
         || isset($_FILES['nac_doc_file'])
         || isset($_FILES['ident_doc_file'])
-        || isset($_FILES['dir_doc_file']);
+        || isset($_FILES['dir_doc_file'])
+        || isset($_FILES['fisica_rfc_doc_file'])
+        || isset($_FILES['fisica_curp_doc_file'])
+        || isset($_FILES['moral_rfc_doc_file']);
 
     if ($hasAnyDocuments) {
         $stmt_doc = $pdo->prepare("INSERT INTO clientes_documentos (id_cliente, descripcion, ruta, fecha_vencimiento, id_status) VALUES (?, ?, ?, ?, 1)");
@@ -619,6 +622,36 @@ try {
                 $descripcion = 'Comprobante Domicilio #' . ($key + 1);
                 $saveUploadedDocument($_FILES['dir_doc_file']['tmp_name'][$key], $name, $descripcion, null);
             }
+        }
+
+        // Constancia RFC (persona física)
+        if (isset($_FILES['fisica_rfc_doc_file']) && ($_FILES['fisica_rfc_doc_file']['error'] ?? UPLOAD_ERR_NO_FILE) === UPLOAD_ERR_OK) {
+            $saveUploadedDocument(
+                $_FILES['fisica_rfc_doc_file']['tmp_name'],
+                $_FILES['fisica_rfc_doc_file']['name'],
+                'Constancia RFC - Persona Física',
+                null
+            );
+        }
+
+        // Documento CURP (persona física)
+        if (isset($_FILES['fisica_curp_doc_file']) && ($_FILES['fisica_curp_doc_file']['error'] ?? UPLOAD_ERR_NO_FILE) === UPLOAD_ERR_OK) {
+            $saveUploadedDocument(
+                $_FILES['fisica_curp_doc_file']['tmp_name'],
+                $_FILES['fisica_curp_doc_file']['name'],
+                'Documento CURP - Persona Física',
+                null
+            );
+        }
+
+        // Constancia RFC (persona moral)
+        if (isset($_FILES['moral_rfc_doc_file']) && ($_FILES['moral_rfc_doc_file']['error'] ?? UPLOAD_ERR_NO_FILE) === UPLOAD_ERR_OK) {
+            $saveUploadedDocument(
+                $_FILES['moral_rfc_doc_file']['tmp_name'],
+                $_FILES['moral_rfc_doc_file']['name'],
+                'Constancia RFC - Persona Moral',
+                null
+            );
         }
 
         if (!empty($newDataDoc)) {

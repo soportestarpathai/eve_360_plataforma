@@ -22,7 +22,7 @@ function logUserAction($pdo, $action, $id, $oldVal, $newVal) {
     // Use session ID if available, else 0 (Admin/System)
     $userId = $_SESSION['user_id'] ?? 0; // Ensure your login sets this, or default to 0
     
-    $stmt = $pdo->prepare("INSERT INTO bitacora (id_usuario, accion, tabla, id_registro, valor_anterior, valor_nuevo, fecha) VALUES (?, ?, 'usuarios', ?, ?, ?, NOW())");
+    $stmt = $pdo->prepare("INSERT INTO bitacora (id_usuario, accion, tabla_afectada, id_afectado, valor_anterior, valor_nuevo, fecha) VALUES (?, ?, 'usuarios', ?, ?, ?, NOW())");
     $stmt->execute([
         $userId, 
         $action, 
@@ -117,20 +117,23 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
             $permCols = ['catalogo_instituciones', 'catalogo_emisoras', 'catalogo_clientes', 'captura', 'administracion', 'reportes', 'valuacion', 'correcciones', 'rebalanceo'];
             $permValues = [];
             foreach ($permCols as $col) { $permValues[$col] = isset($_POST['perm_' . $col]) ? 1 : 0; }
-            
-            // (Insert/Update Permissions DB Logic here - assumed standard)
-            // For full code context, ensure the permission block from previous version is preserved here.
+
+            $selectedFracciones = $_POST['fracciones_pld'] ?? [];
+            $fraccionesPldJson = !empty($selectedFracciones) ? json_encode(array_values($selectedFracciones)) : null;
+
             $stmtCheckPerm = $pdo->prepare("SELECT id_permiso FROM usuarios_permisos WHERE id_usuario = ?");
             $stmtCheckPerm->execute([$id_usuario]);
             if ($stmtCheckPerm->fetchColumn()) {
                 $setParts = []; $execParams = [];
                 foreach ($permValues as $col => $val) { $setParts[] = "$col = ?"; $execParams[] = $val; }
+                $setParts[] = "fracciones_pld = ?";
+                $execParams[] = $fraccionesPldJson;
                 $execParams[] = $id_usuario;
                 $pdo->prepare("UPDATE usuarios_permisos SET " . implode(', ', $setParts) . " WHERE id_usuario = ?")->execute($execParams);
             } else {
-                $cols = "id_usuario, " . implode(', ', array_keys($permValues));
-                $placeholders = "?, " . str_repeat('?, ', count($permValues) - 1) . "?";
-                $execParams = array_merge([$id_usuario], array_values($permValues));
+                $cols = "id_usuario, " . implode(', ', array_keys($permValues)) . ", fracciones_pld";
+                $placeholders = "?, " . str_repeat('?, ', count($permValues)) . "?";
+                $execParams = array_merge([$id_usuario], array_values($permValues), [$fraccionesPldJson]);
                 $pdo->prepare("INSERT INTO usuarios_permisos ($cols) VALUES ($placeholders)")->execute($execParams);
             }
 
@@ -179,11 +182,25 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
     }
 }
 
+// --- ENSURE fracciones_pld column exists ---
+require_once __DIR__ . '/../config/pld_permisos.php';
+ensureFraccionesPLDColumn($pdo);
+
+// --- Load fracciones activas from config_empresa ---
+$stmtConfig = $pdo->query("SELECT fracciones_activas FROM config_empresa WHERE id_config = 1");
+$configRow = $stmtConfig->fetch(PDO::FETCH_ASSOC);
+$fraccionesActivas = [];
+if ($configRow && !empty($configRow['fracciones_activas'])) {
+    $decoded = json_decode($configRow['fracciones_activas'], true);
+    if (is_array($decoded)) $fraccionesActivas = $decoded;
+}
+
 // --- FETCH DATA ---
 $stmt = $pdo->query("
     SELECT u.*, 
            up.catalogo_instituciones, up.catalogo_emisoras, up.catalogo_clientes,
-           up.captura, up.administracion, up.reportes, up.valuacion, up.correcciones, up.rebalanceo
+           up.captura, up.administracion, up.reportes, up.valuacion, up.correcciones, up.rebalanceo,
+           up.fracciones_pld
     FROM usuarios u
     LEFT JOIN usuarios_permisos up ON u.id_usuario = up.id_usuario
     ORDER BY u.nombre ASC
@@ -331,6 +348,31 @@ $users = $stmt->fetchAll(PDO::FETCH_ASSOC);
                         </div>
                     </div>
 
+                    <?php if (!empty($fraccionesActivas)): ?>
+                    <hr>
+                    <h6 class="text-success mb-3"><i class="fa-solid fa-shield-halved me-1"></i>Fracciones PLD</h6>
+                    <div class="card bg-light border-0">
+                        <div class="card-body py-2">
+                            <small class="text-uppercase fw-bold text-muted d-block mb-2">Fracciones activas de la empresa</small>
+                            <div class="row g-2">
+                                <?php foreach ($fraccionesActivas as $frac): $fracId = str_replace(' ', '_', $frac); ?>
+                                <div class="col-md-4">
+                                    <div class="form-check">
+                                        <input class="form-check-input pld-fraccion-check" type="checkbox" 
+                                               name="fracciones_pld[]" value="<?= htmlspecialchars($frac) ?>" 
+                                               id="pld_frac_<?= htmlspecialchars($fracId) ?>">
+                                        <label class="form-check-label" for="pld_frac_<?= htmlspecialchars($fracId) ?>">
+                                            <?= htmlspecialchars($frac) ?>
+                                        </label>
+                                    </div>
+                                </div>
+                                <?php endforeach; ?>
+                            </div>
+                            <small class="form-text text-muted mt-1 d-block">Solo se muestran las fracciones habilitadas en la configuración de la empresa.</small>
+                        </div>
+                    </div>
+                    <?php endif; ?>
+
                 </div>
                 <div class="modal-footer">
                     <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Cancelar</button>
@@ -352,7 +394,7 @@ $users = $stmt->fetchAll(PDO::FETCH_ASSOC);
         document.getElementById('userPass').value = ''; 
         document.getElementById('userPass').required = true; 
         document.getElementById('userStatus').value = '1';
-        document.getElementById('userStatus').disabled = true; // Force status on create (visual)
+        document.getElementById('userStatus').disabled = true;
         
         document.querySelectorAll('.form-check-input').forEach(el => el.checked = false);
         userModal.show();
@@ -366,7 +408,7 @@ $users = $stmt->fetchAll(PDO::FETCH_ASSOC);
         document.getElementById('userPass').value = ''; 
         document.getElementById('userPass').required = false; 
         document.getElementById('userStatus').value = u.id_status_usuario;
-        document.getElementById('userStatus').disabled = false; // Allow manual activation on edit
+        document.getElementById('userStatus').disabled = false;
         document.getElementById('userGroup').value = u.id_grupo;
 
         const setPerm = (id, val) => { 
@@ -383,6 +425,21 @@ $users = $stmt->fetchAll(PDO::FETCH_ASSOC);
         setPerm('perm_admin', u.administracion);
         setPerm('perm_corr', u.correcciones);
         setPerm('perm_rep', u.reportes);
+
+        document.querySelectorAll('.pld-fraccion-check').forEach(el => el.checked = false);
+        if (u.fracciones_pld) {
+            let fracs = u.fracciones_pld;
+            if (typeof fracs === 'string') {
+                try { fracs = JSON.parse(fracs); } catch(e) { fracs = []; }
+            }
+            if (Array.isArray(fracs)) {
+                fracs.forEach(f => {
+                    const id = 'pld_frac_' + f.replace(/ /g, '_');
+                    const el = document.getElementById(id);
+                    if (el) el.checked = true;
+                });
+            }
+        }
 
         userModal.show();
     }

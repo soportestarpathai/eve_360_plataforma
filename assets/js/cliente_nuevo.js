@@ -706,10 +706,10 @@ function validateStep2IdentityFields() {
 
         const rfc = normalizeTaxInput('fisica_tax_id');
         if (!rfc) {
-            return invalidateField('fisica_tax_id', 'El RFC es obligatorio.');
+            return invalidateField('fisica_tax_id', 'El RFC / Tax ID es obligatorio.');
         }
         if (!RFC_FISICA_REGEX.test(rfc)) {
-            return invalidateField('fisica_tax_id', 'RFC inválido para persona física. Formato esperado: AAAA000000AAA.');
+            return invalidateField('fisica_tax_id', 'RFC / Tax ID inválido para persona física. Formato esperado: AAAA000000AAA.');
         }
 
         const curp = normalizeTaxInput('fisica_curp');
@@ -739,10 +739,10 @@ function validateStep2IdentityFields() {
 
         const rfcMoral = normalizeTaxInput('moral_tax_id');
         if (!rfcMoral) {
-            return invalidateField('moral_tax_id', 'El RFC es obligatorio.');
+            return invalidateField('moral_tax_id', 'El RFC / Tax ID es obligatorio.');
         }
         if (!RFC_MORAL_REGEX.test(rfcMoral)) {
-            return invalidateField('moral_tax_id', 'RFC inválido para persona moral. Formato esperado: AAA000000AAA.');
+            return invalidateField('moral_tax_id', 'RFC / Tax ID inválido para persona moral. Formato esperado: AAA000000AAA.');
         }
     }
 
@@ -1566,14 +1566,14 @@ function addApoderadoItem() {
                 <div class="col-md-4 mb-3"><label class="small">Nombre*</label><input type="text" class="form-control" name="apoderado[${index}][fisica_nombre]"></div>
                 <div class="col-md-4 mb-3"><label class="small">Apellido Paterno*</label><input type="text" class="form-control" name="apoderado[${index}][fisica_ap_paterno]"></div>
                 <div class="col-md-4 mb-3"><label class="small">Apellido Materno</label><input type="text" class="form-control" name="apoderado[${index}][fisica_ap_materno]"></div>
-                <div class="col-md-6 mb-3"><label class="small">RFC*</label><input type="text" class="form-control" name="apoderado[${index}][fisica_tax_id]"></div>
+                <div class="col-md-6 mb-3"><label class="small">RFC / Tax ID*</label><input type="text" class="form-control" name="apoderado[${index}][fisica_tax_id]"></div>
                 <div class="col-md-6 mb-3"><label class="small">CURP</label><input type="text" class="form-control" name="apoderado[${index}][fisica_curp]"></div>
             </div>
         </div>
         <div id="apoderado-moral-${index}" class="apoderado-specific" style="display:none;">
             <div class="row">
                 <div class="col-md-6 mb-3"><label class="small">Razón Social*</label><input type="text" class="form-control" name="apoderado[${index}][moral_razon_social]"></div>
-                <div class="col-md-6 mb-3"><label class="small">RFC*</label><input type="text" class="form-control" name="apoderado[${index}][moral_tax_id]"></div>
+                <div class="col-md-6 mb-3"><label class="small">RFC / Tax ID*</label><input type="text" class="form-control" name="apoderado[${index}][moral_tax_id]"></div>
             </div>
         </div>
         <hr>

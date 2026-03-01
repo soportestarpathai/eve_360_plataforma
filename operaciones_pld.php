@@ -2,12 +2,17 @@
 session_start();
 require_once 'config/db.php';
 require_once 'config/pld_middleware.php';
+require_once 'config/pld_permisos.php';
 
 // VAL-PLD-001: Verificar habilitación PLD
 if (!checkHabilitadoPLD($pdo)) {
     header('Location: index.php?error=pld_no_habilitado');
     exit;
 }
+
+$userId = $_SESSION['user_id'] ?? 0;
+$userFracciones = getUserFraccionesPLD($pdo, $userId);
+$canAccessDIN = userCanAccessDIN($pdo, $userId);
 
 $page_title = 'Transacciones PLD';
 include 'templates/header.php'; 
@@ -33,6 +38,7 @@ include 'templates/top_bar.php';
         </div>
         <div class="page-header-actions">
             <div class="btn-group shadow-sm">
+                <?php if ($canAccessDIN): ?>
                 <a href="operacion_din.php" class="btn btn-primary">
                     <i class="fa-solid fa-building me-2"></i>Registro DIN (V/V Bis)
                 </a>
@@ -42,9 +48,22 @@ include 'templates/top_bar.php';
                     <li><hr class="dropdown-divider"></li>
                     <li><a class="dropdown-item" href="#" onclick="abrirModalOperacion(); return false;"><i class="fa-solid fa-plus me-2"></i>Registro simplificado</a></li>
                 </ul>
+                <?php else: ?>
+                <button type="button" class="btn btn-primary" onclick="abrirModalOperacion();">
+                    <i class="fa-solid fa-plus me-2"></i>Nueva Transacción
+                </button>
+                <?php endif; ?>
             </div>
         </div>
     </div>
+
+    <?php if (isset($_GET['error']) && $_GET['error'] === 'sin_permiso_din'): ?>
+    <div class="alert alert-warning alert-dismissible fade show" role="alert">
+        <i class="fa-solid fa-triangle-exclamation me-2"></i>
+        <strong>Sin acceso al formulario DIN.</strong> No tiene asignadas las fracciones V o V Bis. Solicite al administrador que se las asigne.
+        <button type="button" class="btn-close" data-bs-dismiss="alert"></button>
+    </div>
+    <?php endif; ?>
 
     <!-- Información VAL-PLD-008 -->
     <div class="card mb-4 border-primary" style="background: linear-gradient(135deg, #e7f3ff 0%, #f0f8ff 100%);">
@@ -601,6 +620,8 @@ include 'templates/top_bar.php';
 
 <script src="https://cdn.jsdelivr.net/npm/sweetalert2@11"></script>
 <script>
+const USER_FRACCIONES_PLD = <?= json_encode($userFracciones) ?>;
+const CAN_ACCESS_DIN = <?= $canAccessDIN ? 'true' : 'false' ?>;
 let clientesList = [];
 let fraccionesList = [];
 let puedeModificarPLD = false;

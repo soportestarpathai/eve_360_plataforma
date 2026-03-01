@@ -61,7 +61,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
                     // Registrar en bitácora
                     try {
                         $logStmt = $pdo->prepare("
-                            INSERT INTO bitacora (id_usuario, accion, tabla, id_registro, valor_anterior, valor_nuevo, fecha) 
+                            INSERT INTO bitacora (id_usuario, accion, tabla_afectada, id_afectado, valor_anterior, valor_nuevo, fecha) 
                             VALUES (?, 'CAMBIAR_PASSWORD', 'usuarios', ?, '***', '***', NOW())
                         ");
                         $logStmt->execute([$userId, $userId]);
@@ -97,7 +97,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
                 // Registrar en bitácora
                 try {
                     $logStmt = $pdo->prepare("
-                        INSERT INTO bitacora (id_usuario, accion, tabla, id_registro, valor_anterior, valor_nuevo, fecha) 
+                        INSERT INTO bitacora (id_usuario, accion, tabla_afectada, id_afectado, valor_anterior, valor_nuevo, fecha) 
                         VALUES (?, 'ACTUALIZAR', 'usuarios', ?, ?, ?, NOW())
                     ");
                     $logStmt->execute([$userId, $userId, json_encode($oldData), json_encode(['nombre' => $nombre])]);
