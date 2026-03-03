@@ -5,7 +5,7 @@
 if (!function_exists('calculateClientRisk')) {
     
     function calculateClientRisk($pdo, $id_cliente) {
-        $stmt = $pdo->prepare("SELECT c.id_cliente, c.id_tipo_persona FROM clientes c WHERE c.id_cliente = ?");
+        $stmt = $pdo->prepare("SELECT id_cliente, id_tipo_persona FROM clientes WHERE id_cliente = ?");
         $stmt->execute([$id_cliente]);
         $clientData = $stmt->fetch(PDO::FETCH_ASSOC);
         if (!$clientData) return 0;
@@ -47,31 +47,19 @@ if (!function_exists('calculateClientRisk')) {
                 $riskValue = $maxRisk;
                 $foundValueName = $bestName . (count($nacionalidades) > 1 ? " (Más riesgosa)" : "");
             }
-            elseif ($table === 'cat_actividades') {
-                $valId = getClientIdActividad($pdo, $id_cliente);
-                $riskValue = getRiskValue($pdo, $factor['id_factor'], $valId);
-                $foundValueName = getCatalogName($pdo, $table, 'id_actividad', 'nombre', $valId);
-            }
-            elseif ($table === 'cat_profesion') {
-                $valId = getClientIdProfesion($pdo, $id_cliente);
-                $riskValue = getRiskValue($pdo, $factor['id_factor'], $valId);
-                $foundValueName = getCatalogName($pdo, $table, 'id_profesion', 'nombre', $valId);
-            }
-            elseif ($table === 'cat_origen_recursos') {
-                $valId = getClientIdOrigenRecursos($pdo, $id_cliente);
-                $riskValue = getRiskValue($pdo, $factor['id_factor'], $valId);
-                $foundValueName = getCatalogName($pdo, $table, 'id_origen_recursos', 'nombre', $valId);
-            }
             elseif ($table === 'cat_rango_edades') {
                 $valId = getClientIdRangoEdad($pdo, $id_cliente);
                 $riskValue = getRiskValue($pdo, $factor['id_factor'], $valId);
                 $foundValueName = getCatalogName($pdo, $table, 'id_rango_edad', 'nombre', $valId);
             }
             else {
-                $valId = getClientCatalogValueGeneric($pdo, $id_cliente, $table, $campoClave);
-                if ($valId !== null) {
-                    $riskValue = getRiskValue($pdo, $factor['id_factor'], $valId);
-                    $foundValueName = getCatalogName($pdo, $table, $campoClave, $campoNombre, $valId);
+                // Detección dinámica: cualquier factor con tabla_catalogo + campo_clave se busca en tablas de cliente
+                if ($campoClave !== '') {
+                    $valId = getClientCatalogValueGeneric($pdo, $id_cliente, $table, $campoClave);
+                    if ($valId !== null) {
+                        $riskValue = getRiskValue($pdo, $factor['id_factor'], $valId);
+                        $foundValueName = getCatalogName($pdo, $table, $campoClave, $campoNombre, $valId);
+                    }
                 }
             }
 
@@ -120,57 +108,23 @@ if (!function_exists('calculateClientRisk')) {
 
     function getCatalogName($pdo, $table, $pk, $nameCol, $id) {
         if (!$id) return "-";
-        // Whitelist: table => [allowed pk columns, allowed name columns] - prevents SQL injection from config
-        $safeSchema = [
-            'cat_tipo_persona' => ['pk' => ['id_tipo_persona'], 'name' => ['nombre', 'tipo']],
-            'cat_pais' => ['pk' => ['id_pais'], 'name' => ['nombre', 'clave']],
-            'cat_actividades' => ['pk' => ['id_actividad'], 'name' => ['nombre']],
-            'cat_profesion' => ['pk' => ['id_profesion'], 'name' => ['nombre']],
-            'cat_origen_recursos' => ['pk' => ['id_origen_recursos'], 'name' => ['nombre']],
-            'cat_rango_edades' => ['pk' => ['id_rango_edad'], 'name' => ['nombre']],
-        ];
-        if (!isset($safeSchema[$table]) || !in_array($pk, $safeSchema[$table]['pk'], true) || !in_array($nameCol, $safeSchema[$table]['name'], true)) {
+        // Dynamic: validate identifiers (prevent SQL injection) and verify table/columns exist
+        if (!preg_match('/^[a-z][a-z0-9_]*$/i', $table) || !preg_match('/^[a-z][a-z0-9_]*$/i', $pk) || !preg_match('/^[a-z][a-z0-9_]*$/i', $nameCol)) {
             return "Desconocido";
         }
-        $stmt = $pdo->prepare("SELECT $nameCol FROM $table WHERE $pk = ?");
-        $stmt->execute([$id]);
-        return $stmt->fetch(PDO::FETCH_COLUMN) ?: "Desconocido";
-    }
-
-    function getClientIdActividad($pdo, $id_cliente) {
-        $stmt = $pdo->prepare("SELECT id_actividad FROM clientes_morales WHERE id_cliente = ? AND id_status = 1 LIMIT 1");
-        $stmt->execute([$id_cliente]);
-        $val = $stmt->fetch(PDO::FETCH_COLUMN);
-        if ($val) return (int)$val;
-        if (_riskTableExists($pdo, 'clientes_kyc_info')) {
-            $stmt = $pdo->prepare("SELECT id_actividad FROM clientes_kyc_info WHERE id_cliente = ? AND id_status = 1 LIMIT 1");
-            $stmt->execute([$id_cliente]);
-            $val = $stmt->fetch(PDO::FETCH_COLUMN);
-            return $val ? (int)$val : null;
+        try {
+            $chk = $pdo->prepare("SELECT 1 FROM information_schema.COLUMNS WHERE TABLE_SCHEMA = DATABASE() AND TABLE_NAME = ? AND COLUMN_NAME = ? LIMIT 1");
+            $chk->execute([$table, $pk]);
+            if (!$chk->fetch()) return "Desconocido";
+            $chk2 = $pdo->prepare("SELECT 1 FROM information_schema.COLUMNS WHERE TABLE_SCHEMA = DATABASE() AND TABLE_NAME = ? AND COLUMN_NAME = ? LIMIT 1");
+            $chk2->execute([$table, $nameCol]);
+            if (!$chk2->fetch()) return "Desconocido";
+            $stmt = $pdo->prepare("SELECT `{$nameCol}` FROM `{$table}` WHERE `{$pk}` = ?");
+            $stmt->execute([$id]);
+            return $stmt->fetch(PDO::FETCH_COLUMN) ?: "Desconocido";
+        } catch (Throwable $e) {
+            return "Desconocido";
         }
-        return null;
-    }
-
-    function getClientIdProfesion($pdo, $id_cliente) {
-        $stmt = $pdo->prepare("SELECT id_profesion FROM clientes_fisicas WHERE id_cliente = ? LIMIT 1");
-        $stmt->execute([$id_cliente]);
-        $val = $stmt->fetch(PDO::FETCH_COLUMN);
-        if ($val) return (int)$val;
-        if (_riskTableExists($pdo, 'clientes_kyc_info')) {
-            $stmt = $pdo->prepare("SELECT id_profesion FROM clientes_kyc_info WHERE id_cliente = ? AND id_status = 1 LIMIT 1");
-            $stmt->execute([$id_cliente]);
-            $val = $stmt->fetch(PDO::FETCH_COLUMN);
-            return $val ? (int)$val : null;
-        }
-        return null;
-    }
-
-    function getClientIdOrigenRecursos($pdo, $id_cliente) {
-        if (!_riskTableExists($pdo, 'clientes_kyc_info')) return null;
-        $stmt = $pdo->prepare("SELECT id_origen_recursos FROM clientes_kyc_info WHERE id_cliente = ? AND id_status = 1 LIMIT 1");
-        $stmt->execute([$id_cliente]);
-        $val = $stmt->fetch(PDO::FETCH_COLUMN);
-        return $val ? (int)$val : null;
     }
 
     function getClientIdRangoEdad($pdo, $id_cliente) {
@@ -193,6 +147,38 @@ if (!function_exists('calculateClientRisk')) {
     }
 
     function getClientCatalogValueGeneric($pdo, $id_cliente, $table, $campoClave) {
+        $campoClave = trim((string)$campoClave);
+        if ($campoClave === '' || !preg_match('/^[a-z][a-z0-9_]*$/i', $campoClave)) return null;
+        // Orden preferido por campo (igual que funciones antiguas): actividad→moral/kyc, profesion→fisica/kyc, origen→kyc, tipo_persona→clientes
+        $preferredOrder = [
+            'id_tipo_persona' => ['clientes'],
+            'id_actividad' => ['clientes_morales', 'clientes_kyc_info'],
+            'id_profesion' => ['clientes_fisicas', 'clientes_kyc_info'],
+            'id_ocupacion' => ['clientes_fisicas', 'clientes_kyc_info'],
+            'id_origen_recursos' => ['clientes_kyc_info'],
+        ];
+        $sourceTables = $preferredOrder[$campoClave] ?? ['clientes_morales', 'clientes_fisicas', 'clientes_kyc_info', 'clientes'];
+        $tablesWithColumn = [];
+        foreach ($sourceTables as $src) {
+            if (!_riskTableExists($pdo, $src)) continue;
+            try {
+                $stmt = $pdo->prepare("SELECT 1 FROM information_schema.COLUMNS WHERE TABLE_SCHEMA = DATABASE() AND TABLE_NAME = ? AND COLUMN_NAME = ? LIMIT 1");
+                $stmt->execute([$src, $campoClave]);
+                if ($stmt->fetch()) $tablesWithColumn[] = $src;
+            } catch (Throwable $e) { /* skip */ }
+        }
+        foreach ($tablesWithColumn as $src) {
+            try {
+                $hasStatus = in_array($src, ['clientes_morales', 'clientes_kyc_info'], true);
+                $sql = sprintf("SELECT `%s` FROM `%s` WHERE id_cliente = ?", $campoClave, $src);
+                if ($hasStatus) $sql .= " AND id_status = 1";
+                $sql .= " LIMIT 1";
+                $stmt = $pdo->prepare($sql);
+                $stmt->execute([$id_cliente]);
+                $val = $stmt->fetch(PDO::FETCH_COLUMN);
+                if ($val !== null && $val !== false && $val !== '') return (int)$val;
+            } catch (Throwable $e) { /* try next table */ }
+        }
         return null;
     }
 

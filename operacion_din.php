@@ -288,6 +288,18 @@ try {
                         <div class="col-lg-3 col-md-6"><strong>Fecha Nac/Const:</strong> <span id="kyc-fecha">-</span></div>
                         <div class="col-lg-3 col-md-6"><strong>Nacionalidad:</strong> <span id="kyc-pais">-</span></div>
                     </div>
+                    <div class="mt-2">
+                        <small class="text-muted d-block mb-1">Prellenar con estos datos:</small>
+                        <button type="button" class="btn btn-outline-primary btn-sm me-1 mb-1" onclick="prefillFirstSocio()" id="btn-prefill-socio" title="Al agregar Socio, se prellenará automáticamente. O use este botón si ya hay socios.">
+                            <i class="fa-solid fa-user-check me-1"></i>1er Socio
+                        </button>
+                        <button type="button" class="btn btn-outline-primary btn-sm me-1 mb-1" onclick="prefillFirstTercero()" id="btn-prefill-tercero" title="Prellenar el primer Tercero con los datos del cliente.">
+                            <i class="fa-solid fa-user-check me-1"></i>1er Tercero
+                        </button>
+                        <button type="button" class="btn btn-outline-primary btn-sm mb-1" onclick="prefillFirstAcreedor()" id="btn-prefill-acreedor" title="Prellenar el primer Acreedor con los datos del cliente.">
+                            <i class="fa-solid fa-user-check me-1"></i>1er Acreedor
+                        </button>
+                    </div>
                 </div>
             </div>
         </div>
@@ -1028,15 +1040,20 @@ function cargarClientes() {
         .catch(e => console.error('Error clientes:', e));
 }
 
+let kycDataCache = null;
+
 function cargarKYC() {
     const id = document.getElementById('id_cliente').value;
     const preview = document.getElementById('kyc-preview');
-    if (!id) { preview.style.display = 'none'; return; }
+    if (!id) { preview.style.display = 'none'; kycDataCache = null; return; }
+    const requestedId = id;
     fetch('api/get_cliente_kyc_pld.php?id=' + id)
         .then(r => r.json())
         .then(res => {
-            if (res.status !== 'success') { preview.style.display = 'none'; return; }
+            if (document.getElementById('id_cliente').value !== requestedId) return;
+            if (res.status !== 'success') { preview.style.display = 'none'; kycDataCache = null; return; }
             const k = res.kyc;
+            kycDataCache = k;
             document.getElementById('kyc-rfc').textContent = k.rfc || '-';
             document.getElementById('kyc-curp').textContent = k.curp || '-';
             document.getElementById('kyc-tipo').textContent = k.tipo_persona || '-';
@@ -1045,7 +1062,74 @@ function cargarKYC() {
             document.getElementById('kyc-pais').textContent = k.pais_nacionalidad || '-';
             preview.style.display = 'block';
         })
-        .catch(e => { console.error('Error KYC:', e); preview.style.display = 'none'; });
+        .catch(e => {
+            if (document.getElementById('id_cliente').value !== requestedId) return;
+            console.error('Error KYC:', e); preview.style.display = 'none'; kycDataCache = null;
+        });
+}
+
+function prefillPersonaFromKyc(container) {
+    const k = kycDataCache;
+    if (!k || !container) return;
+    const tipoSel = container.querySelector('.persona-type-select');
+    if (!tipoSel) return;
+    if ((k.es_fisica || 0) === 1) {
+        tipoSel.value = 'persona_fisica';
+        container.querySelectorAll('.persona-section').forEach(s => s.classList.remove('active'));
+        const pf = container.querySelector('.pf-section');
+        if (pf) {
+            pf.classList.add('active');
+            const set = (sel, val) => { const e = container.querySelector(sel); if (e) e.value = (val != null && val !== '') ? val : ''; };
+            set('.pf-nombre', k.nombre);
+            set('.pf-apellido-paterno', k.apellido_paterno);
+            set('.pf-apellido-materno', k.apellido_materno);
+            set('.pf-fecha-nacimiento', (k.fecha_nacimiento || '').toString().substring(0, 10));
+            set('.pf-rfc', k.rfc);
+            set('.pf-curp', k.curp);
+            set('.pf-pais-nacionalidad', k.pais_nacionalidad);
+        }
+    } else if ((k.es_moral || 0) === 1) {
+        tipoSel.value = 'persona_moral';
+        container.querySelectorAll('.persona-section').forEach(s => s.classList.remove('active'));
+        const pm = container.querySelector('.pm-section');
+        if (pm) {
+            pm.classList.add('active');
+            const set = (sel, val) => { const e = container.querySelector(sel); if (e) e.value = (val != null && val !== '') ? val : ''; };
+            set('.pm-denominacion', k.denominacion_razon || k.razon_social);
+            set('.pm-rfc', k.rfc);
+            set('.pm-fecha-constitucion', (k.fecha_constitucion || '').toString().substring(0, 10));
+            set('.pm-pais-nacionalidad', k.pais_nacionalidad);
+        }
+    } else if ((k.es_fideicomiso || 0) === 1) {
+        tipoSel.value = 'fideicomiso';
+        container.querySelectorAll('.persona-section').forEach(s => s.classList.remove('active'));
+        const fid = container.querySelector('.fid-section');
+        if (fid) {
+            fid.classList.add('active');
+            const set = (sel, val) => { const e = container.querySelector(sel); if (e) e.value = (val != null && val !== '') ? val : ''; };
+            set('.fid-denominacion', k.denominacion_razon);
+            set('.fid-rfc', k.rfc);
+        }
+    } else {
+        // Fallback: id_tipo_persona inválido o datos corruptos — usar persona_fisica como predeterminado
+        tipoSel.value = 'persona_fisica';
+        container.querySelectorAll('.persona-section').forEach(s => s.classList.remove('active'));
+        const pf = container.querySelector('.pf-section');
+        if (pf) {
+            pf.classList.add('active');
+            const set = (sel, val) => { const e = container.querySelector(sel); if (e) e.value = (val != null && val !== '') ? val : ''; };
+            set('.pf-nombre', k.nombre);
+            set('.pf-apellido-paterno', k.apellido_paterno);
+            set('.pf-apellido-materno', k.apellido_materno);
+            set('.pf-fecha-nacimiento', (k.fecha_nacimiento || '').toString().substring(0, 10));
+            set('.pf-rfc', k.rfc);
+            set('.pf-curp', k.curp);
+            set('.pf-pais-nacionalidad', k.pais_nacionalidad);
+        }
+    }
+    // RFC Socio: existe en todos los Socio items; aplicar para cualquier tipo de persona
+    const socioRfc = container.querySelector('.socio-rfc');
+    if (socioRfc) socioRfc.value = (k.rfc != null && k.rfc !== '') ? k.rfc : '';
 }
 
 /* ═══════════════════════════════════════════ */
@@ -1146,6 +1230,7 @@ function addSocio() {
     setupPersonaToggle(div);
     setupDomicilioToggle(div);
     setupAportTipoToggle(div);
+    addKycPrefillButton(div, idx === 1);
 }
 
 function addTercero() {
@@ -1187,6 +1272,7 @@ function addTercero() {
 
     setupPersonaToggle(div);
     setupAportTipoToggle(div);
+    addKycPrefillButton(div, idx === 1);
     const tipoSel = div.querySelector('.tercero-tipo');
     const descText = div.querySelector('.tercero-descripcion');
     if (tipoSel && descText) {
@@ -1211,6 +1297,45 @@ function addAcreedor() {
     document.getElementById('acreedores_container').appendChild(div);
 
     setupPersonaToggle(div);
+    addKycPrefillButton(div, idx === 1);
+}
+
+function prefillFirstSocio() {
+    if (!kycDataCache) { Swal.fire('Info', 'Seleccione un cliente y espere a que carguen los datos del expediente.', 'info'); return; }
+    const first = document.querySelector('#socios_container .socio-item');
+    if (first) prefillPersonaFromKyc(first);
+    else Swal.fire('Info', 'Agregue un Socio primero y luego use este botón.', 'info');
+}
+function prefillFirstTercero() {
+    if (!kycDataCache) { Swal.fire('Info', 'Seleccione un cliente y espere a que carguen los datos del expediente.', 'info'); return; }
+    const first = document.querySelector('#terceros_container .tercero-item');
+    if (first) prefillPersonaFromKyc(first);
+    else Swal.fire('Info', 'Agregue un Tercero primero y luego use este botón.', 'info');
+}
+function prefillFirstAcreedor() {
+    if (!kycDataCache) { Swal.fire('Info', 'Seleccione un cliente y espere a que carguen los datos del expediente.', 'info'); return; }
+    const first = document.querySelector('#acreedores_container .acreedor-item');
+    if (first) prefillPersonaFromKyc(first);
+    else Swal.fire('Info', 'Agregue un Acreedor primero y luego use este botón.', 'info');
+}
+
+function addKycPrefillButton(container, autoPrefill) {
+    const header = container.querySelector('.d-flex.justify-content-between') || container.querySelector('.d-flex');
+    if (!header) return;
+    const btn = document.createElement('button');
+    btn.type = 'button';
+    btn.className = 'btn btn-outline-primary btn-sm ms-1';
+    btn.innerHTML = '<i class="fa-solid fa-user-check me-1"></i>Usar datos del cliente';
+    btn.title = 'Prellenar con RFC, CURP, nombre, fecha y nacionalidad del expediente';
+    btn.onclick = function() {
+        if (!kycDataCache) {
+            Swal.fire('Info', 'Seleccione un cliente y espere a que carguen los datos del expediente.', 'info');
+            return;
+        }
+        prefillPersonaFromKyc(container);
+    };
+    header.appendChild(btn);
+    if (autoPrefill && kycDataCache) prefillPersonaFromKyc(container);
 }
 
 /* ═══════════════════════════════════════════ */
