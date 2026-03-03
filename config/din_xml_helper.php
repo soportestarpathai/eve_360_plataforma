@@ -66,6 +66,7 @@ if (!function_exists('generateDINXml')) {
                 $pm = $pData['persona_moral'];
                 $pmEl = $mkEl($dom, $parent, $ns, 'persona_moral');
                 $addEl($dom, $pmEl, $ns, 'denominacion_razon', $pm['denominacion_razon'] ?? null);
+                $addEl($dom, $pmEl, $ns, 'rfc', $pm['rfc'] ?? null);
                 $addEl($dom, $pmEl, $ns, 'fecha_constitucion', $pm['fecha_constitucion'] ?? null);
                 $addEl($dom, $pmEl, $ns, 'pais_nacionalidad', $pm['pais_nacionalidad'] ?? null);
                 $addEl($dom, $pmEl, $ns, 'giro_mercantil', $pm['giro_mercantil'] ?? null);

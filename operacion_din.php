@@ -470,7 +470,7 @@ try {
                         </select>
                     </div>
                     <div class="col-md-6 mb-2">
-                        <label class="form-label">Descripción Desarrollo <span class="badge bg-warning text-dark badge-xsd">Opc.</span></label>
+                        <label class="form-label">Descripción Desarrollo <span class="badge bg-warning text-dark badge-xsd">Obl. si tipo=99</span></label>
                         <input type="text" class="form-control" id="descripcion_desarrollo" maxlength="3000" placeholder="Obligatorio si tipo = 99">
                     </div>
                     <div class="col-md-4 mb-2">
@@ -627,33 +627,33 @@ try {
                         <div class="row g-3">
                             <div class="col-md-6 mb-2">
                                 <label class="form-label">Tipo Institución * <span class="badge bg-danger badge-xsd">Obl.</span></label>
-                                <select class="form-select" id="pf_tipo_institucion">
+                                <select class="form-select" id="pf_tipo_institucion" required>
                                     <?= dinCatalogoOptions('tipo_institucion') ?>
                                 </select>
                             </div>
                             <div class="col-md-6 mb-2">
                                 <label class="form-label">Institución * <span class="badge bg-danger badge-xsd">Obl.</span></label>
-                                <input type="text" class="form-control" id="pf_institucion" maxlength="254">
+                                <input type="text" class="form-control" id="pf_institucion" maxlength="254" required>
                             </div>
                             <div class="col-md-6 mb-2">
                                 <label class="form-label">Tipo Crédito * <span class="badge bg-danger badge-xsd">Obl.</span></label>
-                                <select class="form-select" id="pf_tipo_credito">
+                                <select class="form-select" id="pf_tipo_credito" required>
                                     <?= dinCatalogoOptions('tipo_credito') ?>
                                 </select>
                             </div>
                             <div class="col-md-6 mb-2">
                                 <label class="form-label">Moneda * <span class="badge bg-danger badge-xsd">Obl.</span></label>
-                                <select class="form-select" id="pf_moneda">
+                                <select class="form-select" id="pf_moneda" required>
                                     <?= dinCatalogoOptions('moneda', '1') ?>
                                 </select>
                             </div>
                             <div class="col-md-6 mb-2">
                                 <label class="form-label">Monto Préstamo * <span class="badge bg-danger badge-xsd">Obl.</span></label>
-                                <input type="number" class="form-control" id="pf_monto_prestamo" step="0.01" min="0" placeholder="0.00">
+                                <input type="number" class="form-control" id="pf_monto_prestamo" step="0.01" min="0" placeholder="0.00" required>
                             </div>
                             <div class="col-md-6 mb-2">
                                 <label class="form-label">Plazo (meses) * <span class="badge bg-danger badge-xsd">Obl.</span></label>
-                                <input type="number" class="form-control" id="pf_plazo_meses" min="1" max="99999999">
+                                <input type="number" class="form-control" id="pf_plazo_meses" min="1" max="99999999" required>
                             </div>
                         </div>
                     </div>
@@ -665,17 +665,17 @@ try {
                         <div class="row g-3">
                             <div class="col-md-4 mb-2">
                                 <label class="form-label">Monto Préstamo * <span class="badge bg-danger badge-xsd">Obl.</span></label>
-                                <input type="number" class="form-control" id="pnf_monto_prestamo" step="0.01" min="0" placeholder="0.00">
+                                <input type="number" class="form-control" id="pnf_monto_prestamo" step="0.01" min="0" placeholder="0.00" required>
                             </div>
                             <div class="col-md-4 mb-2">
                                 <label class="form-label">Moneda * <span class="badge bg-danger badge-xsd">Obl.</span></label>
-                                <select class="form-select" id="pnf_moneda">
+                                <select class="form-select" id="pnf_moneda" required>
                                     <?= dinCatalogoOptions('moneda', '1') ?>
                                 </select>
                             </div>
                             <div class="col-md-4 mb-2">
                                 <label class="form-label">Plazo (meses) * <span class="badge bg-danger badge-xsd">Obl.</span></label>
-                                <input type="number" class="form-control" id="pnf_plazo_meses" min="1" max="99999999">
+                                <input type="number" class="form-control" id="pnf_plazo_meses" min="1" max="99999999" required>
                             </div>
                             <div class="col-12 mb-2">
                                 <button type="button" class="btn btn-outline-success btn-sm" onclick="addAcreedor()">
@@ -693,15 +693,15 @@ try {
                         <div class="row g-3">
                             <div class="col-md-4 mb-2">
                                 <label class="form-label">Fecha Emisión * <span class="badge bg-danger badge-xsd">Obl.</span></label>
-                                <input type="date" class="form-control" id="fb_fecha_emision">
+                                <input type="date" class="form-control" id="fb_fecha_emision" required>
                             </div>
                             <div class="col-md-4 mb-2">
                                 <label class="form-label">Monto Solicitado * <span class="badge bg-danger badge-xsd">Obl.</span></label>
-                                <input type="number" class="form-control" id="fb_monto_solicitado" step="0.01" min="0" placeholder="0.00">
+                                <input type="number" class="form-control" id="fb_monto_solicitado" step="0.01" min="0" placeholder="0.00" required>
                             </div>
                             <div class="col-md-4 mb-2">
                                 <label class="form-label">Monto Recibido * <span class="badge bg-danger badge-xsd">Obl.</span></label>
-                                <input type="number" class="form-control" id="fb_monto_recibido" step="0.01" min="0" placeholder="0.00">
+                                <input type="number" class="form-control" id="fb_monto_recibido" step="0.01" min="0" placeholder="0.00" required>
                             </div>
                         </div>
                     </div>
@@ -774,40 +774,41 @@ try {
         </div>
         <div class="persona-section pf-section active">
             <div class="row g-3">
-                <div class="col-md-6 mb-2"><label class="form-label">Nombre(s) *</label><input type="text" class="form-control pf-nombre" maxlength="200"></div>
-                <div class="col-md-6 mb-2"><label class="form-label">Apellido Paterno *</label><input type="text" class="form-control pf-apellido-paterno" maxlength="200"></div>
-                <div class="col-md-6 mb-2"><label class="form-label">Apellido Materno *</label><input type="text" class="form-control pf-apellido-materno" maxlength="200"></div>
-                <div class="col-md-6 mb-2"><label class="form-label">Fecha Nacimiento *</label><input type="date" class="form-control pf-fecha-nacimiento"></div>
-                <div class="col-md-6 mb-2"><label class="form-label">RFC (13 car.) *</label><input type="text" class="form-control pf-rfc" maxlength="13"></div>
-                <div class="col-md-6 mb-2"><label class="form-label">CURP (18 car.) *</label><input type="text" class="form-control pf-curp" maxlength="18"></div>
-                <div class="col-md-6 mb-2"><label class="form-label">País Nacionalidad *</label><select class="form-select pf-pais-nacionalidad"><?= dinCatalogoOptions('pais', 'MX') ?></select></div>
-                <div class="col-md-6 mb-2"><label class="form-label">Act. Económica (SCIAN) *</label><input type="text" class="form-control pf-actividad-economica" maxlength="7" pattern="\d{7}" placeholder="7 dígitos"></div>
+                <div class="col-md-6 mb-2"><label class="form-label">Nombre(s) *</label><input type="text" class="form-control pf-nombre" maxlength="200" required></div>
+                <div class="col-md-6 mb-2"><label class="form-label">Apellido Paterno *</label><input type="text" class="form-control pf-apellido-paterno" maxlength="200" required></div>
+                <div class="col-md-6 mb-2"><label class="form-label">Apellido Materno *</label><input type="text" class="form-control pf-apellido-materno" maxlength="200" required></div>
+                <div class="col-md-6 mb-2"><label class="form-label">Fecha Nacimiento *</label><input type="date" class="form-control pf-fecha-nacimiento" required></div>
+                <div class="col-md-6 mb-2"><label class="form-label">RFC (13 car.) *</label><input type="text" class="form-control pf-rfc" maxlength="13" required></div>
+                <div class="col-md-6 mb-2"><label class="form-label">CURP (18 car.) *</label><input type="text" class="form-control pf-curp" maxlength="18" required></div>
+                <div class="col-md-6 mb-2"><label class="form-label">País Nacionalidad *</label><select class="form-select pf-pais-nacionalidad" required><?= dinCatalogoOptions('pais', 'MX') ?></select></div>
+                <div class="col-md-6 mb-2"><label class="form-label">Act. Económica (SCIAN) *</label><input type="text" class="form-control pf-actividad-economica" maxlength="7" pattern="\d{7}" placeholder="7 dígitos" required></div>
             </div>
         </div>
         <div class="persona-section pm-section">
             <div class="row g-3">
-                <div class="col-md-6 mb-2"><label class="form-label">Denominación/Razón Social *</label><input type="text" class="form-control pm-denominacion" maxlength="254"></div>
-                <div class="col-md-6 mb-2"><label class="form-label">Fecha Constitución *</label><input type="date" class="form-control pm-fecha-constitucion"></div>
-                <div class="col-md-6 mb-2"><label class="form-label">País Nacionalidad *</label><select class="form-select pm-pais-nacionalidad"><?= dinCatalogoOptions('pais', 'MX') ?></select></div>
-                <div class="col-md-6 mb-2"><label class="form-label">Giro Mercantil (7 díg.) *</label><input type="text" class="form-control pm-giro-mercantil" maxlength="7" pattern="\d{7}"></div>
+                <div class="col-md-6 mb-2"><label class="form-label">Denominación/Razón Social *</label><input type="text" class="form-control pm-denominacion" maxlength="254" required></div>
+                <div class="col-md-6 mb-2"><label class="form-label">RFC (12 car.)</label><input type="text" class="form-control pm-rfc" maxlength="12" placeholder="Opcional"></div>
+                <div class="col-md-6 mb-2"><label class="form-label">Fecha Constitución *</label><input type="date" class="form-control pm-fecha-constitucion" required></div>
+                <div class="col-md-6 mb-2"><label class="form-label">País Nacionalidad *</label><select class="form-select pm-pais-nacionalidad" required><?= dinCatalogoOptions('pais', 'MX') ?></select></div>
+                <div class="col-md-6 mb-2"><label class="form-label">Giro Mercantil (7 díg.) *</label><input type="text" class="form-control pm-giro-mercantil" maxlength="7" pattern="\d{7}" required></div>
             </div>
             <div class="mt-3 p-2 rounded" style="background:var(--din-light);">
                 <label class="form-label fw-bold" style="color:var(--din-primary)"><i class="fa-solid fa-user-tie me-1"></i>Representante/Apoderado Legal</label>
                 <div class="row g-3">
-                    <div class="col-md-6 mb-2"><label class="form-label">Nombre(s) *</label><input type="text" class="form-control pm-rep-nombre" maxlength="200"></div>
-                    <div class="col-md-6 mb-2"><label class="form-label">Ap. Paterno *</label><input type="text" class="form-control pm-rep-apellido-paterno" maxlength="200"></div>
-                    <div class="col-md-6 mb-2"><label class="form-label">Ap. Materno *</label><input type="text" class="form-control pm-rep-apellido-materno" maxlength="200"></div>
-                    <div class="col-md-6 mb-2"><label class="form-label">Fecha Nac. *</label><input type="date" class="form-control pm-rep-fecha-nacimiento"></div>
-                    <div class="col-md-6 mb-2"><label class="form-label">RFC (13 car.) *</label><input type="text" class="form-control pm-rep-rfc" maxlength="13"></div>
-                    <div class="col-md-6 mb-2"><label class="form-label">CURP (18 car.) *</label><input type="text" class="form-control pm-rep-curp" maxlength="18"></div>
+                    <div class="col-md-6 mb-2"><label class="form-label">Nombre(s) *</label><input type="text" class="form-control pm-rep-nombre" maxlength="200" required></div>
+                    <div class="col-md-6 mb-2"><label class="form-label">Ap. Paterno *</label><input type="text" class="form-control pm-rep-apellido-paterno" maxlength="200" required></div>
+                    <div class="col-md-6 mb-2"><label class="form-label">Ap. Materno *</label><input type="text" class="form-control pm-rep-apellido-materno" maxlength="200" required></div>
+                    <div class="col-md-6 mb-2"><label class="form-label">Fecha Nac. *</label><input type="date" class="form-control pm-rep-fecha-nacimiento" required></div>
+                    <div class="col-md-6 mb-2"><label class="form-label">RFC (13 car.) *</label><input type="text" class="form-control pm-rep-rfc" maxlength="13" required></div>
+                    <div class="col-md-6 mb-2"><label class="form-label">CURP (18 car.) *</label><input type="text" class="form-control pm-rep-curp" maxlength="18" required></div>
                 </div>
             </div>
         </div>
         <div class="persona-section fid-section">
             <div class="row g-3">
-                <div class="col-12 mb-2"><label class="form-label">Denominación/Razón Social Fiduciario *</label><input type="text" class="form-control fid-denominacion" maxlength="254"></div>
-                <div class="col-md-6 mb-2"><label class="form-label">RFC Fideicomiso (12 car.) *</label><input type="text" class="form-control fid-rfc" maxlength="12"></div>
-                <div class="col-md-6 mb-2"><label class="form-label">Identificador Fideicomiso *</label><input type="text" class="form-control fid-identificador" maxlength="40"></div>
+                <div class="col-12 mb-2"><label class="form-label">Denominación/Razón Social Fiduciario *</label><input type="text" class="form-control fid-denominacion" maxlength="254" required></div>
+                <div class="col-md-6 mb-2"><label class="form-label">RFC Fideicomiso (12 car.) *</label><input type="text" class="form-control fid-rfc" maxlength="12" required></div>
+                <div class="col-md-6 mb-2"><label class="form-label">Identificador Fideicomiso *</label><input type="text" class="form-control fid-identificador" maxlength="40" required></div>
             </div>
         </div>
     </div>
@@ -826,22 +827,22 @@ try {
         </div>
         <div class="domicilio-section dom-nacional active">
             <div class="row g-3">
-                <div class="col-md-6 mb-2"><label class="form-label">Colonia *</label><input type="text" class="form-control dn-colonia" maxlength="50"></div>
-                <div class="col-md-6 mb-2"><label class="form-label">Calle *</label><input type="text" class="form-control dn-calle" maxlength="100"></div>
-                <div class="col-md-4 mb-2"><label class="form-label">Núm. Exterior *</label><input type="text" class="form-control dn-numero-exterior" maxlength="56"></div>
+                <div class="col-md-6 mb-2"><label class="form-label">Colonia *</label><input type="text" class="form-control dn-colonia" maxlength="50" required></div>
+                <div class="col-md-6 mb-2"><label class="form-label">Calle *</label><input type="text" class="form-control dn-calle" maxlength="100" required></div>
+                <div class="col-md-4 mb-2"><label class="form-label">Núm. Exterior *</label><input type="text" class="form-control dn-numero-exterior" maxlength="56" required></div>
                 <div class="col-md-4 mb-2"><label class="form-label">Núm. Interior</label><input type="text" class="form-control dn-numero-interior" maxlength="40"></div>
-                <div class="col-md-4 mb-2"><label class="form-label">C.P. *</label><input type="text" class="form-control dn-codigo-postal" maxlength="5" pattern="\d{5}"></div>
+                <div class="col-md-4 mb-2"><label class="form-label">C.P. *</label><input type="text" class="form-control dn-codigo-postal" maxlength="5" pattern="\d{5}" required></div>
             </div>
         </div>
         <div class="domicilio-section dom-extranjero">
             <div class="row g-3">
-                <div class="col-md-6 mb-2"><label class="form-label">País *</label><select class="form-select de-pais"><?= dinCatalogoOptions('pais', 'US') ?></select></div>
-                <div class="col-md-6 mb-2"><label class="form-label">Estado/Provincia *</label><input type="text" class="form-control de-estado-provincia" maxlength="100"></div>
-                <div class="col-md-6 mb-2"><label class="form-label">Ciudad/Población *</label><input type="text" class="form-control de-ciudad-poblacion" maxlength="100"></div>
-                <div class="col-md-6 mb-2"><label class="form-label">Colonia *</label><input type="text" class="form-control de-colonia" maxlength="50"></div>
-                <div class="col-md-6 mb-2"><label class="form-label">Calle *</label><input type="text" class="form-control de-calle" maxlength="100"></div>
-                <div class="col-md-6 mb-2"><label class="form-label">C.P. *</label><input type="text" class="form-control de-codigo-postal" maxlength="12"></div>
-                <div class="col-md-6 mb-2"><label class="form-label">Núm. Exterior *</label><input type="text" class="form-control de-numero-exterior" maxlength="56"></div>
+                <div class="col-md-6 mb-2"><label class="form-label">País *</label><select class="form-select de-pais" required><?= dinCatalogoOptions('pais', 'US') ?></select></div>
+                <div class="col-md-6 mb-2"><label class="form-label">Estado/Provincia *</label><input type="text" class="form-control de-estado-provincia" maxlength="100" required></div>
+                <div class="col-md-6 mb-2"><label class="form-label">Ciudad/Población *</label><input type="text" class="form-control de-ciudad-poblacion" maxlength="100" required></div>
+                <div class="col-md-6 mb-2"><label class="form-label">Colonia *</label><input type="text" class="form-control de-colonia" maxlength="50" required></div>
+                <div class="col-md-6 mb-2"><label class="form-label">Calle *</label><input type="text" class="form-control de-calle" maxlength="100" required></div>
+                <div class="col-md-6 mb-2"><label class="form-label">C.P. *</label><input type="text" class="form-control de-codigo-postal" maxlength="12" required></div>
+                <div class="col-md-6 mb-2"><label class="form-label">Núm. Exterior *</label><input type="text" class="form-control de-numero-exterior" maxlength="56" required></div>
                 <div class="col-md-6 mb-2"><label class="form-label">Núm. Interior</label><input type="text" class="form-control de-numero-interior" maxlength="40"></div>
             </div>
         </div>
@@ -851,8 +852,8 @@ try {
 <template id="tpl_telefono_block">
     <div class="mt-2">
         <div class="row g-3">
-            <div class="col-md-4 mb-2"><label class="form-label">País Tel. *</label><select class="form-select tel-clave-pais"><?= dinCatalogoOptions('pais', 'MX') ?></select></div>
-            <div class="col-md-4 mb-2"><label class="form-label">Teléfono *</label><input type="text" class="form-control tel-numero" maxlength="12" pattern="\d{10,12}"></div>
+            <div class="col-md-4 mb-2"><label class="form-label">País Tel. *</label><select class="form-select tel-clave-pais" required><?= dinCatalogoOptions('pais', 'MX') ?></select></div>
+            <div class="col-md-4 mb-2"><label class="form-label">Teléfono *</label><input type="text" class="form-control tel-numero" maxlength="12" pattern="\d{10,12}" required></div>
             <div class="col-md-4 mb-2"><label class="form-label">Correo Electrónico</label><input type="email" class="form-control tel-correo" maxlength="60"></div>
         </div>
     </div>
@@ -871,17 +872,17 @@ try {
         </div>
         <div class="entidad-aport-numerario">
             <div class="row g-3">
-                <div class="col-md-6 mb-2"><label class="form-label">Instr. Monetario *</label><select class="form-select ea-instrumento"><?= dinCatalogoOptions('instrumento_monetario', '1') ?></select></div>
-                <div class="col-md-6 mb-2"><label class="form-label">Moneda *</label><select class="form-select ea-moneda"><?= dinCatalogoOptions('moneda', '1') ?></select></div>
-                <div class="col-md-4 mb-2"><label class="form-label">Monto *</label><input type="number" class="form-control ea-monto" step="0.01" min="0" placeholder="0.00"></div>
-                <div class="col-md-4 mb-2"><label class="form-label">¿Fideicomiso?</label><select class="form-select ea-fideicomiso"><option value="NO">NO</option><option value="SI">SI</option></select></div>
+                <div class="col-md-6 mb-2"><label class="form-label">Instr. Monetario *</label><select class="form-select ea-instrumento" required><?= dinCatalogoOptions('instrumento_monetario', '1') ?></select></div>
+                <div class="col-md-6 mb-2"><label class="form-label">Moneda *</label><select class="form-select ea-moneda" required><?= dinCatalogoOptions('moneda', '1') ?></select></div>
+                <div class="col-md-4 mb-2"><label class="form-label">Monto *</label><input type="number" class="form-control ea-monto" step="0.01" min="0" placeholder="0.00" required></div>
+                <div class="col-md-4 mb-2"><label class="form-label">¿Fideicomiso? *</label><select class="form-select ea-fideicomiso" required><option value="NO">NO</option><option value="SI">SI</option></select></div>
                 <div class="col-md-4 mb-2"><label class="form-label">Nombre Institución</label><input type="text" class="form-control ea-nombre-inst" maxlength="254"></div>
             </div>
         </div>
         <div class="entidad-aport-especie" style="display:none;">
             <div class="row g-3">
-                <div class="col-md-7 mb-2"><label class="form-label">Descripción del Bien *</label><textarea class="form-control ea-desc-bien" maxlength="3000" rows="1"></textarea></div>
-                <div class="col-md-5 mb-2"><label class="form-label">Monto Estimado *</label><input type="number" class="form-control ea-monto-estimado" step="0.01" min="0"></div>
+                <div class="col-md-7 mb-2"><label class="form-label">Descripción del Bien *</label><textarea class="form-control ea-desc-bien" maxlength="3000" rows="1" required></textarea></div>
+                <div class="col-md-5 mb-2"><label class="form-label">Monto Estimado *</label><input type="number" class="form-control ea-monto-estimado" step="0.01" min="0" required></div>
             </div>
         </div>
     </div>
@@ -940,8 +941,13 @@ document.addEventListener('DOMContentLoaded', function() {
     });
 
     document.getElementById('es_modificatorio').addEventListener('change', function() {
-        toggleSection('seccion_modificatorio', this.value === '1');
+        const show = this.value === '1';
+        toggleSection('seccion_modificatorio', show);
+        document.getElementById('folio_modificacion').required = show;
+        document.getElementById('descripcion_modificacion').required = show;
     });
+    document.getElementById('folio_modificacion').required = (document.getElementById('es_modificatorio').value === '1');
+    document.getElementById('descripcion_modificacion').required = (document.getElementById('es_modificatorio').value === '1');
 
     document.getElementById('tipo_aportacion_selector').addEventListener('change', function() {
         const sections = ['sec_recursos_propios','sec_socios','sec_terceros','sec_prestamo_financiero','sec_prestamo_no_financiero','sec_financiamiento_bursatil'];
@@ -949,14 +955,28 @@ document.addEventListener('DOMContentLoaded', function() {
         document.getElementById('sec_' + this.value).classList.add('active');
     });
 
-    document.getElementById('rp_tipo_dato').addEventListener('change', function() {
-        document.getElementById('rp_sec_numerario').style.display = this.value === 'numerario' ? '' : 'none';
-        document.getElementById('rp_sec_especie').style.display = this.value === 'especie' ? '' : 'none';
-    });
+    const toggleRecursosPropios = function() {
+        const isNumerario = document.getElementById('rp_tipo_dato').value === 'numerario';
+        document.getElementById('rp_sec_numerario').style.display = isNumerario ? '' : 'none';
+        document.getElementById('rp_sec_especie').style.display = isNumerario ? 'none' : '';
+        document.getElementById('monto_aportacion').required = isNumerario;
+        document.getElementById('instrumento_monetario').required = isNumerario;
+        document.getElementById('moneda').required = isNumerario;
+        document.getElementById('aportacion_fideicomiso').required = isNumerario;
+        document.getElementById('rp_descripcion_bien').required = !isNumerario;
+        document.getElementById('rp_monto_estimado').required = !isNumerario;
+    };
+    document.getElementById('rp_tipo_dato').addEventListener('change', toggleRecursosPropios);
+    toggleRecursosPropios();
 
     document.getElementById('aportacion_fideicomiso').addEventListener('change', function() {
         document.getElementById('rp_nombre_inst_div').style.display = this.value === 'SI' ? '' : 'none';
     });
+
+    document.getElementById('tipo_desarrollo').addEventListener('change', function() {
+        document.getElementById('descripcion_desarrollo').required = (this.value === '99');
+    });
+    document.getElementById('descripcion_desarrollo').required = (document.getElementById('tipo_desarrollo').value === '99');
 
     document.getElementById('formDIN').addEventListener('submit', guardarOperacionDIN);
 
@@ -1091,8 +1111,8 @@ function addSocio() {
         + '<button type="button" class="btn btn-outline-danger btn-sm" onclick="this.closest(\'.socio-item\').remove()"><i class="fa-solid fa-trash"></i></button>'
         + '</div>'
         + '<div class="row mb-2"><div class="col-md-3"><label class="form-label">Aportación anterior (SI/NO) *</label>'
-        + '<select class="form-select socio-aport-anterior"><option value="NO">NO</option><option value="SI">SI</option></select></div>'
-        + '<div class="col-md-4"><label class="form-label">RFC Socio (13 car.) *</label><input type="text" class="form-control socio-rfc" maxlength="13"></div></div>';
+        + '<select class="form-select socio-aport-anterior" required><option value="NO">NO</option><option value="SI">SI</option></select></div>'
+        + '<div class="col-md-4"><label class="form-label">RFC Socio (13 car.) *</label><input type="text" class="form-control socio-rfc" maxlength="13" required></div></div>';
 
     const personaBlock = cloneTemplate('tpl_persona_block');
     const domBlock = cloneTemplate('tpl_domicilio_block');
@@ -1139,7 +1159,7 @@ function addTercero() {
         + '<button type="button" class="btn btn-outline-danger btn-sm" onclick="this.closest(\'.tercero-item\').remove()"><i class="fa-solid fa-trash"></i></button>'
         + '</div>'
         + '<div class="row mb-2">'
-        + '<div class="col-md-3"><label class="form-label">Tipo Tercero *</label><select class="form-select tercero-tipo">' + buildCatOptions('tipo_tercero') + '</select></div>'
+        + '<div class="col-md-3"><label class="form-label">Tipo Tercero *</label><select class="form-select tercero-tipo" required>' + buildCatOptions('tipo_tercero') + '</select></div>'
         + '<div class="col-md-5"><label class="form-label">Descripción (si tipo=99)</label><textarea class="form-control tercero-descripcion" maxlength="3000" rows="1"></textarea></div>'
         + '</div>';
 
@@ -1167,6 +1187,12 @@ function addTercero() {
 
     setupPersonaToggle(div);
     setupAportTipoToggle(div);
+    const tipoSel = div.querySelector('.tercero-tipo');
+    const descText = div.querySelector('.tercero-descripcion');
+    if (tipoSel && descText) {
+        tipoSel.addEventListener('change', function() { descText.required = (this.value === '99'); });
+        descText.required = (tipoSel.value === '99');
+    }
 }
 
 function addAcreedor() {
@@ -1206,6 +1232,7 @@ function readPersona(container) {
     } else if (tipo === 'persona_moral') {
         return { persona_moral: {
             denominacion_razon: container.querySelector('.pm-denominacion').value.trim(),
+            rfc: container.querySelector('.pm-rfc')?.value.trim() || undefined,
             fecha_constitucion: (container.querySelector('.pm-fecha-constitucion').value || '').replace(/-/g, ''),
             pais_nacionalidad: container.querySelector('.pm-pais-nacionalidad').value.trim(),
             giro_mercantil: container.querySelector('.pm-giro-mercantil').value.trim(),
@@ -1302,6 +1329,10 @@ function validateDINForm() {
         if (field.offsetParent === null && field.closest('.din-section:not(.active), .persona-section:not(.active), .domicilio-section:not(.active)')) {
             continue;
         }
+        const aportNum = field.closest('.entidad-aport-numerario');
+        const aportEsp = field.closest('.entidad-aport-especie');
+        if (aportNum && aportNum.style.display === 'none') continue;
+        if (aportEsp && aportEsp.style.display === 'none') continue;
         if (!field.checkValidity()) {
             expandCardForField(field);
             setTimeout(() => {

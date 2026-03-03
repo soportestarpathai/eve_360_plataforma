@@ -50,7 +50,7 @@ include 'templates/header.php';
 
 <!-- WIZARD -->
 <div class="wizard-card">
-        <form id="editClientForm">
+        <form id="editClientForm" enctype="multipart/form-data">
             <!-- Add the client ID as a hidden field -->
             <input type="hidden" name="id_cliente" value="<?php echo $id_cliente; ?>">
             
@@ -155,9 +155,11 @@ include 'templates/header.php';
                         <div class="col-md-4 mb-3">
                             <label class="form-label">
                                 <i class="fa-solid fa-id-card"></i>
-                                RFC*
+                                RFC / Tax ID*
                             </label>
                             <input type="text" class="form-control" id="fisica_tax_id" name="fisica_tax_id">
+                            <input type="file" class="form-control form-control-sm mt-1" name="fisica_rfc_doc_file" accept=".pdf,.jpg,.jpeg,.png,.doc,.docx" title="Constancia RFC / Tax ID">
+                            <div class="form-text"><i class="fa-solid fa-paperclip me-1"></i>Adjuntar constancia RFC / Tax ID</div>
                         </div>
                         <div class="col-md-4 mb-3">
                             <label class="form-label">
@@ -165,6 +167,8 @@ include 'templates/header.php';
                                 CURP
                             </label>
                             <input type="text" class="form-control" id="fisica_curp" name="fisica_curp">
+                            <input type="file" class="form-control form-control-sm mt-1" name="fisica_curp_doc_file" accept=".pdf,.jpg,.jpeg,.png,.doc,.docx" title="Documento CURP">
+                            <div class="form-text"><i class="fa-solid fa-paperclip me-1"></i>Adjuntar documento CURP</div>
                         </div>
                     </div>
                 </div>
@@ -188,9 +192,11 @@ include 'templates/header.php';
                         <div class="col-md-6 mb-3">
                             <label class="form-label">
                                 <i class="fa-solid fa-id-card"></i>
-                                RFC*
+                                RFC / Tax ID*
                             </label>
                             <input type="text" class="form-control" id="moral_tax_id" name="moral_tax_id">
+                            <input type="file" class="form-control form-control-sm mt-1" name="moral_rfc_doc_file" accept=".pdf,.jpg,.jpeg,.png,.doc,.docx" title="Constancia RFC / Tax ID">
+                            <div class="form-text"><i class="fa-solid fa-paperclip me-1"></i>Adjuntar constancia RFC / Tax ID</div>
                         </div>
                     </div>
                 </div>

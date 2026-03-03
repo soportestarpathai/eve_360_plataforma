@@ -85,6 +85,97 @@ try {
     $type_stmt->execute([$data['id_tipo_persona']]);
     $personaType = $type_stmt->fetch();
 
+    function _ucIsValidDateYmd($v) {
+        if (!is_string($v) || $v === '') return false;
+        $dt = DateTime::createFromFormat('Y-m-d', $v);
+        return $dt && $dt->format('Y-m-d') === $v;
+    }
+    function _ucIsAtLeastYearsOld($v, $y) {
+        if (!_ucIsValidDateYmd($v)) return false;
+        $d = new DateTime($v);
+        $limit = (new DateTime('today'))->modify("-{$y} years");
+        return $d <= $limit;
+    }
+    function _ucIsFutureDateYmd($v) {
+        if (!_ucIsValidDateYmd($v)) return false;
+        return (new DateTime($v)) > (new DateTime('today'));
+    }
+    $curpRegex = '/^[A-Z][AEIOUX][A-Z]{2}[0-9]{2}(0[1-9]|1[0-2])(0[1-9]|[12][0-9]|3[01])[HM](AS|BC|BS|CC|CL|CM|CS|CH|DF|DG|GT|GR|HG|JC|MC|MN|MS|NT|NL|OC|PL|QT|QR|SP|SL|SR|TC|TS|TL|VZ|YN|ZS|NE)[B-DF-HJ-NP-TV-Z]{3}[A-Z0-9][0-9]$/';
+
+    // Validación RFC / Tax ID (USA acepta EIN/SSN de 9 dígitos)
+    $isTaxIdUSA = function ($v) {
+        $d = preg_replace('/\D/', '', (string)$v);
+        return strlen($d) === 9 && ctype_digit($d);
+    };
+    $hasUSA = false;
+    if (!empty($data['nacionalidad_id']) && is_array($data['nacionalidad_id'])) {
+        $stUSA = $pdo->query("SELECT id_pais FROM cat_pais WHERE clave = 'US' OR nombre LIKE '%Estados Unidos%' LIMIT 1");
+        $usaRow = $stUSA ? $stUSA->fetch(PDO::FETCH_ASSOC) : null;
+        if ($usaRow) {
+            $usaId = (int)$usaRow['id_pais'];
+            $nacIds = array_map('strval', $data['nacionalidad_id']);
+            $hasUSA = in_array((string)$usaId, $nacIds, true);
+        }
+    }
+    if ($personaType['es_fisica'] > 0) {
+        $rfc = strtoupper(trim((string)($data['fisica_tax_id'] ?? '')));
+        $curpFis = strtoupper(trim((string)($data['fisica_curp'] ?? '')));
+        $fechaNac = trim((string)($data['fisica_fecha_nacimiento'] ?? ''));
+        if (!_ucIsValidDateYmd($fechaNac)) {
+            $pdo->rollBack();
+            echo json_encode(['status' => 'error', 'message' => 'Fecha de nacimiento inválida']);
+            exit;
+        }
+        if (!_ucIsAtLeastYearsOld($fechaNac, 18)) {
+            $pdo->rollBack();
+            echo json_encode(['status' => 'error', 'message' => 'La persona física debe ser mayor de 18 años']);
+            exit;
+        }
+        if ($rfc === '') {
+            $pdo->rollBack();
+            echo json_encode(['status' => 'error', 'message' => 'El RFC / Tax ID es obligatorio']);
+            exit;
+        }
+        if ($hasUSA && !$isTaxIdUSA($rfc)) {
+            $pdo->rollBack();
+            echo json_encode(['status' => 'error', 'message' => 'Tax ID inválido. Use EIN (9 dígitos) o SSN (XXX-XX-XXXX).']);
+            exit;
+        }
+        if (!$hasUSA && !preg_match('/^[A-ZÑ&]{4}[0-9]{6}[A-Z0-9]{3}$/u', $rfc)) {
+            $pdo->rollBack();
+            echo json_encode(['status' => 'error', 'message' => 'RFC inválido para persona física']);
+            exit;
+        }
+        if ($curpFis !== '' && !preg_match($curpRegex, $curpFis)) {
+            $pdo->rollBack();
+            echo json_encode(['status' => 'error', 'message' => 'CURP inválida']);
+            exit;
+        }
+    } elseif ($personaType['es_moral'] > 0) {
+        $rfcM = strtoupper(trim((string)($data['moral_tax_id'] ?? '')));
+        $fechaConst = trim((string)($data['moral_fecha_constitucion'] ?? ''));
+        if (!_ucIsValidDateYmd($fechaConst) || _ucIsFutureDateYmd($fechaConst)) {
+            $pdo->rollBack();
+            echo json_encode(['status' => 'error', 'message' => 'Fecha de constitución inválida']);
+            exit;
+        }
+        if ($rfcM === '') {
+            $pdo->rollBack();
+            echo json_encode(['status' => 'error', 'message' => 'El RFC / Tax ID es obligatorio']);
+            exit;
+        }
+        if ($hasUSA && !$isTaxIdUSA($rfcM)) {
+            $pdo->rollBack();
+            echo json_encode(['status' => 'error', 'message' => 'Tax ID inválido. Use EIN (9 dígitos) o formato XX-XXXXXXX.']);
+            exit;
+        }
+        if (!$hasUSA && !preg_match('/^[A-ZÑ&]{3}[0-9]{6}[A-Z0-9]{3}$/u', $rfcM)) {
+            $pdo->rollBack();
+            echo json_encode(['status' => 'error', 'message' => 'RFC inválido para persona moral']);
+            exit;
+        }
+    }
+
     if ($personaType['es_fisica'] > 0) {
         $oldDataFisica = getOldData($pdo, 'clientes_fisicas', $id_cliente);
         $stmt = $pdo->prepare(
@@ -94,12 +185,12 @@ try {
         );
         $stmt->execute([
             $data['fisica_nombre'], $data['fisica_ap_paterno'], $data['fisica_ap_materno'],
-            $data['fisica_fecha_nacimiento'], $data['fisica_tax_id'], $data['fisica_curp'],
+            $data['fisica_fecha_nacimiento'], $rfc, $curpFis,
             $id_cliente
         ]);
         $newDataFisica = [
             'nombre' => $data['fisica_nombre'], 'apellido_paterno' => $data['fisica_ap_paterno'], 'apellido_materno' => $data['fisica_ap_materno'],
-            'fecha_nacimiento' => $data['fisica_fecha_nacimiento'], 'tax_id' => $data['fisica_tax_id'], 'CURP' => $data['fisica_curp']
+            'fecha_nacimiento' => $data['fisica_fecha_nacimiento'], 'tax_id' => $rfc, 'CURP' => $curpFis
         ];
         logChange($pdo, $id_usuario_actual, "ACTUALIZAR", "clientes_fisicas", $id_cliente, $oldDataFisica, $newDataFisica);
     } 
@@ -110,11 +201,11 @@ try {
              WHERE id_cliente = ?"
         );
         $stmt->execute([
-            $data['moral_razon_social'], $data['moral_fecha_constitucion'], $data['moral_tax_id'],
+            $data['moral_razon_social'], $data['moral_fecha_constitucion'], $rfcM,
             $id_cliente
         ]);
         $newDataMoral = [
-            'razon_social' => $data['moral_razon_social'], 'fecha_constitucion' => $data['moral_fecha_constitucion'], 'tax_id' => $data['moral_tax_id']
+            'razon_social' => $data['moral_razon_social'], 'fecha_constitucion' => $data['moral_fecha_constitucion'], 'tax_id' => $rfcM
         ];
         logChange($pdo, $id_usuario_actual, "ACTUALIZAR", "clientes_morales", $id_cliente, $oldDataMoral, $newDataMoral);
     }
@@ -213,17 +304,23 @@ try {
     // 3. Re-insert with File Handling
     $newDocumentos = [];
     $uploadDir = '../uploads/clientes/' . $id_cliente . '/';
-    
+    $stmt_doc = $pdo->prepare("INSERT INTO clientes_documentos (id_cliente, descripcion, ruta, fecha_vencimiento, id_status) VALUES (?, ?, ?, ?, 1)");
+
     // Ensure folder exists
     if (!file_exists($uploadDir)) {
         mkdir($uploadDir, 0755, true);
     }
 
+    $rfcCurpDescs = ['Constancia RFC - Persona Física', 'Documento CURP - Persona Física', 'Constancia RFC - Persona Moral'];
+
     if (isset($data['doc_tipo'])) {
-        $stmt_doc = $pdo->prepare("INSERT INTO clientes_documentos (id_cliente, descripcion, ruta, fecha_vencimiento, id_status) VALUES (?, ?, ?, ?, 1)");
         
         foreach($data['doc_tipo'] as $key => $tipo) {
-            $vencimiento = $data['doc_vencimiento'][$key] ?: null;
+            $tipoTrim = trim((string)$tipo);
+            if (in_array($tipoTrim, $rfcCurpDescs, true)) continue; // RFC/CURP se manejan en campos dedicados
+
+            $vencimiento = $data['doc_vencimiento'][$key] ?? null;
+            $vencimiento = $vencimiento ?: null;
             $rutaToSave = null;
 
             // CHECK: Is there a NEW file uploaded?
@@ -255,6 +352,41 @@ try {
             ];
         }
     }
+
+    // RFC / CURP: campos dedicados (persona física y moral)
+    $saveRfcCurpDoc = function ($tmpName, $name, $desc) use ($id_cliente, $uploadDir, $stmt_doc, &$uploaded_files_this_request, &$newDocumentos) {
+        $ext = pathinfo((string)$name, PATHINFO_EXTENSION);
+        $clean = preg_replace('/[^a-zA-Z0-9_-]/', '', $desc) ?: 'doc';
+        $target = $uploadDir . $clean . '_' . time() . '_' . bin2hex(random_bytes(4)) . ($ext ? '.' . $ext : '');
+        if (move_uploaded_file($tmpName, $target)) {
+            $uploaded_files_this_request[] = $target;
+            $stmt_doc->execute([$id_cliente, $desc, $target, null]);
+            $newDocumentos[] = ['id_cliente' => $id_cliente, 'descripcion' => $desc, 'ruta' => $target, 'fecha_vencimiento' => null, 'id_status' => 1];
+        }
+    };
+
+    if ($personaType['es_fisica'] > 0) {
+        if (isset($_FILES['fisica_rfc_doc_file']) && ($_FILES['fisica_rfc_doc_file']['error'] ?? UPLOAD_ERR_NO_FILE) === UPLOAD_ERR_OK) {
+            $saveRfcCurpDoc($_FILES['fisica_rfc_doc_file']['tmp_name'], $_FILES['fisica_rfc_doc_file']['name'], 'Constancia RFC - Persona Física');
+        } elseif (isset($existingPaths['Constancia RFC - Persona Física'])) {
+            $stmt_doc->execute([$id_cliente, 'Constancia RFC - Persona Física', $existingPaths['Constancia RFC - Persona Física'], null]);
+            $newDocumentos[] = ['id_cliente' => $id_cliente, 'descripcion' => 'Constancia RFC - Persona Física', 'ruta' => $existingPaths['Constancia RFC - Persona Física'], 'fecha_vencimiento' => null, 'id_status' => 1];
+        }
+        if (isset($_FILES['fisica_curp_doc_file']) && ($_FILES['fisica_curp_doc_file']['error'] ?? UPLOAD_ERR_NO_FILE) === UPLOAD_ERR_OK) {
+            $saveRfcCurpDoc($_FILES['fisica_curp_doc_file']['tmp_name'], $_FILES['fisica_curp_doc_file']['name'], 'Documento CURP - Persona Física');
+        } elseif (isset($existingPaths['Documento CURP - Persona Física'])) {
+            $stmt_doc->execute([$id_cliente, 'Documento CURP - Persona Física', $existingPaths['Documento CURP - Persona Física'], null]);
+            $newDocumentos[] = ['id_cliente' => $id_cliente, 'descripcion' => 'Documento CURP - Persona Física', 'ruta' => $existingPaths['Documento CURP - Persona Física'], 'fecha_vencimiento' => null, 'id_status' => 1];
+        }
+    } elseif ($personaType['es_moral'] > 0) {
+        if (isset($_FILES['moral_rfc_doc_file']) && ($_FILES['moral_rfc_doc_file']['error'] ?? UPLOAD_ERR_NO_FILE) === UPLOAD_ERR_OK) {
+            $saveRfcCurpDoc($_FILES['moral_rfc_doc_file']['tmp_name'], $_FILES['moral_rfc_doc_file']['name'], 'Constancia RFC - Persona Moral');
+        } elseif (isset($existingPaths['Constancia RFC - Persona Moral'])) {
+            $stmt_doc->execute([$id_cliente, 'Constancia RFC - Persona Moral', $existingPaths['Constancia RFC - Persona Moral'], null]);
+            $newDocumentos[] = ['id_cliente' => $id_cliente, 'descripcion' => 'Constancia RFC - Persona Moral', 'ruta' => $existingPaths['Constancia RFC - Persona Moral'], 'fecha_vencimiento' => null, 'id_status' => 1];
+        }
+    }
+
     logChange($pdo, $id_usuario_actual, "ACTUALIZAR_LISTA", "clientes_documentos", $id_cliente, $oldDocumentos, $newDocumentos);
 
     // --- NEW: 4. Handle Apoderados (Delete All and Re-insert) ---

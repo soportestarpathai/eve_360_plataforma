@@ -16,6 +16,18 @@ let lastPldSignature = '';
 const RFC_FISICA_REGEX = /^[A-ZÑ&]{4}\d{6}[A-Z0-9]{3}$/;
 const RFC_MORAL_REGEX = /^[A-ZÑ&]{3}\d{6}[A-Z0-9]{3}$/;
 const CURP_REGEX = /^[A-Z][AEIOUX][A-Z]{2}\d{2}(0[1-9]|1[0-2])(0[1-9]|[12]\d|3[01])[HM](AS|BC|BS|CC|CL|CM|CS|CH|DF|DG|GT|GR|HG|JC|MC|MN|MS|NT|NL|OC|PL|QT|QR|SP|SL|SR|TC|TS|TL|VZ|YN|ZS|NE)[B-DF-HJ-NP-TV-Z]{3}[A-Z0-9]\d$/;
+// Tax ID USA: EIN o SSN = 9 dígitos (con o sin guiones)
+function isTaxIdUSA(value) {
+    const digits = (String(value || '')).replace(/\D/g, '');
+    return digits.length === 9 && /^\d{9}$/.test(digits);
+}
+function hasNacionalidadUSA() {
+    if (!catalogs.paises || !catalogs.paises.length) return false;
+    const usaPais = catalogs.paises.find(p => (p.clave || '').toUpperCase() === 'US' || (p.nombre || '').toLowerCase().includes('estados unidos'));
+    if (!usaPais) return false;
+    const selects = document.querySelectorAll('#nacionalidades-list select[name="nacionalidad_id[]"]');
+    return Array.from(selects).some(s => (s.value || '').toString().trim() !== '' && s.value === String(usaPais.id_pais));
+}
 let dynamicRowCounter = 0;
 
 const ADDRESS_TYPE_OPTIONS = [
@@ -708,7 +720,11 @@ function validateStep2IdentityFields() {
         if (!rfc) {
             return invalidateField('fisica_tax_id', 'El RFC / Tax ID es obligatorio.');
         }
-        if (!RFC_FISICA_REGEX.test(rfc)) {
+        if (hasNacionalidadUSA()) {
+            if (!isTaxIdUSA(rfc)) {
+                return invalidateField('fisica_tax_id', 'Tax ID inválido. Use EIN (9 dígitos) o SSN (XXX-XX-XXXX).');
+            }
+        } else if (!RFC_FISICA_REGEX.test(rfc)) {
             return invalidateField('fisica_tax_id', 'RFC / Tax ID inválido para persona física. Formato esperado: AAAA000000AAA.');
         }
 
@@ -741,7 +757,11 @@ function validateStep2IdentityFields() {
         if (!rfcMoral) {
             return invalidateField('moral_tax_id', 'El RFC / Tax ID es obligatorio.');
         }
-        if (!RFC_MORAL_REGEX.test(rfcMoral)) {
+        if (hasNacionalidadUSA()) {
+            if (!isTaxIdUSA(rfcMoral)) {
+                return invalidateField('moral_tax_id', 'Tax ID inválido. Use EIN (9 dígitos) o formato XX-XXXXXXX.');
+            }
+        } else if (!RFC_MORAL_REGEX.test(rfcMoral)) {
             return invalidateField('moral_tax_id', 'RFC / Tax ID inválido para persona moral. Formato esperado: AAA000000AAA.');
         }
     }

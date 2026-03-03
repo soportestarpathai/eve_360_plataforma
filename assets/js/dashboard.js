@@ -315,18 +315,23 @@ function initMonthlyChart() {
 
     if (typeof monthlyClients === 'undefined') return;
 
+    const dataArr = (monthlyClients && monthlyClients.data && Array.isArray(monthlyClients.data)) ? monthlyClients.data : [];
+    const maxVal = dataArr.length > 0 ? Math.max(...dataArr, 1) : 1;
+    const suggestedMax = Math.max(5, maxVal);
+
     new Chart(ctx, {
         type: 'bar',
         data: {
-            labels: monthlyClients.labels,
+            labels: (monthlyClients && monthlyClients.labels) || [],
             datasets: [{
                 label: 'Clientes Registrados',
-                data: monthlyClients.data,
+                data: dataArr,
                 backgroundColor: 'rgba(27, 143, 234, 0.8)',
                 borderColor: 'rgba(27, 143, 234, 1)',
                 borderWidth: 2,
                 borderRadius: 8,
                 borderSkipped: false,
+                minBarLength: 4,
             }]
         },
         options: {
@@ -357,7 +362,7 @@ function initMonthlyChart() {
                     callbacks: {
                         label: function(context) {
                             const value = Number(context.parsed.y) || 0;
-                            const total = (monthlyClients.data || []).reduce((sum, item) => sum + (Number(item) || 0), 0);
+                            const total = dataArr.reduce((sum, item) => sum + (Number(item) || 0), 0);
                             const percentage = total > 0 ? ((value / total) * 100).toFixed(1) : '0.0';
                             return `Clientes: ${value} (${percentage}%)`;
                         }
@@ -367,8 +372,10 @@ function initMonthlyChart() {
             scales: {
                 y: {
                     beginAtZero: true,
+                    suggestedMax: suggestedMax,
                     ticks: {
-                        stepSize: 1
+                        stepSize: 1,
+                        precision: 0
                     }
                 }
             }
@@ -391,14 +398,20 @@ function initStatusChart() {
 
     if (typeof statusComparison === 'undefined') return;
 
+    const activosData = (statusComparison && statusComparison.activos && Array.isArray(statusComparison.activos)) ? statusComparison.activos : [];
+    const inactivosData = (statusComparison && statusComparison.inactivos && Array.isArray(statusComparison.inactivos)) ? statusComparison.inactivos : [];
+    const labelsData = (statusComparison && statusComparison.labels && Array.isArray(statusComparison.labels)) ? statusComparison.labels : [];
+    const maxStatus = (activosData.length > 0 || inactivosData.length > 0) ? Math.max(...activosData, ...inactivosData, 1) : 1;
+    const suggestedMaxStatus = Math.max(5, maxStatus);
+
     new Chart(ctx, {
         type: 'line',
         data: {
-            labels: statusComparison.labels,
+            labels: labelsData,
             datasets: [
                 {
                     label: 'Clientes Activos',
-                    data: statusComparison.activos,
+                    data: activosData,
                     borderColor: 'rgba(46, 209, 255, 1)',
                     backgroundColor: 'rgba(46, 209, 255, 0.1)',
                     borderWidth: 3,
@@ -409,7 +422,7 @@ function initStatusChart() {
                 },
                 {
                     label: 'Clientes Inactivos',
-                    data: statusComparison.inactivos,
+                    data: inactivosData,
                     borderColor: 'rgba(199, 205, 214, 1)',
                     backgroundColor: 'rgba(199, 205, 214, 0.1)',
                     borderWidth: 3,
@@ -455,9 +468,9 @@ function initStatusChart() {
                         label: function(context) {
                             const value = Number(context.parsed.y) || 0;
                             const idx = context.dataIndex;
-                            const activos = Number(statusComparison.activos[idx]) || 0;
-                            const inactivos = Number(statusComparison.inactivos[idx]) || 0;
-                            const total = activos + inactivos;
+                            const activosVal = Number(activosData[idx]) || 0;
+                            const inactivosVal = Number(inactivosData[idx]) || 0;
+                            const total = activosVal + inactivosVal;
                             const percentage = total > 0 ? ((value / total) * 100).toFixed(1) : '0.0';
                             return `${context.dataset.label}: ${value} (${percentage}%)`;
                         }
@@ -466,7 +479,12 @@ function initStatusChart() {
             },
             scales: {
                 y: {
-                    beginAtZero: true
+                    beginAtZero: true,
+                    suggestedMax: suggestedMaxStatus,
+                    ticks: {
+                        stepSize: 1,
+                        precision: 0
+                    }
                 }
             }
         }
@@ -569,17 +587,21 @@ function initAreaChart() {
 
     if (typeof monthlyClients === 'undefined') return;
 
-    // Calcular datos acumulados
+    const dataArr = (monthlyClients && monthlyClients.data && Array.isArray(monthlyClients.data)) ? monthlyClients.data : [];
+    const labelsArr = (monthlyClients && monthlyClients.labels && Array.isArray(monthlyClients.labels)) ? monthlyClients.labels : [];
     let cumulative = 0;
-    const cumulativeData = monthlyClients.data.map(value => {
-        cumulative += value;
+    const cumulativeData = dataArr.map(value => {
+        cumulative += (Number(value) || 0);
         return cumulative;
     });
+
+    const maxCumulative = cumulativeData.length > 0 ? Math.max(...cumulativeData, 0) : 0;
+    const suggestedMax = Math.max(5, maxCumulative);
 
     new Chart(ctx, {
         type: 'line',
         data: {
-            labels: monthlyClients.labels,
+            labels: labelsArr,
             datasets: [{
                 label: 'Total Acumulado de Clientes',
                 data: cumulativeData,
@@ -609,7 +631,7 @@ function initAreaChart() {
 
                 if (elements.length > 0) {
                     const point = elements[0];
-                    const monthLabel = monthlyClients.labels[point.index] || '';
+                    const monthLabel = labelsArr[point.index] || '';
                     navigateToReport(reportUrl, Object.assign({}, defaultFilters, { mes: monthLabel }));
                     return;
                 }
@@ -638,7 +660,12 @@ function initAreaChart() {
             },
             scales: {
                 y: {
-                    beginAtZero: true
+                    beginAtZero: true,
+                    suggestedMax: suggestedMax,
+                    ticks: {
+                        stepSize: 1,
+                        precision: 0
+                    }
                 }
             }
         }

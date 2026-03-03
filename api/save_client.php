@@ -148,12 +148,28 @@ $rfcFisicaRegex = '/^[A-ZÑ&]{4}[0-9]{6}[A-Z0-9]{3}$/u';
 $rfcMoralRegex = '/^[A-ZÑ&]{3}[0-9]{6}[A-Z0-9]{3}$/u';
 $curpRegex = '/^[A-Z][AEIOUX][A-Z]{2}[0-9]{2}(0[1-9]|1[0-2])(0[1-9]|[12][0-9]|3[01])[HM](AS|BC|BS|CC|CL|CM|CS|CH|DF|DG|GT|GR|HG|JC|MC|MN|MS|NT|NL|OC|PL|QT|QR|SP|SL|SR|TC|TS|TL|VZ|YN|ZS|NE)[B-DF-HJ-NP-TV-Z]{3}[A-Z0-9][0-9]$/';
 
+// Tax ID USA: EIN (XX-XXXXXXX) o SSN (XXX-XX-XXXX) = 9 dígitos
+$isTaxIdUSA = function ($value) {
+    $digits = preg_replace('/\D/', '', (string)$value);
+    return strlen($digits) === 9 && ctype_digit($digits);
+};
+$hasNacionalidadUSA = false;
+if (!empty($data['nacionalidad_id']) && is_array($data['nacionalidad_id'])) {
+    $stmtUSA = $pdo->query("SELECT id_pais FROM cat_pais WHERE clave = 'US' OR nombre LIKE '%Estados Unidos%' LIMIT 1");
+    $usaRow = $stmtUSA ? $stmtUSA->fetch(PDO::FETCH_ASSOC) : null;
+    if ($usaRow) {
+        $usaId = (int)$usaRow['id_pais'];
+        $nacIds = array_map('strval', $data['nacionalidad_id']);
+        $hasNacionalidadUSA = in_array((string)$usaId, $nacIds, true);
+    }
+}
+
 if ((int)$personaType['es_fisica'] > 0) {
     $fisNombre = trim((string)($data['fisica_nombre'] ?? ''));
     $fisPaterno = trim((string)($data['fisica_ap_paterno'] ?? ''));
     $fisFecha = trim((string)($data['fisica_fecha_nacimiento'] ?? ''));
-    $fisRfc = $data['fisica_tax_id'];
-    $fisCurp = $data['fisica_curp'];
+    $fisRfc = strtoupper(trim((string)($data['fisica_tax_id'] ?? '')));
+    $fisCurp = strtoupper(trim((string)($data['fisica_curp'] ?? '')));
 
     if ($fisNombre === '' || $fisPaterno === '') {
         http_response_code(400);
@@ -170,7 +186,18 @@ if ((int)$personaType['es_fisica'] > 0) {
         echo json_encode(['status' => 'error', 'message' => 'La persona física debe ser mayor de 18 años']);
         exit;
     }
-    if ($fisRfc === '' || !preg_match($rfcFisicaRegex, $fisRfc)) {
+    if ($fisRfc === '') {
+        http_response_code(400);
+        echo json_encode(['status' => 'error', 'message' => 'El RFC / Tax ID es obligatorio']);
+        exit;
+    }
+    if ($hasNacionalidadUSA) {
+        if (!$isTaxIdUSA($fisRfc)) {
+            http_response_code(400);
+            echo json_encode(['status' => 'error', 'message' => 'Tax ID inválido. Use EIN (9 dígitos) o SSN (XXX-XX-XXXX).']);
+            exit;
+        }
+    } elseif (!preg_match($rfcFisicaRegex, $fisRfc)) {
         http_response_code(400);
         echo json_encode(['status' => 'error', 'message' => 'RFC inválido para persona física']);
         exit;
@@ -185,7 +212,7 @@ if ((int)$personaType['es_fisica'] > 0) {
 if ((int)$personaType['es_moral'] > 0) {
     $morRazon = trim((string)($data['moral_razon_social'] ?? ''));
     $morFecha = trim((string)($data['moral_fecha_constitucion'] ?? ''));
-    $morRfc = $data['moral_tax_id'];
+    $morRfc = strtoupper(trim((string)($data['moral_tax_id'] ?? '')));
 
     if ($morRazon === '') {
         http_response_code(400);
@@ -197,7 +224,18 @@ if ((int)$personaType['es_moral'] > 0) {
         echo json_encode(['status' => 'error', 'message' => 'Fecha de constitución inválida']);
         exit;
     }
-    if ($morRfc === '' || !preg_match($rfcMoralRegex, $morRfc)) {
+    if ($morRfc === '') {
+        http_response_code(400);
+        echo json_encode(['status' => 'error', 'message' => 'El RFC / Tax ID es obligatorio']);
+        exit;
+    }
+    if ($hasNacionalidadUSA) {
+        if (!$isTaxIdUSA($morRfc)) {
+            http_response_code(400);
+            echo json_encode(['status' => 'error', 'message' => 'Tax ID inválido. Use EIN (9 dígitos) o formato XX-XXXXXXX.']);
+            exit;
+        }
+    } elseif (!preg_match($rfcMoralRegex, $morRfc)) {
         http_response_code(400);
         echo json_encode(['status' => 'error', 'message' => 'RFC inválido para persona moral']);
         exit;
