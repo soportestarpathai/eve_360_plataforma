@@ -128,6 +128,7 @@ try {
 
 .persona-section, .domicilio-section { display:none; }
 .persona-section.active, .domicilio-section.active { display:block; animation:dinFadeIn .25s ease; }
+.text-uppercase { text-transform: uppercase; }
 
 /* ─── Nested cards ─── */
 .nested-card {
@@ -464,16 +465,16 @@ try {
                 <div class="row g-3">
                     <div class="col-md-4 mb-2">
                         <label class="form-label">Código Postal * <span class="badge bg-danger badge-xsd">Obl.</span></label>
-                        <input type="text" class="form-control" id="codigo_postal" pattern="\d{5}" maxlength="5" required placeholder="02000">
+                        <input type="text" class="form-control" id="codigo_postal" pattern="\d{5}" maxlength="5" required placeholder="02000" inputmode="numeric" autocomplete="postal-code">
                         <div class="section-help">5 dígitos</div>
                     </div>
                     <div class="col-md-4 mb-2">
                         <label class="form-label">Colonia * <span class="badge bg-danger badge-xsd">Obl.</span></label>
-                        <input type="text" class="form-control" id="colonia" maxlength="50" required>
+                        <input type="text" class="form-control text-uppercase" id="colonia" maxlength="50" required>
                     </div>
                     <div class="col-md-4 mb-2">
                         <label class="form-label">Calle * <span class="badge bg-danger badge-xsd">Obl.</span></label>
-                        <input type="text" class="form-control" id="calle" maxlength="100" required>
+                        <input type="text" class="form-control text-uppercase" id="calle" maxlength="100" required>
                     </div>
                     <div class="col-md-6 mb-2">
                         <label class="form-label">Tipo Desarrollo * <span class="badge bg-danger badge-xsd">Obl.</span></label>
@@ -839,8 +840,8 @@ try {
         </div>
         <div class="domicilio-section dom-nacional active">
             <div class="row g-3">
-                <div class="col-md-6 mb-2"><label class="form-label">Colonia *</label><input type="text" class="form-control dn-colonia" maxlength="50" required></div>
-                <div class="col-md-6 mb-2"><label class="form-label">Calle *</label><input type="text" class="form-control dn-calle" maxlength="100" required></div>
+                <div class="col-md-6 mb-2"><label class="form-label">Colonia *</label><input type="text" class="form-control text-uppercase dn-colonia" maxlength="50" required></div>
+                <div class="col-md-6 mb-2"><label class="form-label">Calle *</label><input type="text" class="form-control text-uppercase dn-calle" maxlength="100" required></div>
                 <div class="col-md-4 mb-2"><label class="form-label">Núm. Exterior *</label><input type="text" class="form-control dn-numero-exterior" maxlength="56" required></div>
                 <div class="col-md-4 mb-2"><label class="form-label">Núm. Interior</label><input type="text" class="form-control dn-numero-interior" maxlength="40"></div>
                 <div class="col-md-4 mb-2"><label class="form-label">C.P. *</label><input type="text" class="form-control dn-codigo-postal" maxlength="5" pattern="\d{5}" required></div>
@@ -851,8 +852,8 @@ try {
                 <div class="col-md-6 mb-2"><label class="form-label">País *</label><select class="form-select de-pais" required><?= dinCatalogoOptions('pais', 'US') ?></select></div>
                 <div class="col-md-6 mb-2"><label class="form-label">Estado/Provincia *</label><input type="text" class="form-control de-estado-provincia" maxlength="100" required></div>
                 <div class="col-md-6 mb-2"><label class="form-label">Ciudad/Población *</label><input type="text" class="form-control de-ciudad-poblacion" maxlength="100" required></div>
-                <div class="col-md-6 mb-2"><label class="form-label">Colonia *</label><input type="text" class="form-control de-colonia" maxlength="50" required></div>
-                <div class="col-md-6 mb-2"><label class="form-label">Calle *</label><input type="text" class="form-control de-calle" maxlength="100" required></div>
+                <div class="col-md-6 mb-2"><label class="form-label">Colonia *</label><input type="text" class="form-control text-uppercase de-colonia" maxlength="50" required></div>
+                <div class="col-md-6 mb-2"><label class="form-label">Calle *</label><input type="text" class="form-control text-uppercase de-calle" maxlength="100" required></div>
                 <div class="col-md-6 mb-2"><label class="form-label">C.P. *</label><input type="text" class="form-control de-codigo-postal" maxlength="12" required></div>
                 <div class="col-md-6 mb-2"><label class="form-label">Núm. Exterior *</label><input type="text" class="form-control de-numero-exterior" maxlength="56" required></div>
                 <div class="col-md-6 mb-2"><label class="form-label">Núm. Interior</label><input type="text" class="form-control de-numero-interior" maxlength="40"></div>
@@ -992,6 +993,7 @@ document.addEventListener('DOMContentLoaded', function() {
 
     document.getElementById('formDIN').addEventListener('submit', guardarOperacionDIN);
 
+    setupCpLookupMainForm();
     addSocio();
     addTercero();
     addAcreedor();
@@ -1001,6 +1003,38 @@ function toggleSection(id, show) {
     const el = document.getElementById(id);
     if (show) el.classList.add('active');
     else el.classList.remove('active');
+}
+
+/* Código Postal: solo dígitos. Colonia y Calle: solo mayúsculas */
+function enforceDigitsOnly(el, maxLen) {
+    if (!el) return;
+    const limit = (maxLen != null && maxLen > 0) ? maxLen : 5;
+    const apply = function() {
+        const v = this.value.replace(/\D/g, '').slice(0, limit);
+        if (this.value !== v) this.value = v;
+    };
+    el.addEventListener('input', apply);
+    apply.call(el);
+}
+
+function enforceUppercase(el) {
+    if (!el) return;
+    const apply = function() {
+        const v = this.value.toUpperCase();
+        if (this.value !== v) this.value = v;
+    };
+    el.addEventListener('input', apply);
+    apply.call(el);
+}
+
+function setupCpLookupMainForm() {
+    const cp = document.getElementById('codigo_postal');
+    const colonia = document.getElementById('colonia');
+    const calle = document.getElementById('calle');
+    if (!cp || !colonia || !calle) return;
+    enforceDigitsOnly(cp);
+    enforceUppercase(colonia);
+    enforceUppercase(calle);
 }
 
 function v(id) {
@@ -1173,6 +1207,18 @@ function setupDomicilioToggle(container) {
     });
 }
 
+function setupDomicilioUppercaseAndDigits(container) {
+    const dnCp = container.querySelector('.dn-codigo-postal');
+    const deCp = container.querySelector('.de-codigo-postal');
+    const dnColonia = container.querySelector('.dn-colonia');
+    const dnCalle = container.querySelector('.dn-calle');
+    const deColonia = container.querySelector('.de-colonia');
+    const deCalle = container.querySelector('.de-calle');
+    if (dnCp) enforceDigitsOnly(dnCp, 5);
+    if (deCp) enforceDigitsOnly(deCp, 12);
+    [dnColonia, dnCalle, deColonia, deCalle].forEach(el => { if (el) enforceUppercase(el); });
+}
+
 function setupAportTipoToggle(container) {
     const sel = container.querySelector('.entidad-aport-tipo-select');
     if (!sel) return;
@@ -1229,6 +1275,7 @@ function addSocio() {
 
     setupPersonaToggle(div);
     setupDomicilioToggle(div);
+    setupDomicilioUppercaseAndDigits(div);
     setupAportTipoToggle(div);
     addKycPrefillButton(div, idx === 1);
 }
