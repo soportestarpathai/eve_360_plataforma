@@ -45,8 +45,22 @@ try {
         }
     }
 
-    // 1. UPDATE `clientes` (Main Table)
-    $oldData = getOldData($pdo, 'clientes', $id_cliente); 
+    // 1. UPDATE `clientes` (Main Table) - Verificar ownership si no es admin
+    $oldData = getOldData($pdo, 'clientes', $id_cliente);
+    if (!$oldData) {
+        $pdo->rollBack();
+        echo json_encode(['status' => 'error', 'message' => 'Cliente no encontrado']);
+        exit;
+    }
+    $stmtPerm = $pdo->prepare("SELECT administracion FROM usuarios_permisos WHERE id_usuario = ?");
+    $stmtPerm->execute([$id_usuario_actual]);
+    $perm = $stmtPerm->fetch(PDO::FETCH_ASSOC);
+    $isAdmin = $perm && (int)($perm['administracion'] ?? 0) > 0;
+    if (!$isAdmin && (int)($oldData['id_usuario'] ?? 0) !== (int)$id_usuario_actual) {
+        $pdo->rollBack();
+        echo json_encode(['status' => 'error', 'message' => 'Acceso denegado. Este cliente no pertenece a tu cuenta.']);
+        exit;
+    }
     
     // FIXED QUERY: Ensure columns match placeholders (?)
     // Columns: no_contrato, alias, fecha_apertura, id_status, fecha_baja

@@ -20,9 +20,19 @@ $id_fraccion = (int)($_GET['id_fraccion'] ?? 0);
 $page_title = 'Transacción DIN - Desarrollo Inmobiliario';
 include 'templates/header.php';
 
-$stmt = $pdo->query("SELECT folio_patron_pld FROM config_empresa WHERE id_config = 1");
-$config = $stmt->fetch(PDO::FETCH_ASSOC);
-$clave_sujeto_obligado = $config['folio_patron_pld'] ?? '';
+$clave_sujeto_obligado = '';
+try {
+    if ($userId > 0) {
+        $stmtU = $pdo->prepare("SELECT folio_patron_pld FROM config_empresa_usuario WHERE id_usuario = ?");
+        $stmtU->execute([$userId]);
+        $config = $stmtU->fetch(PDO::FETCH_ASSOC);
+    }
+    if (empty($config['folio_patron_pld'])) {
+        $stmt = $pdo->query("SELECT folio_patron_pld FROM config_empresa WHERE id_config = 1");
+        $config = $stmt->fetch(PDO::FETCH_ASSOC);
+    }
+    $clave_sujeto_obligado = $config['folio_patron_pld'] ?? '';
+} catch (Exception $e) { /* fallback vacío */ }
 
 require_once 'config/din_catalogos.php';
 

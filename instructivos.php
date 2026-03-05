@@ -78,12 +78,20 @@ include 'templates/top_bar.php';
 ?>
 
 <?php
-// 1. Get the configured ID from config_empresa
+// 1. Get id_vulnerable (per-user if logged in, else global)
 $id_vulnerable = 0;
 try {
-    $stmtConfig = $pdo->query("SELECT id_vulnerable FROM config_empresa WHERE id_config = 1");
-    $config = $stmtConfig->fetch(PDO::FETCH_ASSOC);
-    $id_vulnerable = $config['id_vulnerable'] ?? 0;
+    $config = null;
+    if (!empty($_SESSION['user_id'])) {
+        $stmtU = $pdo->prepare("SELECT id_vulnerable FROM config_empresa_usuario WHERE id_usuario = ?");
+        $stmtU->execute([$_SESSION['user_id']]);
+        $config = $stmtU->fetch(PDO::FETCH_ASSOC);
+    }
+    if (!$config || ($config['id_vulnerable'] ?? null) === null || $config['id_vulnerable'] === '') {
+        $stmtConfig = $pdo->query("SELECT id_vulnerable FROM config_empresa WHERE id_config = 1");
+        $config = $stmtConfig->fetch(PDO::FETCH_ASSOC);
+    }
+    $id_vulnerable = (int)($config['id_vulnerable'] ?? 0);
 } catch (Exception $e) {
     // Fail silently
 }

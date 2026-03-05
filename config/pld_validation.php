@@ -18,11 +18,25 @@ if (!function_exists('validatePatronPLD')) {
      * @param string|null $fraccionRequerida Si se indica (ej: 'XIII' para Donativos), valida además que esa fracción esté activa
      * @return array Resultado de la validación
      */
-    function validatePatronPLD($pdo, $fraccionRequerida = null) {
+    function validatePatronPLD($pdo, $fraccionRequerida = null, $id_usuario = 0) {
         try {
-            // Obtener configuración del sujeto obligado
-            $stmt = $pdo->query("SELECT * FROM config_empresa WHERE id_config = 1");
-            $config = $stmt->fetch(PDO::FETCH_ASSOC);
+            $config = null;
+            if ($id_usuario > 0) {
+                $stmtU = $pdo->prepare("SELECT folio_patron_pld, estatus_patron_pld, fracciones_activas, fecha_revalidacion_patron, no_habilitado_pld FROM config_empresa_usuario WHERE id_usuario = ?");
+                $stmtU->execute([$id_usuario]);
+                $configU = $stmtU->fetch(PDO::FETCH_ASSOC);
+                if ($configU) {
+                    $stmtG = $pdo->query("SELECT * FROM config_empresa WHERE id_config = 1");
+                    $config = $stmtG->fetch(PDO::FETCH_ASSOC) ?: [];
+                    foreach (['folio_patron_pld','estatus_patron_pld','fracciones_activas','fecha_revalidacion_patron','no_habilitado_pld'] as $k) {
+                        if (isset($configU[$k])) $config[$k] = $configU[$k];
+                    }
+                }
+            }
+            if (!$config) {
+                $stmt = $pdo->query("SELECT * FROM config_empresa WHERE id_config = 1");
+                $config = $stmt->fetch(PDO::FETCH_ASSOC);
+            }
             
             if (!$config) {
                 return [
@@ -150,8 +164,12 @@ if (!function_exists('validatePatronPLD')) {
      * @param PDO $pdo Conexión a la base de datos
      * @return bool True si está habilitado, false en caso contrario
      */
-    function checkHabilitadoPLD($pdo) {
-        $result = validatePatronPLD($pdo);
+    function checkHabilitadoPLD($pdo, $id_usuario = null) {
+        if ($id_usuario === null && !empty($_SESSION['user_id'])) {
+            $id_usuario = (int)$_SESSION['user_id'];
+        }
+        $id_usuario = $id_usuario ?? 0;
+        $result = validatePatronPLD($pdo, null, $id_usuario);
         return $result['habilitado'] === true;
     }
     
@@ -162,11 +180,16 @@ if (!function_exists('validatePatronPLD')) {
      * @param bool $habilitado Estado de habilitación
      * @return bool True si se actualizó correctamente
      */
-    function updateHabilitadoPLDFlag($pdo, $habilitado) {
+    function updateHabilitadoPLDFlag($pdo, $habilitado, $id_usuario = 0) {
         try {
             $flag = $habilitado ? 0 : 1; // 0 = habilitado, 1 = NO habilitado
-            $stmt = $pdo->prepare("UPDATE config_empresa SET no_habilitado_pld = ? WHERE id_config = 1");
-            $stmt->execute([$flag]);
+            if ($id_usuario > 0) {
+                $stmt = $pdo->prepare("INSERT INTO config_empresa_usuario (id_usuario, no_habilitado_pld) VALUES (?, ?) ON DUPLICATE KEY UPDATE no_habilitado_pld = VALUES(no_habilitado_pld)");
+                $stmt->execute([$id_usuario, $flag]);
+            } else {
+                $stmt = $pdo->prepare("UPDATE config_empresa SET no_habilitado_pld = ? WHERE id_config = 1");
+                $stmt->execute([$flag]);
+            }
             return true;
         } catch (Exception $e) {
             error_log("Error updating NO_HABILITADO_PLD flag: " . $e->getMessage());
@@ -180,14 +203,18 @@ if (!function_exists('validatePatronPLD')) {
      * @param PDO $pdo Conexión a la base de datos
      * @return array Resultado de la revalidación
      */
-    function revalidatePatronPLD($pdo) {
-        $result = validatePatronPLD($pdo);
-        updateHabilitadoPLDFlag($pdo, $result['habilitado']);
+    function revalidatePatronPLD($pdo, $id_usuario = 0) {
+        $result = validatePatronPLD($pdo, null, $id_usuario);
+        updateHabilitadoPLDFlag($pdo, $result['habilitado'], $id_usuario);
         
-        // Actualizar fecha de revalidación
         try {
-            $stmt = $pdo->prepare("UPDATE config_empresa SET fecha_revalidacion_patron = CURDATE() WHERE id_config = 1");
-            $stmt->execute();
+            if ($id_usuario > 0) {
+                $stmt = $pdo->prepare("UPDATE config_empresa_usuario SET fecha_revalidacion_patron = CURDATE() WHERE id_usuario = ?");
+                $stmt->execute([$id_usuario]);
+            } else {
+                $stmt = $pdo->prepare("UPDATE config_empresa SET fecha_revalidacion_patron = CURDATE() WHERE id_config = 1");
+                $stmt->execute();
+            }
         } catch (Exception $e) {
             error_log("Error updating revalidation date: " . $e->getMessage());
         }

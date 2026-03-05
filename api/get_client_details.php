@@ -42,6 +42,19 @@ try {
         throw new Exception("Cliente no encontrado.");
     }
 
+    // Verificar ownership: usuario no admin solo ve sus clientes
+    $userId = $_SESSION['user_id'] ?? 0;
+    $isAdmin = false;
+    if ($userId > 0) {
+        $stmtPerm = $pdo->prepare("SELECT administracion FROM usuarios_permisos WHERE id_usuario = ?");
+        $stmtPerm->execute([$userId]);
+        $perm = $stmtPerm->fetch(PDO::FETCH_ASSOC);
+        $isAdmin = $perm && (int)($perm['administracion'] ?? 0) > 0;
+    }
+    if (!$isAdmin && $userId > 0 && (int)($details['general']['id_usuario'] ?? 0) !== (int)$userId) {
+        throw new Exception("Acceso denegado. Este cliente no pertenece a tu cuenta.");
+    }
+
     // 2. Get specific persona data (Fisica, Moral, Fideicomiso)
     $tipo_persona_id = $details['general']['id_tipo_persona'];
     $type_stmt = $pdo->prepare("SELECT * FROM cat_tipo_persona WHERE id_tipo_persona = ?");

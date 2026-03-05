@@ -54,8 +54,16 @@ if (!$isPLDHabilitado) {
 	?>
 <?php
 try {
-    $stmtConfig = $pdo->query("SELECT max_busquedas_api FROM config_empresa WHERE id_config = 1");
-    $cfg = $stmtConfig->fetch(PDO::FETCH_ASSOC);
+    $cfg = null;
+    if (!empty($_SESSION['user_id'])) {
+        $stmtU = $pdo->prepare("SELECT max_busquedas_api FROM config_empresa_usuario WHERE id_usuario = ?");
+        $stmtU->execute([$_SESSION['user_id']]);
+        $cfg = $stmtU->fetch(PDO::FETCH_ASSOC);
+    }
+    if (!$cfg) {
+        $stmtConfig = $pdo->query("SELECT max_busquedas_api FROM config_empresa WHERE id_config = 1");
+        $cfg = $stmtConfig->fetch(PDO::FETCH_ASSOC);
+    }
     $limit = isset($cfg['max_busquedas_api']) ? (int)$cfg['max_busquedas_api'] : 300;
     if ($limit <= 0) {
         $limit = 300;

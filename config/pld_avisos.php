@@ -340,16 +340,20 @@ if (!function_exists('validateInformeNoOperaciones')) {
      * @param int $anio Año a validar
      * @return array Resultado de la validación
      */
-    function validateInformeNoOperaciones($pdo, $mes, $anio) {
+    function validateInformeNoOperaciones($pdo, $mes, $anio, $id_usuario = 0) {
         try {
-            // Verificar si hubo operaciones avisables en el periodo
-            $fechaInicio = sprintf('%04d-%02d-01', $anio, $mes);
-            $fechaFin = date('Y-m-t', strtotime($fechaInicio)); // Último día del mes
-            
-            $stmt = $pdo->prepare("SELECT COUNT(*) as count FROM operaciones_pld 
-                                   WHERE DATE_FORMAT(fecha_operacion, '%Y-%m') = ? 
-                                   AND requiere_aviso = 1 AND id_status = 1");
-            $stmt->execute([sprintf('%04d-%02d', $anio, $mes)]);
+            // Verificar si hubo operaciones avisables en el periodo (por usuario si aplica)
+            $sqlOp = "SELECT COUNT(*) as count FROM operaciones_pld op
+                      JOIN clientes c ON op.id_cliente = c.id_cliente
+                      WHERE DATE_FORMAT(op.fecha_operacion, '%Y-%m') = ?
+                      AND op.requiere_aviso = 1 AND op.id_status = 1";
+            $paramsOp = [sprintf('%04d-%02d', $anio, $mes)];
+            if ($id_usuario > 0) {
+                $sqlOp .= " AND c.id_usuario = ?";
+                $paramsOp[] = $id_usuario;
+            }
+            $stmt = $pdo->prepare($sqlOp);
+            $stmt->execute($paramsOp);
             $operaciones = $stmt->fetch(PDO::FETCH_ASSOC);
             
             $huboOperaciones = intval($operaciones['count']) > 0;
@@ -361,10 +365,16 @@ if (!function_exists('validateInformeNoOperaciones')) {
                 ];
             }
             
-            // Verificar si ya se presentó el informe
-            $stmt = $pdo->prepare("SELECT * FROM informes_no_operaciones_pld 
-                                   WHERE periodo_mes = ? AND periodo_anio = ? AND id_status = 1");
-            $stmt->execute([$mes, $anio]);
+            // Verificar si ya se presentó el informe (por usuario si aplica)
+            $sqlInf = "SELECT * FROM informes_no_operaciones_pld 
+                       WHERE periodo_mes = ? AND periodo_anio = ? AND id_status = 1";
+            $paramsInf = [$mes, $anio];
+            if ($id_usuario > 0) {
+                $sqlInf .= " AND id_usuario = ?";
+                $paramsInf[] = $id_usuario;
+            }
+            $stmt = $pdo->prepare($sqlInf);
+            $stmt->execute($paramsInf);
             $informe = $stmt->fetch(PDO::FETCH_ASSOC);
             
             if ($informe && $informe['estatus'] === 'presentado') {

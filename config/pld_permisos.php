@@ -25,8 +25,16 @@ if (!function_exists('ensureFraccionesPLDColumn')) {
      */
     function getUserFraccionesPLD($pdo, $userId) {
         try {
-            $stmtConfig = $pdo->query("SELECT fracciones_activas FROM config_empresa WHERE id_config = 1");
-            $row = $stmtConfig->fetch(PDO::FETCH_ASSOC);
+            $row = null;
+            if ($userId > 0) {
+                $stmtU = $pdo->prepare("SELECT fracciones_activas FROM config_empresa_usuario WHERE id_usuario = ?");
+                $stmtU->execute([$userId]);
+                $row = $stmtU->fetch(PDO::FETCH_ASSOC);
+            }
+            if (!$row || empty($row['fracciones_activas'])) {
+                $stmtConfig = $pdo->query("SELECT fracciones_activas FROM config_empresa WHERE id_config = 1");
+                $row = $stmtConfig->fetch(PDO::FETCH_ASSOC);
+            }
             $empresaFracciones = [];
             if ($row && !empty($row['fracciones_activas'])) {
                 $decoded = json_decode($row['fracciones_activas'], true);

@@ -41,6 +41,21 @@ try {
     $canDeleteClients = $perm && (((int)$perm['catalogo_clientes'] > 0) || ((int)$perm['administracion'] > 0));
 } catch (Exception $e) { /* ignorar */ }
 
+// Filtro por usuario: solo sus clientes (admins ven todos)
+$userId = $_SESSION['user_id'] ?? 0;
+$isAdmin = false;
+if ($userId > 0) {
+    $stmtAdmin = $pdo->prepare("SELECT administracion FROM usuarios_permisos WHERE id_usuario = ?");
+    $stmtAdmin->execute([$userId]);
+    $perm = $stmtAdmin->fetch(PDO::FETCH_ASSOC);
+    $isAdmin = $perm && (int)($perm['administracion'] ?? 0) > 0;
+}
+if (!$isAdmin && $userId > 0) {
+    $where_clauses[] = "c.id_usuario = ?";
+    $params[] = $userId;
+}
+$where_sql = implode(' AND ', $where_clauses);
+
 // 3. EJECUTAR CONSULTA (Traemos todo, JS se encargará de ordenar)
 $query = "SELECT c.*, tp.nombre AS tipo_persona_nombre,
           (SELECT COUNT(*) FROM clientes_documentos WHERE id_cliente = c.id_cliente AND id_status = 1) as total_docs

@@ -23,6 +23,20 @@ try {
     $conditions = ['c.id_status != 4']; // 4 = Eliminado (baja lógica)
     $params = [];
 
+    // Filtro por usuario: solo sus clientes (admins ven todos)
+    $userId = $_SESSION['user_id'] ?? 0;
+    $isAdmin = false;
+    if ($userId > 0) {
+        $stmtAdmin = $pdo->prepare("SELECT administracion FROM usuarios_permisos WHERE id_usuario = ?");
+        $stmtAdmin->execute([$userId]);
+        $perm = $stmtAdmin->fetch(PDO::FETCH_ASSOC);
+        $isAdmin = $perm && (int)($perm['administracion'] ?? 0) > 0;
+    }
+    if (!$isAdmin && $userId > 0) {
+        $conditions[] = "c.id_usuario = ?";
+        $params[] = $userId;
+    }
+
     // Filtro por estatus de cliente (tolerante a esquemas legacy/actuales)
     $statusExpr = "LOWER(TRIM(COALESCE(s.nombre, '')))";
     if ($estatus === 'activo' || $estatus === 'activos') {

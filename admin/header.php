@@ -34,12 +34,12 @@ require_once '../config/db.php';
         <i class="fa-solid fa-users me-2"></i>Usuarios del Sistema
     </a>
     <a href="config.php" class="<?= basename($_SERVER['PHP_SELF'])=='config.php'?'active':'' ?>">
-        <i class="fa-solid fa-gears me-2"></i>Configuración
+        <i class="fa-solid fa-gears me-2"></i>Config. Usuarios
     </a>
 
     <div class="sidebar-header">Transacción</div>
     <a href="modulos.php" class="<?= basename($_SERVER['PHP_SELF'])=='modulos.php'?'active':'' ?>">
-        <i class="fa-solid fa-cubes me-2"></i>Módulos
+        <i class="fa-solid fa-cubes me-2"></i>Módulos Usuarios
     </a>
     <a href="reportes.php" class="<?= basename($_SERVER['PHP_SELF'])=='reportes.php'?'active':'' ?>">
         <i class="fa-solid fa-chart-pie me-2"></i>Reportes

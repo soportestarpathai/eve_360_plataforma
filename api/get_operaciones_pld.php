@@ -31,6 +31,16 @@ try {
         ? "o.xml_nombre_archivo, CASE WHEN o.xml_contenido IS NOT NULL AND LENGTH(o.xml_contenido) > 0 THEN 1 ELSE 0 END as tiene_xml,"
         : "NULL as xml_nombre_archivo, 0 as tiene_xml,";
     
+    // Filtro por usuario: solo operaciones de sus clientes (admins ven todas)
+    $id_usuario = $_SESSION['user_id'] ?? 0;
+    $isAdmin = false;
+    if ($id_usuario > 0) {
+        $stmtAdmin = $pdo->prepare("SELECT administracion FROM usuarios_permisos WHERE id_usuario = ?");
+        $stmtAdmin->execute([$id_usuario]);
+        $perm = $stmtAdmin->fetch(PDO::FETCH_ASSOC);
+        $isAdmin = $perm && (int)($perm['administracion'] ?? 0) > 0;
+    }
+
     $sql = "SELECT o.id_operacion, o.id_cliente, o.id_fraccion, o.id_status, o.tipo_operacion, o.monto, o.monto_uma,
                    o.fecha_operacion, o.fecha_registro, o.es_sospechosa, o.match_listas_restringidas,
                    o.requiere_aviso, o.tipo_aviso, o.fecha_deadline_aviso, o.id_aviso_generado,
@@ -48,10 +58,23 @@ try {
             WHERE " . ($incluirHistorico ? "(o.id_status = 1 OR o.id_status = 0)" : "o.id_status = 1") . " AND COALESCE(c.id_status, 1) != 4";
     
     $params = [];
+    if (!$isAdmin && $id_usuario > 0) {
+        $sql .= " AND c.id_usuario = ?";
+        $params[] = $id_usuario;
+    }
     
     if ($id_cliente) {
         $sql .= " AND o.id_cliente = ?";
         $params[] = $id_cliente;
+        // Si no es admin, verificar que el cliente pertenezca al usuario
+        if (!$isAdmin && $id_usuario > 0) {
+            $chk = $pdo->prepare("SELECT 1 FROM clientes WHERE id_cliente = ? AND id_usuario = ?");
+            $chk->execute([$id_cliente, $id_usuario]);
+            if (!$chk->fetch()) {
+                echo json_encode(['status' => 'error', 'message' => 'Acceso denegado', 'operaciones' => []]);
+                exit;
+            }
+        }
     }
     
     if ($fecha_desde) {
@@ -70,7 +93,6 @@ try {
     $stmt->execute($params);
     $operaciones = $stmt->fetchAll(PDO::FETCH_ASSOC);
 
-    $id_usuario = $_SESSION['user_id'] ?? 0;
     foreach ($operaciones as &$op) {
         $op['puede_modificar'] = canModifyPLD($pdo, $id_usuario, (int)($op['id_cliente'] ?? 0));
     }

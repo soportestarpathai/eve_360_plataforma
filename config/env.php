@@ -45,6 +45,10 @@ return [
     'CORS_ENABLED' => filter_var($_ENV['CORS_ENABLED'] ?? false, FILTER_VALIDATE_BOOLEAN),
     'CORS_ALLOWED_ORIGINS' => $_ENV['CORS_ALLOWED_ORIGINS'] ?? '*',
     
+    // URL base de la aplicación (para enlaces en correos: verificación, etc.)
+    // Ej: '/eve_360_plataforma' si accedes por localhost/eve_360_plataforma/ — vacío '' si está en raíz
+    'APP_BASE_URL' => $_ENV['APP_BASE_URL'] ?? '/eve_360_plataforma',
+
     // Starpath AI - Extracción de documentos (INE)
     'STARPATH_API_URL' => $_ENV['STARPATH_API_URL'] ?? 'https://www.starpathai.mx/api/documents/extract/',
     'STARPATH_API_TOKEN' => $_ENV['STARPATH_API_TOKEN'] ?? 'starpath-docs-8f3k2m9xPqR7nL4vY1wZ',

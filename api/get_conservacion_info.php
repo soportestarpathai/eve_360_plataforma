@@ -21,6 +21,16 @@ try {
     $id_aviso = $_GET['id_aviso'] ?? null;
     $tipo_evidencia = $_GET['tipo_evidencia'] ?? null;
     $expediente_incompleto = $_GET['expediente_incompleto'] ?? null;
+
+    // Filtro por usuario: solo evidencias de sus clientes (admins ven todas)
+    $id_usuario = $_SESSION['user_id'] ?? 0;
+    $isAdmin = false;
+    if ($id_usuario > 0) {
+        $stmtAdmin = $pdo->prepare("SELECT administracion FROM usuarios_permisos WHERE id_usuario = ?");
+        $stmtAdmin->execute([$id_usuario]);
+        $perm = $stmtAdmin->fetch(PDO::FETCH_ASSOC);
+        $isAdmin = $perm && (int)($perm['administracion'] ?? 0) > 0;
+    }
     
     $sql = "SELECT c.*, 
                    COALESCE(cf.nombre, cm.razon_social, 'Sin nombre') as cliente_nombre,
@@ -32,9 +42,21 @@ try {
             LEFT JOIN clientes_morales cm ON c.id_cliente = cm.id_cliente
             LEFT JOIN operaciones_pld op ON c.id_operacion = op.id_operacion
             LEFT JOIN avisos_pld a ON c.id_aviso = a.id_aviso
+            LEFT JOIN clientes cl_op ON op.id_cliente = cl_op.id_cliente
+            LEFT JOIN clientes cl_av ON a.id_cliente = cl_av.id_cliente
             WHERE c.id_status = 1
               AND COALESCE(cl.id_status, 1) != 4";
     $params = [];
+    if (!$isAdmin && $id_usuario > 0) {
+        $sql .= " AND (
+            (c.id_cliente IS NOT NULL AND cl.id_usuario = ?)
+            OR (c.id_operacion IS NOT NULL AND op.id_cliente IS NOT NULL AND cl_op.id_usuario = ?)
+            OR (c.id_aviso IS NOT NULL AND a.id_cliente IS NOT NULL AND cl_av.id_usuario = ?)
+        )";
+        $params[] = $id_usuario;
+        $params[] = $id_usuario;
+        $params[] = $id_usuario;
+    }
     
     if ($id_cliente) {
         $sql .= " AND c.id_cliente = ?";

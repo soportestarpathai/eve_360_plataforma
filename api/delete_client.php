@@ -36,6 +36,7 @@ try {
     $stmtPerm->execute([$idUsuario]);
     $perm = $stmtPerm->fetch(PDO::FETCH_ASSOC);
     $canDelete = $perm && (((int)$perm['catalogo_clientes'] > 0) || ((int)$perm['administracion'] > 0));
+    $isAdmin = $perm && (int)($perm['administracion'] ?? 0) > 0;
 
     if (!$canDelete) {
         http_response_code(403);
@@ -66,6 +67,14 @@ try {
         $pdo->rollBack();
         http_response_code(404);
         echo json_encode(['status' => 'error', 'message' => 'Cliente no encontrado']);
+        exit;
+    }
+
+    // Solo puede eliminar sus propios clientes (o admin elimina cualquiera)
+    if (!$isAdmin && (int)($cliente['id_usuario'] ?? 0) !== $idUsuario) {
+        $pdo->rollBack();
+        http_response_code(403);
+        echo json_encode(['status' => 'error', 'message' => 'Acceso denegado. Solo puedes eliminar tus propios clientes.']);
         exit;
     }
 

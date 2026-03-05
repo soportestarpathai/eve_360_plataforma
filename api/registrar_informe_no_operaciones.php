@@ -44,8 +44,8 @@ try {
             exit;
         }
         
-        // Validar si requiere informe
-        $validacion = validateInformeNoOperaciones($pdo, $periodo_mes, $periodo_anio);
+        // Validar si requiere informe (por usuario: cuenta solo sus operaciones)
+        $validacion = validateInformeNoOperaciones($pdo, $periodo_mes, $periodo_anio, $id_usuario_actual);
         
         if (!$validacion['requiere_informe'] ?? false) {
             http_response_code(400);
@@ -57,10 +57,11 @@ try {
             exit;
         }
         
-        // Verificar si ya existe un informe para este periodo
+        // Verificar si ya existe un informe para este periodo (del usuario)
         $stmt = $pdo->prepare("SELECT * FROM informes_no_operaciones_pld 
-                               WHERE periodo_mes = ? AND periodo_anio = ? AND id_status = 1");
-        $stmt->execute([$periodo_mes, $periodo_anio]);
+                               WHERE periodo_mes = ? AND periodo_anio = ? 
+                               AND (id_usuario = ? OR id_usuario IS NULL) AND id_status = 1");
+        $stmt->execute([$periodo_mes, $periodo_anio, $id_usuario_actual]);
         $informe_existente = $stmt->fetch(PDO::FETCH_ASSOC);
         
         if ($informe_existente) {
@@ -70,7 +71,8 @@ try {
                                        folio_sppld = ?,
                                        estatus = 'presentado',
                                        observaciones = ?,
-                                       fecha_modificacion = NOW()
+                                       fecha_modificacion = NOW(),
+                                       id_usuario = ?
                                    WHERE id_informe = ?");
             $stmt->execute([
                 $data['fecha_presentacion'] ?? date('Y-m-d'),
@@ -82,18 +84,36 @@ try {
             $id_informe = $informe_existente['id_informe'];
         } else {
             // Crear nuevo informe
-            $stmt = $pdo->prepare("INSERT INTO informes_no_operaciones_pld 
-                                   (periodo_mes, periodo_anio, fecha_limite, fecha_presentacion, 
-                                    folio_sppld, estatus, observaciones, id_status)
-                                   VALUES (?, ?, ?, ?, ?, 'presentado', ?, 1)");
-            $stmt->execute([
-                $periodo_mes,
-                $periodo_anio,
-                $validacion['fecha_limite'] ?? null,
-                $data['fecha_presentacion'] ?? date('Y-m-d'),
-                $data['folio_sppld'] ?? null,
-                $data['observaciones'] ?? null
-            ]);
+            $chkCol = $pdo->query("SHOW COLUMNS FROM informes_no_operaciones_pld LIKE 'id_usuario'");
+            $tieneIdUsuario = $chkCol && $chkCol->rowCount() > 0;
+            if ($tieneIdUsuario) {
+                $stmt = $pdo->prepare("INSERT INTO informes_no_operaciones_pld 
+                                       (periodo_mes, periodo_anio, fecha_limite, fecha_presentacion, 
+                                        folio_sppld, estatus, observaciones, id_status, id_usuario)
+                                       VALUES (?, ?, ?, ?, ?, 'presentado', ?, 1, ?)");
+                $stmt->execute([
+                    $periodo_mes,
+                    $periodo_anio,
+                    $validacion['fecha_limite'] ?? null,
+                    $data['fecha_presentacion'] ?? date('Y-m-d'),
+                    $data['folio_sppld'] ?? null,
+                    $data['observaciones'] ?? null,
+                    $id_usuario_actual
+                ]);
+            } else {
+                $stmt = $pdo->prepare("INSERT INTO informes_no_operaciones_pld 
+                                       (periodo_mes, periodo_anio, fecha_limite, fecha_presentacion, 
+                                        folio_sppld, estatus, observaciones, id_status)
+                                       VALUES (?, ?, ?, ?, ?, 'presentado', ?, 1)");
+                $stmt->execute([
+                    $periodo_mes,
+                    $periodo_anio,
+                    $validacion['fecha_limite'] ?? null,
+                    $data['fecha_presentacion'] ?? date('Y-m-d'),
+                    $data['folio_sppld'] ?? null,
+                    $data['observaciones'] ?? null
+                ]);
+            }
             
             $id_informe = $pdo->lastInsertId();
         }

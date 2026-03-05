@@ -21,10 +21,18 @@ if (!function_exists('checkRevalidationDue')) {
      * @param PDO $pdo Conexión a la base de datos
      * @return array Información sobre el estado de revalidación
      */
-    function checkRevalidationDue($pdo) {
+    function checkRevalidationDue($pdo, $id_usuario = 0) {
         try {
-            $stmt = $pdo->query("SELECT fecha_revalidacion_patron FROM config_empresa WHERE id_config = 1");
-            $config = $stmt->fetch(PDO::FETCH_ASSOC);
+            $config = null;
+            if ($id_usuario > 0) {
+                $stmtU = $pdo->prepare("SELECT fecha_revalidacion_patron FROM config_empresa_usuario WHERE id_usuario = ?");
+                $stmtU->execute([$id_usuario]);
+                $config = $stmtU->fetch(PDO::FETCH_ASSOC);
+            }
+            if (!$config) {
+                $stmt = $pdo->query("SELECT fecha_revalidacion_patron FROM config_empresa WHERE id_config = 1");
+                $config = $stmt->fetch(PDO::FETCH_ASSOC);
+            }
             
             if (!$config || empty($config['fecha_revalidacion_patron'])) {
                 return [
@@ -84,10 +92,18 @@ if (!function_exists('checkRevalidationDue')) {
      * @param array $nuevosDatos Datos nuevos del padrón (folio, estatus, fracciones)
      * @return array Resultado de la comparación
      */
-    function comparePatronData($pdo, $nuevosDatos) {
+    function comparePatronData($pdo, $nuevosDatos, $id_usuario = 0) {
         try {
-            $stmt = $pdo->query("SELECT folio_patron_pld, estatus_patron_pld, fracciones_activas FROM config_empresa WHERE id_config = 1");
-            $datosActuales = $stmt->fetch(PDO::FETCH_ASSOC);
+            $datosActuales = null;
+            if ($id_usuario > 0) {
+                $stmtU = $pdo->prepare("SELECT folio_patron_pld, estatus_patron_pld, fracciones_activas FROM config_empresa_usuario WHERE id_usuario = ?");
+                $stmtU->execute([$id_usuario]);
+                $datosActuales = $stmtU->fetch(PDO::FETCH_ASSOC);
+            }
+            if (!$datosActuales) {
+                $stmt = $pdo->query("SELECT folio_patron_pld, estatus_patron_pld, fracciones_activas FROM config_empresa WHERE id_config = 1");
+                $datosActuales = $stmt->fetch(PDO::FETCH_ASSOC);
+            }
             
             if (!$datosActuales) {
                 return [
@@ -173,18 +189,21 @@ if (!function_exists('checkRevalidationDue')) {
      * @param bool $confirmarCambios Si true, aplica los cambios
      * @return array Resultado de la revalidación
      */
-    function processRevalidation($pdo, $nuevosDatos, $confirmarCambios = false) {
+    function processRevalidation($pdo, $nuevosDatos, $confirmarCambios = false, $id_usuario = 0) {
         try {
             $logger = Logger::getInstance();
             
-            // Comparar datos
-            $comparacion = comparePatronData($pdo, $nuevosDatos);
+            $comparacion = comparePatronData($pdo, $nuevosDatos, $id_usuario);
             
             if (!$comparacion['hay_cambios']) {
-                // No hay cambios, solo actualizar fecha de revalidación
                 if ($confirmarCambios) {
-                    $stmt = $pdo->prepare("UPDATE config_empresa SET fecha_revalidacion_patron = CURDATE() WHERE id_config = 1");
-                    $stmt->execute();
+                    if ($id_usuario > 0) {
+                        $stmt = $pdo->prepare("UPDATE config_empresa_usuario SET fecha_revalidacion_patron = CURDATE() WHERE id_usuario = ?");
+                        $stmt->execute([$id_usuario]);
+                    } else {
+                        $stmt = $pdo->prepare("UPDATE config_empresa SET fecha_revalidacion_patron = CURDATE() WHERE id_config = 1");
+                        $stmt->execute();
+                    }
                 }
                 
                 return [
@@ -234,19 +253,22 @@ if (!function_exists('checkRevalidationDue')) {
                 $updates[] = "fecha_revalidacion_patron = CURDATE()";
                 
                 if (!empty($updates)) {
-                    $sql = "UPDATE config_empresa SET " . implode(", ", $updates) . " WHERE id_config = 1";
-                    $stmt = $pdo->prepare($sql);
-                    $stmt->execute($params);
+                    if ($id_usuario > 0) {
+                        $stmt = $pdo->prepare("INSERT INTO config_empresa_usuario (id_usuario, folio_patron_pld, estatus_patron_pld, fracciones_activas, fecha_revalidacion_patron) VALUES (?, ?, ?, ?, CURDATE()) ON DUPLICATE KEY UPDATE folio_patron_pld = VALUES(folio_patron_pld), estatus_patron_pld = VALUES(estatus_patron_pld), fracciones_activas = VALUES(fracciones_activas), fecha_revalidacion_patron = VALUES(fecha_revalidacion_patron)");
+                        $stmt->execute([$id_usuario, $folio ?? null, $estatus ?? null, $fracciones ?? null]);
+                    } else {
+                        $sql = "UPDATE config_empresa SET " . implode(", ", $updates) . " WHERE id_config = 1";
+                        $stmt = $pdo->prepare($sql);
+                        $stmt->execute($params);
+                    }
                 }
                 
-                // Si hay baja, bloquear operaciones
                 if ($tieneBaja) {
-                    updateHabilitadoPLDFlag($pdo, true); // true = NO habilitado
+                    updateHabilitadoPLDFlag($pdo, true, $id_usuario);
                     $logger->warning('PLD Revalidation: Baja detectada y confirmada. Operaciones bloqueadas.');
                 } else {
-                    // Revalidar habilitación
-                    $result = validatePatronPLD($pdo);
-                    updateHabilitadoPLDFlag($pdo, !$result['habilitado']);
+                    $result = validatePatronPLD($pdo, null, $id_usuario);
+                    updateHabilitadoPLDFlag($pdo, !$result['habilitado'], $id_usuario);
                 }
                 
                 $logger->info('PLD Revalidation: Cambios aplicados', ['cambios' => $comparacion['cambios']]);

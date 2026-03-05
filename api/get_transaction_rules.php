@@ -45,14 +45,19 @@ try {
         'has_multiple_activities' => false
     ];
 
-    $stmtConfig = $pdo->query("
-        SELECT id_tipo_empresa, id_vulnerable, fracciones_activas
-        FROM config_empresa
-        WHERE id_config = 1
-    ");
-    $config = $stmtConfig->fetch(PDO::FETCH_ASSOC);
+    $config = null;
+    $userId = $_SESSION['user_id'] ?? 0;
+    if ($userId > 0) {
+        $stmtU = $pdo->prepare("SELECT id_tipo_empresa, id_vulnerable, fracciones_activas FROM config_empresa_usuario WHERE id_usuario = ?");
+        $stmtU->execute([$userId]);
+        $config = $stmtU->fetch(PDO::FETCH_ASSOC);
+    }
+    if (!$config) {
+        $stmtConfig = $pdo->query("SELECT id_tipo_empresa, id_vulnerable, fracciones_activas FROM config_empresa WHERE id_config = 1");
+        $config = $stmtConfig->fetch(PDO::FETCH_ASSOC);
+    }
 
-    if (!$config || (int)$config['id_tipo_empresa'] !== 1) {
+    if (!$config || (int)($config['id_tipo_empresa'] ?? 0) !== 1) {
         echo json_encode(['status' => 'success', 'data' => $response]);
         exit;
     }

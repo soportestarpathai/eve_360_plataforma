@@ -14,28 +14,32 @@ if (!checkHabilitadoPLD($pdo)) {
     exit;
 }
 
-// 1. ESTADÍSTICAS GLOBALES (KPIs)
-$stmtStats = $pdo->query("
-    SELECT 
-        COUNT(*) as total_ops,
-        IFNULL(SUM(monto), 0) as monto_total,
-        SUM(CASE WHEN requiere_aviso = 1 THEN 1 ELSE 0 END) as total_avisos
-    FROM operaciones_pld 
-    WHERE id_status = 1
-");
+// Filtro por usuario: solo operaciones de sus clientes (admins ven todas)
+$userIdRep = $_SESSION['user_id'] ?? 0;
+$isAdminRep = false;
+if ($userIdRep > 0) {
+    $stmtAdmin = $pdo->prepare("SELECT administracion FROM usuarios_permisos WHERE id_usuario = ?");
+    $stmtAdmin->execute([$userIdRep]);
+    $perm = $stmtAdmin->fetch(PDO::FETCH_ASSOC);
+    $isAdminRep = $perm && (int)($perm['administracion'] ?? 0) > 0;
+}
+$opUserFilter = "";
+$opUserParams = [];
+if (!$isAdminRep && $userIdRep > 0) {
+    $opUserFilter = " AND c.id_usuario = ?";
+    $opUserParams[] = $userIdRep;
+}
+
+// 1. ESTADÍSTICAS GLOBALES (KPIs) - filtradas por usuario
+$sqlStats = "SELECT COUNT(*) as total_ops, IFNULL(SUM(op.monto), 0) as monto_total, SUM(CASE WHEN op.requiere_aviso = 1 THEN 1 ELSE 0 END) as total_avisos FROM operaciones_pld op JOIN clientes c ON op.id_cliente = c.id_cliente WHERE op.id_status = 1" . ($opUserFilter ? $opUserFilter : "");
+$stmtStats = $pdo->prepare($sqlStats);
+$stmtStats->execute($opUserParams);
 $stats = $stmtStats->fetch(PDO::FETCH_ASSOC);
 
-// 2. KPIs POR CLIENTE (agregación)
-$stmtClientes = $pdo->query("
-    SELECT 
-        op.id_cliente,
-        COUNT(*) as ops,
-        IFNULL(SUM(op.monto), 0) as monto_total,
-        SUM(CASE WHEN op.requiere_aviso = 1 THEN 1 ELSE 0 END) as avisos
-    FROM operaciones_pld op
-    WHERE op.id_status = 1
-    GROUP BY op.id_cliente
-");
+// 2. KPIs POR CLIENTE (agregación) - filtradas por usuario
+$sqlKpi = "SELECT op.id_cliente, COUNT(*) as ops, IFNULL(SUM(op.monto), 0) as monto_total, SUM(CASE WHEN op.requiere_aviso = 1 THEN 1 ELSE 0 END) as avisos FROM operaciones_pld op JOIN clientes c ON op.id_cliente = c.id_cliente WHERE op.id_status = 1" . ($opUserFilter ? $opUserFilter : "") . " GROUP BY op.id_cliente";
+$stmtClientes = $pdo->prepare($sqlKpi);
+$stmtClientes->execute($opUserParams);
 $kpiPorCliente = [];
 while ($r = $stmtClientes->fetch(PDO::FETCH_ASSOC)) {
     $kpiPorCliente[$r['id_cliente']] = $r;
@@ -69,34 +73,24 @@ function obtenerSemaforo($nivel, $rangos) {
     return ['clase' => 'bg-secondary', 'texto' => 'N/A', 'icono' => 'fa-circle', 'val' => 'bajo'];
 }
 
-// 4. TRANSACCIONES DETALLADAS
+// 4. TRANSACCIONES DETALLADAS - filtradas por usuario
 $sql = "SELECT 
-            op.id_operacion,
-            op.id_cliente,
-            op.fecha_operacion,
-            op.monto,
-            op.tipo_operacion,
-            op.requiere_aviso,
-            c.no_contrato,
-            c.nivel_riesgo,
-            CASE 
-                WHEN c.id_tipo_persona = 1 THEN CONCAT(cf.nombre, ' ', cf.apellido_paterno)
-                WHEN c.id_tipo_persona = 2 THEN cm.razon_social
-                ELSE c.alias
-            END AS cliente_nombre,
-            COALESCE(cf.tax_id, cm.tax_id) AS rfc_cliente,
-            av.folio_sppld,
-            av.estatus AS estatus_aviso
+            op.id_operacion, op.id_cliente, op.fecha_operacion, op.monto, op.tipo_operacion, op.requiere_aviso,
+            c.no_contrato, c.nivel_riesgo,
+            CASE WHEN c.id_tipo_persona = 1 THEN CONCAT(cf.nombre, ' ', cf.apellido_paterno)
+                 WHEN c.id_tipo_persona = 2 THEN cm.razon_social ELSE c.alias END AS cliente_nombre,
+            COALESCE(cf.tax_id, cm.tax_id) AS rfc_cliente, av.folio_sppld, av.estatus AS estatus_aviso
         FROM operaciones_pld op
         JOIN clientes c ON op.id_cliente = c.id_cliente
         LEFT JOIN clientes_fisicas cf ON c.id_cliente = cf.id_cliente
         LEFT JOIN clientes_morales cm ON c.id_cliente = cm.id_cliente
         LEFT JOIN aviso_transacciones at ON op.id_operacion = at.id_operacion
         LEFT JOIN avisos_pld av ON at.id_aviso = av.id_aviso
-        WHERE op.id_status = 1
+        WHERE op.id_status = 1" . ($opUserFilter ? $opUserFilter : "") . "
         ORDER BY op.fecha_operacion DESC";
 
-$stmt = $pdo->query($sql);
+$stmt = $pdo->prepare($sql);
+$stmt->execute($opUserParams);
 $db_data = $stmt->fetchAll(PDO::FETCH_ASSOC);
 
 // 5. DATOS PARA JAVASCRIPT (con riesgo homologado)

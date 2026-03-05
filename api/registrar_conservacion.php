@@ -174,6 +174,23 @@ try {
         if (isset($data['id_aviso']) && $data['id_aviso'] === '') {
             $data['id_aviso'] = null;
         }
+
+        // Validar que el cliente pertenezca al usuario (no admins)
+        if (!empty($data['id_cliente'])) {
+            $stmtAdmin = $pdo->prepare("SELECT administracion FROM usuarios_permisos WHERE id_usuario = ?");
+            $stmtAdmin->execute([$id_usuario_actual]);
+            $perm = $stmtAdmin->fetch(PDO::FETCH_ASSOC);
+            $isAdmin = $perm && (int)($perm['administracion'] ?? 0) > 0;
+            if (!$isAdmin) {
+                $chk = $pdo->prepare("SELECT 1 FROM clientes WHERE id_cliente = ? AND id_usuario = ? AND id_status != 4");
+                $chk->execute([$data['id_cliente'], $id_usuario_actual]);
+                if (!$chk->fetch()) {
+                    http_response_code(403);
+                    echo json_encode(['status' => 'error', 'message' => 'No tiene permiso para registrar evidencia de ese cliente']);
+                    exit;
+                }
+            }
+        }
         
         // Registrar conservación
         $result = registrarConservacionInformacion($pdo, $data);

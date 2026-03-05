@@ -68,8 +68,16 @@ if (!function_exists('requirePLDHabilitado')) {
      */
     function shouldBlockOperations($pdo) {
         try {
-            $stmt = $pdo->query("SELECT estatus_patron_pld, no_habilitado_pld FROM config_empresa WHERE id_config = 1");
-            $config = $stmt->fetch(PDO::FETCH_ASSOC);
+            $config = null;
+            if (!empty($_SESSION['user_id'])) {
+                $stmtU = $pdo->prepare("SELECT estatus_patron_pld, no_habilitado_pld FROM config_empresa_usuario WHERE id_usuario = ?");
+                $stmtU->execute([$_SESSION['user_id']]);
+                $config = $stmtU->fetch(PDO::FETCH_ASSOC);
+            }
+            if (!$config) {
+                $stmt = $pdo->query("SELECT estatus_patron_pld, no_habilitado_pld FROM config_empresa WHERE id_config = 1");
+                $config = $stmt->fetch(PDO::FETCH_ASSOC);
+            }
             
             if (!$config) {
                 return true; // Bloquear si no hay configuración

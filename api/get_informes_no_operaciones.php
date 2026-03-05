@@ -18,9 +18,23 @@ try {
     $periodo_mes = $_GET['periodo_mes'] ?? null;
     $periodo_anio = $_GET['periodo_anio'] ?? null;
     $estatus = $_GET['estatus'] ?? null;
+
+    // Filtro por usuario: solo sus informes (admins ven todos)
+    $id_usuario = $_SESSION['user_id'] ?? 0;
+    $isAdmin = false;
+    if ($id_usuario > 0) {
+        $stmtAdmin = $pdo->prepare("SELECT administracion FROM usuarios_permisos WHERE id_usuario = ?");
+        $stmtAdmin->execute([$id_usuario]);
+        $perm = $stmtAdmin->fetch(PDO::FETCH_ASSOC);
+        $isAdmin = $perm && (int)($perm['administracion'] ?? 0) > 0;
+    }
     
     $sql = "SELECT * FROM informes_no_operaciones_pld WHERE id_status = 1";
     $params = [];
+    if (!$isAdmin && $id_usuario > 0) {
+        $sql .= " AND id_usuario = ?";
+        $params[] = $id_usuario;
+    }
     
     if ($periodo_mes) {
         $sql .= " AND periodo_mes = ?";
@@ -48,7 +62,16 @@ try {
     $mesActual = intval(date('m'));
     $anioActual = intval(date('Y'));
     
-    // Verificar últimos 6 meses
+    // Verificar últimos 6 meses (filtrar por usuario si no es admin)
+    $opCountSql = "SELECT COUNT(*) as count FROM operaciones_pld op
+                   JOIN clientes c ON op.id_cliente = c.id_cliente
+                   WHERE DATE_FORMAT(op.fecha_operacion, '%Y-%m') = ?
+                   AND op.requiere_aviso = 1 AND op.id_status = 1";
+    $opCountParams = [];
+    if (!$isAdmin && $id_usuario > 0) {
+        $opCountSql .= " AND c.id_usuario = ?";
+    }
+    
     for ($i = 0; $i < 6; $i++) {
         $mes = $mesActual - $i;
         $anio = $anioActual;
@@ -58,17 +81,24 @@ try {
             $anio--;
         }
         
-        // Verificar si hay informe para este periodo
-        $stmt = $pdo->prepare("SELECT * FROM informes_no_operaciones_pld 
-                               WHERE periodo_mes = ? AND periodo_anio = ? AND id_status = 1");
-        $stmt->execute([$mes, $anio]);
+        // Verificar si hay informe para este periodo (del usuario)
+        $infWhere = "periodo_mes = ? AND periodo_anio = ? AND id_status = 1";
+        $infParams = [$mes, $anio];
+        if (!$isAdmin && $id_usuario > 0) {
+            $infWhere .= " AND id_usuario = ?";
+            $infParams[] = $id_usuario;
+        }
+        $stmt = $pdo->prepare("SELECT * FROM informes_no_operaciones_pld WHERE $infWhere");
+        $stmt->execute($infParams);
         $informe = $stmt->fetch(PDO::FETCH_ASSOC);
         
-        // Verificar si hubo operaciones avisables
-        $stmt = $pdo->prepare("SELECT COUNT(*) as count FROM operaciones_pld 
-                               WHERE DATE_FORMAT(fecha_operacion, '%Y-%m') = ? 
-                               AND requiere_aviso = 1 AND id_status = 1");
-        $stmt->execute([sprintf('%04d-%02d', $anio, $mes)]);
+        // Verificar si hubo operaciones avisables (del usuario)
+        $opParams = [sprintf('%04d-%02d', $anio, $mes)];
+        if (!$isAdmin && $id_usuario > 0) {
+            $opParams[] = $id_usuario;
+        }
+        $stmt = $pdo->prepare($opCountSql);
+        $stmt->execute($opParams);
         $operaciones = $stmt->fetch(PDO::FETCH_ASSOC);
         $huboOperaciones = intval($operaciones['count']) > 0;
         

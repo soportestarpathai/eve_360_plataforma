@@ -1,15 +1,57 @@
 <?php
-// 1. Namespaces go at the very top
 use PHPMailer\PHPMailer\PHPMailer;
 use PHPMailer\PHPMailer\Exception;
 use PHPMailer\PHPMailer\SMTP;
 
-// Enable error reporting for debugging
 ini_set('display_errors', 1);
 ini_set('display_startup_errors', 1);
 error_reporting(E_ALL);
 
 session_start();
+
+function build2FACodeEmail($code, $appName) {
+    $codeEsc = htmlspecialchars($code);
+    $appEsc = htmlspecialchars($appName);
+    return '<!DOCTYPE html>
+<html lang="es">
+<head><meta charset="UTF-8"><meta name="viewport" content="width=device-width, initial-scale=1.0"><title>Código de verificación</title></head>
+<body style="margin:0;padding:0;background-color:#f1f5f9;font-family:-apple-system,BlinkMacSystemFont,\'Segoe UI\',Roboto,Arial,sans-serif;-webkit-font-smoothing:antialiased;">
+<table role="presentation" cellspacing="0" cellpadding="0" border="0" width="100%" style="background-color:#f1f5f9;">
+<tr><td style="padding:32px 16px;">
+<table role="presentation" cellspacing="0" cellpadding="0" border="0" width="100%" style="max-width:480px;margin:0 auto;background:#ffffff;border-radius:16px;overflow:hidden;box-shadow:0 4px 24px rgba(0,0,0,0.08);">
+<tr>
+<td style="background:linear-gradient(135deg,#4361ee 0%,#3a0ca3 100%);padding:28px 32px;text-align:center;">
+<table role="presentation" cellspacing="0" cellpadding="0" border="0" align="center">
+<tr><td style="width:48px;height:48px;background:rgba(255,255,255,0.2);border-radius:12px;text-align:center;color:#fff;font-size:22px;line-height:48px;">&#128274;</td></tr>
+</table>
+<p style="margin:16px 0 0 0;color:#fff;font-size:18px;font-weight:700;">' . $appEsc . '</p>
+<p style="margin:4px 0 0 0;color:rgba(255,255,255,0.9);font-size:14px;">Código de verificación</p>
+</td>
+</tr>
+<tr>
+<td style="padding:32px;">
+<p style="margin:0 0 16px 0;color:#64748b;font-size:15px;line-height:1.5;">Solicitaste iniciar sesión. Tu código temporal es:</p>
+<table role="presentation" cellspacing="0" cellpadding="0" border="0" width="100%">
+<tr><td style="background:#f8fafc;border:2px solid #e2e8f0;border-radius:12px;padding:24px;text-align:center;">
+<p style="margin:0;font-family:\'Courier New\',monospace;font-size:32px;font-weight:700;letter-spacing:0.4em;color:#0f172a;">' . $codeEsc . '</p>
+</td></tr>
+</table>
+<p style="margin:20px 0 0 0;color:#94a3b8;font-size:13px;">
+<span style="display:inline-block;background:#fef3c7;color:#92400e;padding:6px 12px;border-radius:8px;font-weight:600;">Expira en 10 minutos</span>
+</p>
+<p style="margin:24px 0 0 0;color:#64748b;font-size:13px;">Si no solicitaste este código, ignora este correo.</p>
+</td>
+</tr>
+<tr>
+<td style="padding:20px 32px;background:#f8fafc;border-top:1px solid #e2e8f0;text-align:center;">
+<p style="margin:0;color:#94a3b8;font-size:12px;">&copy; ' . date('Y') . ' ' . $appEsc . '</p>
+</td>
+</tr>
+</table>
+</td></tr></table>
+</body>
+</html>';
+}
 header('Content-Type: application/json');
 
 // 1. Load PHPMailer Manually
@@ -64,28 +106,32 @@ try {
         $update = $pdo->prepare("UPDATE usuarios SET two_factor_code = ?, two_factor_expires = ? WHERE id_usuario = ?");
         $update->execute([$code, $expires, $user['id_usuario']]);
 
+        // Obtener nombre de la app
+        $appName = 'EVE 360';
+        try {
+            $cfg = $pdo->query("SELECT nombre_empresa FROM config_empresa WHERE id_config = 1")->fetch(PDO::FETCH_ASSOC);
+            if (!empty($cfg['nombre_empresa'])) $appName = $cfg['nombre_empresa'];
+        } catch (Exception $e) { /* fallback */ }
+
         // SEND EMAIL VIA SMTP
         $mail = new PHPMailer(true);
         try {
-            // Server settings
             $mail->isSMTP();
-            $mail->CharSet    = 'UTF-8';
-            $mail->Host       = 'smtp.ionos.mx';
-            $mail->SMTPAuth   = true;
-            $mail->Username   = 'no-reply@adsoft.mx'; // REPLACE THIS
-            $mail->Password   = 'Ex1t0@2026';  // REPLACE WITH APP PASSWORD
+            $mail->CharSet = 'UTF-8';
+            $mail->Host = 'smtp.ionos.mx';
+            $mail->SMTPAuth = true;
+            $mail->Username = 'no-reply@adsoft.mx';
+            $mail->Password = 'Ex1t0@2026';
             $mail->SMTPSecure = PHPMailer::ENCRYPTION_STARTTLS;
-            $mail->Port       = 587;
+            $mail->Port = 587;
 
-            // Recipients
-            $mail->setFrom('no-reply@adsoft.mx', 'Investor Security');
-            $mail->addAddress($email); 
+            $mail->setFrom('no-reply@adsoft.mx', $appName . ' - Seguridad');
+            $mail->addAddress($email);
 
-            // Content
             $mail->isHTML(true);
-            $mail->Subject = 'Investor App - Verification Code';
-            $mail->Body    = "<h3>Tu código de acceso es:</h3><h1>$code</h1><p>Expira en 10 minutos.</p>";
-            $mail->AltBody = "Tu código de acceso es: $code";
+            $mail->Subject = $appName . ' - Código de verificación';
+            $mail->Body = build2FACodeEmail($code, $appName);
+            $mail->AltBody = "Código de verificación\n\nTu código de acceso es: $code\n\nExpira en 10 minutos.\n\nSi no solicitaste este código, ignora este correo.";
 
             $mail->send();
         } catch (Exception $e) {

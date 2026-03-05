@@ -9,8 +9,14 @@ require_once __DIR__ . '/../config/db.php';
 require_once __DIR__ . '/../config/pld_conservacion.php';
 require_once __DIR__ . '/../config/bitacora.php';
 
+if (!isset($_SESSION['user_id'])) {
+    http_response_code(401);
+    echo json_encode(['status' => 'error', 'message' => 'No autorizado']);
+    exit;
+}
+
 try {
-    $id_usuario = $_SESSION['id_usuario'] ?? null;
+    $id_usuario = $_SESSION['user_id'] ?? null;
     
     $input = json_decode(file_get_contents('php://input'), true) ?: $_POST;
     $fecha_visita = $input['fecha_visita'] ?? null;
@@ -23,6 +29,32 @@ try {
         http_response_code(400);
         echo json_encode(['status' => 'error', 'message' => 'Fecha de visita es requerida']);
         exit;
+    }
+
+    // Validar que expedientes solicitados pertenezcan al usuario (no admins)
+    $expedientesArray = null;
+    if (!empty($expedientes_solicitados)) {
+        $expedientesArray = is_array($expedientes_solicitados) ? $expedientes_solicitados : json_decode($expedientes_solicitados, true);
+        if (is_array($expedientesArray) && $id_usuario) {
+            $stmtAdmin = $pdo->prepare("SELECT administracion FROM usuarios_permisos WHERE id_usuario = ?");
+            $stmtAdmin->execute([$id_usuario]);
+            $perm = $stmtAdmin->fetch(PDO::FETCH_ASSOC);
+            $isAdmin = $perm && (int)($perm['administracion'] ?? 0) > 0;
+            if (!$isAdmin) {
+                foreach ($expedientesArray as $id_cli) {
+                    $idCliente = is_array($id_cli) ? (int)($id_cli['id_cliente'] ?? $id_cli) : (int)$id_cli;
+                    if ($idCliente > 0) {
+                        $chk = $pdo->prepare("SELECT 1 FROM clientes WHERE id_cliente = ? AND id_usuario = ?");
+                        $chk->execute([$idCliente, $id_usuario]);
+                        if (!$chk->fetch()) {
+                            http_response_code(403);
+                            echo json_encode(['status' => 'error', 'message' => 'Uno o más expedientes (clientes) no pertenecen a su cartera']);
+                            exit;
+                        }
+                    }
+                }
+            }
+        }
     }
     
     $data = [

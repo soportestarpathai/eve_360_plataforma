@@ -21,7 +21,16 @@ $tickerItems = [];
 try {
     // A. Config & Watermark
     $stmtConfig = $pdo->query("SELECT * FROM config_empresa WHERE id_config = 1");
-    $config = $stmtConfig->fetch(PDO::FETCH_ASSOC); 
+    $config = $stmtConfig->fetch(PDO::FETCH_ASSOC) ?: [];
+    if (!empty($_SESSION['user_id'])) {
+        $stmtU = $pdo->prepare("SELECT id_tipo_empresa, id_vulnerable FROM config_empresa_usuario WHERE id_usuario = ?");
+        $stmtU->execute([$_SESSION['user_id']]);
+        $cu = $stmtU->fetch(PDO::FETCH_ASSOC);
+        if ($cu) {
+            if (isset($cu['id_tipo_empresa'])) $config['id_tipo_empresa'] = $cu['id_tipo_empresa'];
+            if (isset($cu['id_vulnerable'])) $config['id_vulnerable'] = $cu['id_vulnerable'];
+        }
+    }
     $currentCompanyType = $config['id_tipo_empresa'] ?? 1; 
     $id_vulnerable = $config['id_vulnerable'] ?? 0;
 
@@ -99,16 +108,23 @@ $statsData = [
 ];
 
 try {
-    // Optimizado: Una sola consulta con GROUP BY en lugar de múltiples COUNT
-    $stmtStats = $pdo->query("
-        SELECT 
-            COUNT(*) as total,
-            SUM(CASE WHEN id_status = 1 THEN 1 ELSE 0 END) as activos,
-            SUM(CASE WHEN id_status = 0 THEN 1 ELSE 0 END) as inactivos,
-            SUM(CASE WHEN id_status = 2 THEN 1 ELSE 0 END) as pendientes
-        FROM clientes
-        WHERE id_status != 4
-    ");
+    // Filtro por usuario: solo sus clientes (admins ven todos)
+    $statsUserId = $_SESSION['user_id'] ?? 0;
+    $statsIsAdmin = false;
+    if ($statsUserId > 0) {
+        $stmtAdmin = $pdo->prepare("SELECT administracion FROM usuarios_permisos WHERE id_usuario = ?");
+        $stmtAdmin->execute([$statsUserId]);
+        $perm = $stmtAdmin->fetch(PDO::FETCH_ASSOC);
+        $statsIsAdmin = $perm && (int)($perm['administracion'] ?? 0) > 0;
+    }
+    $statsWhere = "id_status != 4";
+    $statsParams = [];
+    if (!$statsIsAdmin && $statsUserId > 0) {
+        $statsWhere .= " AND id_usuario = ?";
+        $statsParams[] = $statsUserId;
+    }
+    $stmtStats = $pdo->prepare("SELECT COUNT(*) as total, SUM(CASE WHEN id_status = 1 THEN 1 ELSE 0 END) as activos, SUM(CASE WHEN id_status = 0 THEN 1 ELSE 0 END) as inactivos, SUM(CASE WHEN id_status = 2 THEN 1 ELSE 0 END) as pendientes FROM clientes WHERE $statsWhere");
+    $stmtStats->execute($statsParams);
     $clientStats = $stmtStats->fetch(PDO::FETCH_ASSOC);
     $statsData['total_clientes'] = (int)($clientStats['total'] ?? 0);
     $statsData['clientes_activos'] = (int)($clientStats['activos'] ?? 0);
@@ -168,10 +184,16 @@ try {
     // Add "Unrated" bucket
     $stats['Sin Clasificar'] = ['count' => 0, 'color' => '#6c757d', 'min' => -1, 'max' => -1];
 
-    // 2. Get Active Clients Scores (Optimizado - Procesamiento más eficiente)
-    // Índice sugerido: CREATE INDEX idx_clientes_status_riesgo ON clientes(id_status, nivel_riesgo);
-    $stmtClients = $pdo->query("SELECT nivel_riesgo FROM clientes WHERE id_status = 1");
-    $allScores = $stmtClients->fetchAll(PDO::FETCH_COLUMN); // Más eficiente que fetch en loop
+    // 2. Get Active Clients Scores (filtrar por usuario si no es admin)
+    $riskWhere = "id_status = 1";
+    $riskParams = [];
+    if (!$statsIsAdmin && $statsUserId > 0) {
+        $riskWhere .= " AND id_usuario = ?";
+        $riskParams[] = $statsUserId;
+    }
+    $stmtClients = $pdo->prepare("SELECT nivel_riesgo FROM clientes WHERE $riskWhere");
+    $stmtClients->execute($riskParams);
+    $allScores = $stmtClients->fetchAll(PDO::FETCH_COLUMN);
     
     foreach ($allScores as $score) {
         $score = floatval($score);
@@ -213,10 +235,26 @@ try {
 }
 
 // --- 4. MENU DATA ---
-// Índice sugerido: CREATE INDEX idx_menu_tipo_parent ON menu_access(id_tipo_empresa, id_parent, id_menu_access);
 $stmtMenu = $pdo->prepare("SELECT * FROM menu_access WHERE id_tipo_empresa = ? ORDER BY id_menu_access ASC");
 $stmtMenu->execute([$currentCompanyType]);
 $rawMenu = $stmtMenu->fetchAll(PDO::FETCH_ASSOC);
+
+// Filtrar por menu_access_usuario si el usuario tiene config
+if (!empty($_SESSION['user_id'])) {
+    try {
+        $stmtMU = $pdo->prepare("SELECT id_menu_access, activo FROM menu_access_usuario WHERE id_usuario = ?");
+        $stmtMU->execute([$_SESSION['user_id']]);
+        $mu = [];
+        while ($r = $stmtMU->fetch(PDO::FETCH_ASSOC)) $mu[(int)$r['id_menu_access']] = (int)$r['activo'];
+        if (!empty($mu)) {
+            $rawMenu = array_filter($rawMenu, function($m) use ($mu) {
+                $id = (int)$m['id_menu_access'];
+                return !isset($mu[$id]) || $mu[$id] === 1;
+            });
+            $rawMenu = array_values($rawMenu);
+        }
+    } catch (Exception $e) { /* tabla no existe */ }
+}
 
 $menuTree = [];
 $ref = [];
@@ -279,18 +317,14 @@ try {
     $startDate = date('Y-m-01', strtotime('-5 months'));
     $endDate = date('Y-m-t');
     
-    $stmtMonthly = $pdo->prepare("
-        SELECT 
-            DATE_FORMAT(fecha_apertura, '%Y-%m') as mes,
-            COUNT(*) as total
-        FROM clientes
-        WHERE fecha_apertura IS NOT NULL 
-          AND id_status != 4
-          AND fecha_apertura BETWEEN ? AND ?
-        GROUP BY DATE_FORMAT(fecha_apertura, '%Y-%m')
-        ORDER BY mes ASC
-    ");
-    $stmtMonthly->execute([$startDate, $endDate]);
+    $monthlyWhere = "fecha_apertura IS NOT NULL AND id_status != 4 AND fecha_apertura BETWEEN ? AND ?";
+    $monthlyParams = [$startDate, $endDate];
+    if (!$statsIsAdmin && $statsUserId > 0) {
+        $monthlyWhere .= " AND id_usuario = ?";
+        $monthlyParams[] = $statsUserId;
+    }
+    $stmtMonthly = $pdo->prepare("SELECT DATE_FORMAT(fecha_apertura, '%Y-%m') as mes, COUNT(*) as total FROM clientes WHERE $monthlyWhere GROUP BY DATE_FORMAT(fecha_apertura, '%Y-%m') ORDER BY mes ASC");
+    $stmtMonthly->execute($monthlyParams);
     $monthlyData = $stmtMonthly->fetchAll(PDO::FETCH_ASSOC);
     
     // Convertir a array asociativo para búsqueda rápida
@@ -304,17 +338,29 @@ try {
         $monthlyClients['data'][] = $monthlyMap[$month] ?? 0;
     }
     
-    // Optimizado: Calcular acumulados hasta cada mes usando consultas preparadas eficientes
-    $stmtAct = $pdo->prepare("SELECT COUNT(*) FROM clientes WHERE id_status = 1 AND id_status != 4 AND fecha_apertura IS NOT NULL AND fecha_apertura <= ?");
-    $stmtInact = $pdo->prepare("SELECT COUNT(*) FROM clientes WHERE id_status = 0 AND id_status != 4 AND fecha_apertura IS NOT NULL AND fecha_apertura <= ?");
+    // Calcular acumulados hasta cada mes (filtrar por usuario si no es admin)
+    $actWhere = "id_status = 1 AND id_status != 4 AND fecha_apertura IS NOT NULL AND fecha_apertura <= ?";
+    $inactWhere = "id_status = 0 AND id_status != 4 AND fecha_apertura IS NOT NULL AND fecha_apertura <= ?";
+    if (!$statsIsAdmin && $statsUserId > 0) {
+        $actWhere .= " AND id_usuario = ?";
+        $inactWhere .= " AND id_usuario = ?";
+    }
+    $stmtAct = $pdo->prepare("SELECT COUNT(*) FROM clientes WHERE $actWhere");
+    $stmtInact = $pdo->prepare("SELECT COUNT(*) FROM clientes WHERE $inactWhere");
     
     foreach ($months as $month) {
-        $endDate = date('Y-m-t', strtotime($month . '-01'));
+        $monthEnd = date('Y-m-t', strtotime($month . '-01'));
+        $actParams = [$monthEnd];
+        $inactParams = [$monthEnd];
+        if (!$statsIsAdmin && $statsUserId > 0) {
+            $actParams[] = $statsUserId;
+            $inactParams[] = $statsUserId;
+        }
         try {
-            $stmtAct->execute([$endDate]);
+            $stmtAct->execute($actParams);
             $statusComparison['activos'][] = (int)$stmtAct->fetchColumn();
             
-            $stmtInact->execute([$endDate]);
+            $stmtInact->execute($inactParams);
             $statusComparison['inactivos'][] = (int)$stmtInact->fetchColumn();
         } catch (Exception $e) {
             $statusComparison['activos'][] = 0;
@@ -383,24 +429,22 @@ try {
 // Índice sugerido: CREATE INDEX idx_clientes_fecha_apertura ON clientes(fecha_apertura DESC);
 $recentClients = [];
 try {
+    $recentWhere = "c.fecha_apertura IS NOT NULL AND c.id_status != 4";
+    $recentParams = [];
+    if (!$statsIsAdmin && $statsUserId > 0) {
+        $recentWhere .= " AND c.id_usuario = ?";
+        $recentParams[] = $statsUserId;
+    }
     $stmtRecent = $pdo->prepare("
-        SELECT c.id_cliente, 
-               COALESCE(
-                   CONCAT(cf.nombre, ' ', cf.apellido_paterno, ' ', COALESCE(cf.apellido_materno, '')),
-                   cm.razon_social, 
-                   'Sin Nombre'
-               ) as nombre_cliente,
-               c.nivel_riesgo,
-               c.id_status,
-               c.fecha_apertura as fecha_registro
+        SELECT c.id_cliente, COALESCE(CONCAT(cf.nombre, ' ', cf.apellido_paterno, ' ', COALESCE(cf.apellido_materno, '')), cm.razon_social, 'Sin Nombre') as nombre_cliente,
+               c.nivel_riesgo, c.id_status, c.fecha_apertura as fecha_registro
         FROM clientes c
         LEFT JOIN clientes_fisicas cf ON c.id_cliente = cf.id_cliente
         LEFT JOIN clientes_morales cm ON c.id_cliente = cm.id_cliente
-        WHERE c.fecha_apertura IS NOT NULL AND c.id_status != 4
-        ORDER BY c.fecha_apertura DESC
-        LIMIT 5
+        WHERE $recentWhere
+        ORDER BY c.fecha_apertura DESC LIMIT 5
     ");
-    $stmtRecent->execute();
+    $stmtRecent->execute($recentParams);
     $recentClients = $stmtRecent->fetchAll(PDO::FETCH_ASSOC);
     
     $logger->debug('Recent Clients: Datos obtenidos', ['count' => count($recentClients)]);
@@ -442,11 +486,12 @@ $isPLDHabilitado = false;
 
 try {
     // Validar padrón PLD del sujeto obligado (la empresa que usa la plataforma)
-    $pldValidationResult = validatePatronPLD($pdo);
+    $idUsr = !empty($_SESSION['user_id']) ? (int)$_SESSION['user_id'] : 0;
+    $pldValidationResult = validatePatronPLD($pdo, null, $idUsr);
     $isPLDHabilitado = $pldValidationResult['habilitado'] === true;
     
     // Actualizar flag en base de datos
-    updateHabilitadoPLDFlag($pdo, $isPLDHabilitado);
+    updateHabilitadoPLDFlag($pdo, $isPLDHabilitado, $idUsr);
     
     $logger->debug('PLD Patrón Validation', [
         'habilitado' => $isPLDHabilitado,
@@ -466,7 +511,7 @@ try {
 // --- 9. REVALIDACIÓN PERIÓDICA (VAL-PLD-002) ---
 $revalidationStatus = null;
 try {
-    $revalidationStatus = checkRevalidationDue($pdo);
+    $revalidationStatus = checkRevalidationDue($pdo, $idUsr ?? 0);
     $logger->debug('PLD Revalidation Status', $revalidationStatus);
 } catch (Exception $e) {
     $logger->error('Error al verificar revalidación periódica', ['error' => $e->getMessage()]);

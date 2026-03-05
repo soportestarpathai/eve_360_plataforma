@@ -48,15 +48,26 @@ try {
     unset($data['id_permiso'], $data['id_usuario'], $data['nombre']);
     $permissions = $data;
 
-    // 5. Get System Modules (Fail gracefully if table doesn't exist)
+    // 5. Get System Modules (per-user if config_modulos_usuario has rows, else global)
     $sysModules = [];
     try {
-        $modStmt = $pdo->query("SELECT nombre_clave, activo FROM config_modulos");
+        $modStmt = $pdo->prepare("SELECT m.nombre_clave, COALESCE(u.activo, m.activo) as activo 
+            FROM config_modulos m 
+            LEFT JOIN config_modulos_usuario u ON u.id_modulo = m.id_modulo AND u.id_usuario = ?");
+        $modStmt->execute([$userId]);
         if ($modStmt) {
-            $sysModules = $modStmt->fetchAll(PDO::FETCH_KEY_PAIR);
+            $rows = $modStmt->fetchAll(PDO::FETCH_ASSOC);
+            foreach ($rows as $r) $sysModules[$r['nombre_clave']] = (int)$r['activo'];
+        }
+        if (empty($sysModules)) {
+            $fallback = $pdo->query("SELECT nombre_clave, activo FROM config_modulos");
+            if ($fallback) $sysModules = $fallback->fetchAll(PDO::FETCH_KEY_PAIR);
         }
     } catch (Exception $e) {
-        $sysModules = []; 
+        try {
+            $modStmt = $pdo->query("SELECT nombre_clave, activo FROM config_modulos");
+            if ($modStmt) $sysModules = $modStmt->fetchAll(PDO::FETCH_KEY_PAIR);
+        } catch (Exception $e2) { $sysModules = []; }
     }
 
     // Apply logic: if module is disabled, force permission to 0

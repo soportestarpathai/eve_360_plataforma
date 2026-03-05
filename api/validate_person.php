@@ -30,9 +30,18 @@ $currentMonth = date('Y-m');
 $limit = 300;
 $currentCount = 0;
 try {
-    $stmt_config = $pdo->query("SELECT max_busquedas_api FROM config_empresa WHERE id_config = 1");
-    $config = $stmt_config->fetch(PDO::FETCH_ASSOC);
-    $limit = $config ? (int)$config['max_busquedas_api'] : 300;
+    $userId = $_SESSION['user_id'] ?? 0;
+    $cfg = null;
+    if ($userId > 0) {
+        $stmt_u = $pdo->prepare("SELECT max_busquedas_api FROM config_empresa_usuario WHERE id_usuario = ?");
+        $stmt_u->execute([$userId]);
+        $cfg = $stmt_u->fetch(PDO::FETCH_ASSOC);
+    }
+    if (!$cfg) {
+        $stmt_config = $pdo->query("SELECT max_busquedas_api FROM config_empresa WHERE id_config = 1");
+        $cfg = $stmt_config->fetch(PDO::FETCH_ASSOC);
+    }
+    $limit = $cfg ? (int)($cfg['max_busquedas_api'] ?? 300) : 300;
     if ($limit <= 0) {
         $limit = 300;
     }

@@ -51,7 +51,7 @@ include 'templates/top_bar.php';
                 <?php else: ?>
                 <button type="button" class="btn btn-primary" onclick="abrirModalOperacion();">
                     <i class="fa-solid fa-plus me-2"></i>Nueva Transacción
-                </button>
+            </button>
                 <?php endif; ?>
             </div>
         </div>
@@ -220,7 +220,7 @@ include 'templates/top_bar.php';
                     </div>
                     <div class="table-responsive">
                         <table class="table table-hover" id="tabla-operaciones">
-                                <thead>
+                            <thead>
                                 <tr>
                                     <th>Fecha</th>
                                     <th>Cliente</th>
@@ -252,7 +252,7 @@ include 'templates/top_bar.php';
                 <div class="card-body">
                     <!-- Filtros -->
                     <div class="row mb-3 align-items-center">
-                        <div class="col-md-3">
+                <div class="col-md-3">
                             <div class="form-check">
                                 <input class="form-check-input" type="checkbox" id="chk-historico-av" onchange="cargarAvisos(); cargarAlertasAvisos();">
                                 <label class="form-check-label small" for="chk-historico-av">Incluir histórico</label>
@@ -260,27 +260,27 @@ include 'templates/top_bar.php';
                         </div>
                         <div class="col-md-3">
                             <select class="form-select" id="filtro-estatus-aviso">
-                                <option value="">Todos los estatus</option>
-                                <option value="pendiente">Pendientes</option>
-                                <option value="presentado">Presentados</option>
-                                <option value="vencido">Vencidos</option>
-                            </select>
-                        </div>
-                        <div class="col-md-3">
+                        <option value="">Todos los estatus</option>
+                        <option value="pendiente">Pendientes</option>
+                        <option value="presentado">Presentados</option>
+                        <option value="vencido">Vencidos</option>
+                    </select>
+                </div>
+                <div class="col-md-3">
                             <select class="form-select" id="filtro-tipo-aviso">
-                                <option value="">Todos los tipos</option>
-                                <option value="umbral_individual">Umbral Individual</option>
-                                <option value="acumulacion">Acumulación</option>
-                                <option value="sospechosa_24h">Sospechosa (24H)</option>
-                                <option value="listas_restringidas_24h">Listas Restringidas (24H)</option>
-                            </select>
-                        </div>
+                        <option value="">Todos los tipos</option>
+                        <option value="umbral_individual">Umbral Individual</option>
+                        <option value="acumulacion">Acumulación</option>
+                        <option value="sospechosa_24h">Sospechosa (24H)</option>
+                        <option value="listas_restringidas_24h">Listas Restringidas (24H)</option>
+                    </select>
+                </div>
                         <div class="col-md-3">
                             <button class="btn btn-outline-primary w-100" onclick="cargarAvisos()">
                                 <i class="fa-solid fa-filter me-2"></i>Filtrar
                             </button>
                         </div>
-                    </div>
+            </div>
 
                     <div class="table-responsive">
                         <table class="table table-hover" id="tabla-avisos">
@@ -344,8 +344,8 @@ include 'templates/top_bar.php';
                         </table>
                     </div>
                 </div>
-            </div>
-        </div>
+    </div>
+</div>
 
         <!-- Tab Informes de No Transacciones -->
         <div class="tab-pane fade" id="informes" role="tabpanel">
@@ -414,11 +414,11 @@ include 'templates/top_bar.php';
                 <form id="formOperacion">
                     <div class="row">
                         <div class="col-md-6 mb-3">
-                            <label class="form-label">Cliente *</label>
-                            <select class="form-select" id="operacion_id_cliente" required>
+                        <label class="form-label">Cliente *</label>
+                        <select class="form-select" id="operacion_id_cliente" required>
                                 <option value="">-- Seleccione Cliente --</option>
-                            </select>
-                        </div>
+                        </select>
+                    </div>
                         <div class="col-12 mb-3">
                             <div id="operacion-kyc-preview" class="border rounded-3 p-3 bg-light d-none">
                                 <div class="d-flex align-items-center justify-content-between flex-wrap gap-2 mb-2">
@@ -481,7 +481,7 @@ include 'templates/top_bar.php';
                                 <i class="fa-solid fa-exclamation-triangle me-2"></i>
                                 VAL-PLD-010 | Transacción Sospechosa (Aviso 24H)
                             </h6>
-                        </div>
+                    </div>
                         <div class="col-md-6 mb-3">
                             <label class="form-label">
                                 Transacción Sospechosa

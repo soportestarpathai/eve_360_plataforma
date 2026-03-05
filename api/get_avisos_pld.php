@@ -21,6 +21,16 @@ try {
     $tipo_aviso = $_GET['tipo_aviso'] ?? ($_GET['tipo'] ?? null); // Compatibilidad con ambos nombres
     $incluirHistorico = (isset($_GET['historico']) && $_GET['historico'] === '1');
     $filtroEstatusAviso = $incluirHistorico ? "(a.id_status = 1 OR a.id_status = 0)" : "a.id_status = 1";
+
+    // Filtro por usuario: solo avisos de sus clientes (admins ven todos)
+    $id_usuario = $_SESSION['user_id'] ?? 0;
+    $isAdmin = false;
+    if ($id_usuario > 0) {
+        $stmtAdmin = $pdo->prepare("SELECT administracion FROM usuarios_permisos WHERE id_usuario = ?");
+        $stmtAdmin->execute([$id_usuario]);
+        $perm = $stmtAdmin->fetch(PDO::FETCH_ASSOC);
+        $isAdmin = $perm && (int)($perm['administracion'] ?? 0) > 0;
+    }
     
     // Verificar si existe la columna datos_adicionales
     $stmt = $pdo->query("SHOW COLUMNS FROM avisos_pld LIKE 'datos_adicionales'");
@@ -43,7 +53,8 @@ try {
                 LEFT JOIN clientes_fisicas cf ON a.id_cliente = cf.id_cliente
                 LEFT JOIN clientes_morales cm ON a.id_cliente = cm.id_cliente
                 WHERE $filtroEstatusAviso
-                  AND COALESCE(c.id_status, 1) != 4";
+                  AND COALESCE(c.id_status, 1) != 4" .
+        (!$isAdmin && $id_usuario > 0 ? " AND c.id_usuario = ?" : "");
     } else {
         $sql = "SELECT a.*, 
                        c.alias as cliente_alias,
@@ -61,14 +72,27 @@ try {
                 LEFT JOIN clientes_fisicas cf ON a.id_cliente = cf.id_cliente
                 LEFT JOIN clientes_morales cm ON a.id_cliente = cm.id_cliente
                 WHERE $filtroEstatusAviso
-                  AND COALESCE(c.id_status, 1) != 4";
+                  AND COALESCE(c.id_status, 1) != 4" .
+        (!$isAdmin && $id_usuario > 0 ? " AND c.id_usuario = ?" : "");
     }
     
     $params = [];
+    if (!$isAdmin && $id_usuario > 0) {
+        $params[] = $id_usuario;
+    }
     
     if ($id_cliente) {
         $sql .= " AND a.id_cliente = ?";
         $params[] = $id_cliente;
+        // Si no es admin, verificar que el cliente pertenezca al usuario
+        if (!$isAdmin && $id_usuario > 0) {
+            $chk = $pdo->prepare("SELECT 1 FROM clientes WHERE id_cliente = ? AND id_usuario = ?");
+            $chk->execute([$id_cliente, $id_usuario]);
+            if (!$chk->fetch()) {
+                echo json_encode(['status' => 'success', 'avisos' => [], 'contadores' => ['pendientes' => 0, 'presentados' => 0, 'vencidos' => 0, 'vencidos_sin_folio' => 0, 'por_vencer' => 0, 'total' => 0]]);
+                exit;
+            }
+        }
     }
     
     if ($estatus) {
@@ -109,7 +133,7 @@ try {
     }
     unset($aviso); // Liberar referencia
 
-    $id_usuario = $_SESSION['user_id'] ?? 0;
+    // $id_usuario ya definido arriba
     foreach ($avisos as &$a) {
         $a['puede_modificar'] = canModifyPLD($pdo, $id_usuario, (int)($a['id_cliente'] ?? 0));
     }

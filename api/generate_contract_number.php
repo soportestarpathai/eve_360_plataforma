@@ -37,16 +37,19 @@ try {
     ensureContractFolioColumns($pdo);
     $pdo->beginTransaction();
 
-    $stmtCfg = $pdo->query("
-        SELECT id_config, contrato_prefijo, contrato_siguiente, contrato_longitud, contrato_rellenar_ceros
-        FROM config_empresa
-        WHERE id_config = 1
-        FOR UPDATE
-    ");
-    $cfg = $stmtCfg->fetch(PDO::FETCH_ASSOC);
-
+    $userId = $_SESSION['user_id'] ?? 0;
+    $cfg = null;
+    if ($userId > 0) {
+        $stmtU = $pdo->prepare("SELECT contrato_prefijo, contrato_siguiente, contrato_longitud, contrato_rellenar_ceros FROM config_empresa_usuario WHERE id_usuario = ? FOR UPDATE");
+        $stmtU->execute([$userId]);
+        $cfg = $stmtU->fetch(PDO::FETCH_ASSOC);
+    }
     if (!$cfg) {
-        throw new RuntimeException('No existe configuración base de empresa (id_config = 1).');
+        $stmtCfg = $pdo->query("SELECT id_config, contrato_prefijo, contrato_siguiente, contrato_longitud, contrato_rellenar_ceros FROM config_empresa WHERE id_config = 1 FOR UPDATE");
+        $cfg = $stmtCfg->fetch(PDO::FETCH_ASSOC);
+    }
+    if (!$cfg) {
+        throw new RuntimeException('No existe configuración base de empresa.');
     }
 
     $prefix = trim((string)($cfg['contrato_prefijo'] ?? ''));
@@ -82,8 +85,13 @@ try {
         throw new RuntimeException('No fue posible generar un No. de contrato disponible.');
     }
 
-    $stmtUpd = $pdo->prepare("UPDATE config_empresa SET contrato_siguiente = ? WHERE id_config = 1");
-    $stmtUpd->execute([$usedSequence + 1]);
+    if ($userId > 0) {
+        $pdo->prepare("UPDATE config_empresa_usuario SET contrato_siguiente = ? WHERE id_usuario = ?")
+            ->execute([$usedSequence + 1, $userId]);
+    } else {
+        $pdo->prepare("UPDATE config_empresa SET contrato_siguiente = ? WHERE id_config = 1")
+            ->execute([$usedSequence + 1]);
+    }
 
     $pdo->commit();
 

@@ -25,8 +25,20 @@ try {
         if (!empty($dbConfig['logo_url']))       $appConfig['logo_url'] = $dbConfig['logo_url'];
         if (!empty($dbConfig['color_primario'])) $appConfig['color_primario'] = $dbConfig['color_primario'];
     }
+    // Per-user config when logged in
+    if (!empty($_SESSION['user_id'])) {
+        try {
+            $stmtU = $pdo->prepare("SELECT nombre_empresa, logo_url, color_primario FROM config_empresa_usuario WHERE id_usuario = ?");
+            $stmtU->execute([$_SESSION['user_id']]);
+            $uc = $stmtU->fetch(PDO::FETCH_ASSOC);
+            if ($uc) {
+                if (!empty($uc['nombre_empresa'])) $appConfig['nombre_empresa'] = $uc['nombre_empresa'];
+                if (!empty($uc['logo_url']))       $appConfig['logo_url'] = $uc['logo_url'];
+                if (!empty($uc['color_primario'])) $appConfig['color_primario'] = $uc['color_primario'];
+            }
+        } catch (Exception $eu) { /* tabla no existe */ }
+    }
 } catch (Exception $e) {
-    // If DB fails, we silently fall back to defaults defined above
     error_log("Config Fetch Error: " . $e->getMessage());
 }
 ?>

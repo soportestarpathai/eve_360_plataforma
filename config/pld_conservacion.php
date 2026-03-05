@@ -423,9 +423,23 @@ if (!function_exists('registrarVisitaVerificacion')) {
                 }
             }
             
+            $id_usuario_registro = $data['id_usuario'] ?? null;
             $stmtCol = $pdo->query("SHOW COLUMNS FROM visitas_verificacion_pld LIKE 'observaciones'");
             $tieneObservaciones = $stmtCol->rowCount() > 0;
-            if ($tieneObservaciones) {
+            $stmtColIdUser = $pdo->query("SHOW COLUMNS FROM visitas_verificacion_pld LIKE 'id_usuario'");
+            $tieneIdUsuario = $stmtColIdUser->rowCount() > 0;
+            if ($tieneIdUsuario && $tieneObservaciones) {
+                $stmt = $pdo->prepare("INSERT INTO visitas_verificacion_pld 
+                                     (fecha_visita, autoridad, tipo_requerimiento, expedientes_solicitados, 
+                                      expedientes_disponibles, observaciones, estatus, id_status, id_usuario) 
+                                     VALUES (?, ?, ?, ?, ?, ?, 'programada', 1, ?)");
+            } elseif ($tieneIdUsuario) {
+                $stmt = $pdo->prepare("INSERT INTO visitas_verificacion_pld 
+                                     (fecha_visita, autoridad, tipo_requerimiento, 
+                                      expedientes_solicitados, expedientes_disponibles, 
+                                      estatus, id_status, id_usuario) 
+                                     VALUES (?, ?, ?, ?, ?, 'programada', 1, ?)");
+            } elseif ($tieneObservaciones) {
                 $stmt = $pdo->prepare("INSERT INTO visitas_verificacion_pld 
                                      (fecha_visita, autoridad, tipo_requerimiento, expedientes_solicitados, 
                                       expedientes_disponibles, observaciones, estatus, id_status) 
@@ -442,7 +456,13 @@ if (!function_exists('registrarVisitaVerificacion')) {
                 ? json_encode($expedientes_solicitados) 
                 : $expedientes_solicitados;
             
-            if ($tieneObservaciones) {
+            if ($tieneIdUsuario && $tieneObservaciones) {
+                $stmt->execute([$fecha_visita, $autoridad, $tipo_requerimiento,
+                               $expedientesJson, $expedientesDisponibles ? 1 : 0, $observaciones, $id_usuario_registro]);
+            } elseif ($tieneIdUsuario) {
+                $stmt->execute([$fecha_visita, $autoridad, $tipo_requerimiento,
+                               $expedientesJson, $expedientesDisponibles ? 1 : 0, $id_usuario_registro]);
+            } elseif ($tieneObservaciones) {
                 $stmt->execute([$fecha_visita, $autoridad, $tipo_requerimiento,
                                $expedientesJson, $expedientesDisponibles ? 1 : 0, $observaciones]);
             } else {
@@ -454,13 +474,12 @@ if (!function_exists('registrarVisitaVerificacion')) {
             
             // VAL-PLD-014: No disponible → evento crítico
             if (!$expedientesDisponibles) {
-                $id_usuario = $data['id_usuario'] ?? null;
                 registrarEventoCriticoPLD($pdo, [
                     'id_visita' => $id_visita,
                     'tipo' => 'expediente_no_disponible',
                     'descripcion' => 'Expedientes o evidencia solicitados no disponibles en visita de verificación',
                     'expedientes_solicitados' => $expedientes_solicitados,
-                    'id_usuario_registro' => $id_usuario
+                    'id_usuario_registro' => $id_usuario_registro
                 ]);
             }
             

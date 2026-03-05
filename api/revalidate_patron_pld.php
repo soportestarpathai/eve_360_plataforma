@@ -40,9 +40,9 @@ try {
     $method = $_SERVER['REQUEST_METHOD'];
     
     if ($method === 'GET') {
-        // Obtener estado de revalidación
-        $revalidationStatus = checkRevalidationDue($pdo);
-        $validationResult = validatePatronPLD($pdo);
+        $id_usuario = isset($_GET['id_usuario']) ? (int)$_GET['id_usuario'] : 0;
+        $revalidationStatus = checkRevalidationDue($pdo, $id_usuario);
+        $validationResult = validatePatronPLD($pdo, null, $id_usuario);
         
         echo json_encode([
             'status' => 'success',
@@ -65,10 +65,10 @@ try {
             'estatus' => $data['estatus'] ?? null,
             'fracciones' => $data['fracciones'] ?? null
         ];
-        
         $confirmarCambios = isset($data['confirmar']) && $data['confirmar'] === true;
+        $id_usuario = isset($data['id_usuario']) ? (int)$data['id_usuario'] : 0;
         
-        $result = processRevalidation($pdo, $nuevosDatos, $confirmarCambios);
+        $result = processRevalidation($pdo, $nuevosDatos, $confirmarCambios, $id_usuario);
         
         if ($result['status'] === 'pending_confirmation') {
             // Requiere confirmación del usuario

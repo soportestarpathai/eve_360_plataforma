@@ -1,5 +1,5 @@
 <?php include 'header.php'; ?>
-<title>Configuración General y Menús</title>
+<title>Configuración para Usuarios</title>
 
 <?php
 function ensureContractFolioColumns(PDO $pdo): void {
@@ -28,11 +28,15 @@ function ensureContractFolioColumns(PDO $pdo): void {
 
 ensureContractFolioColumns($pdo);
 
+$id_usuario_seleccionado = (int)($_GET['id_usuario'] ?? 0);
+
 // --- ACTIONS HANDLER ---
+$config_message = '';
 if ($_SERVER['REQUEST_METHOD'] === 'POST') {
     
     // 1. SAVE GENERAL CONFIGURATION
     if (isset($_POST['action']) && $_POST['action'] === 'save_config') {
+        $id_usuario_config = (int)($_POST['id_usuario_config'] ?? 0);
         $logoPath = $_POST['existing_logo'];
 
         // Handle Logo Upload
@@ -73,24 +77,45 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
                 $id_vulnerable = $_POST['id_vulnerable'] ?? 0;
             }
 
-            // UPDATED QUERY: Included 'id_vulnerable'
-            $stmt = $pdo->prepare("
-                UPDATE config_empresa SET 
-                    nombre_empresa = ?, logo_url = ?, color_primario = ?, 
-                    max_usuarios = ?, max_busquedas_api = ?, 
-                    id_tipo_empresa = ?, id_vulnerable = ?,
-                    contrato_prefijo = ?, contrato_siguiente = ?, contrato_longitud = ?, contrato_rellenar_ceros = ?
-                WHERE id_config = 1
-            ");
-            $stmt->execute([
-                $_POST['nombre_empresa'], $logoPath, $_POST['color_primario'],
-                $_POST['max_usuarios'], $_POST['max_busquedas_api'], 
-                $id_tipo_empresa, $id_vulnerable,
-                $contratoPrefijo, $contratoSiguiente, $contratoLongitud, $contratoRellenarCeros
-            ]);
-            echo '<div class="alert alert-success mt-3">Configuración actualizada.</div>';
+            if ($id_usuario_config > 0) {
+                // Guardar en config_empresa_usuario (por usuario)
+                $stmt = $pdo->prepare("
+                    INSERT INTO config_empresa_usuario 
+                    (id_usuario, nombre_empresa, logo_url, color_primario, max_usuarios, max_busquedas_api, id_tipo_empresa, id_vulnerable, contrato_prefijo, contrato_siguiente, contrato_longitud, contrato_rellenar_ceros)
+                    VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+                    ON DUPLICATE KEY UPDATE
+                    nombre_empresa = VALUES(nombre_empresa), logo_url = VALUES(logo_url), color_primario = VALUES(color_primario),
+                    max_usuarios = VALUES(max_usuarios), max_busquedas_api = VALUES(max_busquedas_api),
+                    id_tipo_empresa = VALUES(id_tipo_empresa), id_vulnerable = VALUES(id_vulnerable),
+                    contrato_prefijo = VALUES(contrato_prefijo), contrato_siguiente = VALUES(contrato_siguiente),
+                    contrato_longitud = VALUES(contrato_longitud), contrato_rellenar_ceros = VALUES(contrato_rellenar_ceros)
+                ");
+                $stmt->execute([
+                    $id_usuario_config, $_POST['nombre_empresa'], $logoPath, $_POST['color_primario'],
+                    $_POST['max_usuarios'], $_POST['max_busquedas_api'],
+                    $id_tipo_empresa, $id_vulnerable,
+                    $contratoPrefijo, $contratoSiguiente, $contratoLongitud, $contratoRellenarCeros
+                ]);
+            } else {
+                // Guardar en config_empresa (global)
+                $stmt = $pdo->prepare("
+                    UPDATE config_empresa SET 
+                        nombre_empresa = ?, logo_url = ?, color_primario = ?, 
+                        max_usuarios = ?, max_busquedas_api = ?, 
+                        id_tipo_empresa = ?, id_vulnerable = ?,
+                        contrato_prefijo = ?, contrato_siguiente = ?, contrato_longitud = ?, contrato_rellenar_ceros = ?
+                    WHERE id_config = 1
+                ");
+                $stmt->execute([
+                    $_POST['nombre_empresa'], $logoPath, $_POST['color_primario'],
+                    $_POST['max_usuarios'], $_POST['max_busquedas_api'],
+                    $id_tipo_empresa, $id_vulnerable,
+                    $contratoPrefijo, $contratoSiguiente, $contratoLongitud, $contratoRellenarCeros
+                ]);
+            }
+            $config_message = '<div class="config-alert config-alert-success"><i class="fa-solid fa-check-circle me-2"></i>Configuración actualizada.</div>';
         } catch (Exception $e) {
-            echo '<div class="alert alert-danger mt-3">Error: ' . $e->getMessage() . '</div>';
+            $config_message = '<div class="config-alert config-alert-danger"><i class="fa-solid fa-xmark-circle me-2"></i>Error: ' . htmlspecialchars($e->getMessage()) . '</div>';
         }
     }
 
@@ -107,14 +132,14 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
             if ($id_menu) {
                 $stmt = $pdo->prepare("UPDATE menu_access SET id_tipo_empresa=?, seccion=?, icon=?, file_path=?, id_parent=? WHERE id_menu_access=?");
                 $stmt->execute([$id_tipo, $seccion, $icon, $file, $parent, $id_menu]);
-                echo '<div class="alert alert-success mt-3">Elemento de menú actualizado.</div>';
+                $config_message = '<div class="config-alert config-alert-success"><i class="fa-solid fa-check-circle me-2"></i>Elemento de menú actualizado.</div>';
             } else {
                 $stmt = $pdo->prepare("INSERT INTO menu_access (id_tipo_empresa, seccion, icon, file_path, id_parent) VALUES (?, ?, ?, ?, ?)");
                 $stmt->execute([$id_tipo, $seccion, $icon, $file, $parent]);
-                echo '<div class="alert alert-success mt-3">Nuevo elemento agregado al menú.</div>';
+                $config_message = '<div class="config-alert config-alert-success"><i class="fa-solid fa-check-circle me-2"></i>Nuevo elemento agregado al menú.</div>';
             }
         } catch (Exception $e) {
-            echo '<div class="alert alert-danger mt-3">Error al guardar menú: ' . $e->getMessage() . '</div>';
+            $config_message = '<div class="config-alert config-alert-danger"><i class="fa-solid fa-xmark-circle me-2"></i>Error al guardar menú: ' . htmlspecialchars($e->getMessage()) . '</div>';
         }
     }
 
@@ -137,52 +162,62 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
 
             $pdo->commit();
             
-            echo '<div class="alert alert-warning mt-3">
-                    <i class="fa-solid fa-check-circle me-2"></i>
-                    Elemento eliminado. Los submenús asociados (si existían) ahora son elementos principales.
-                  </div>';
+            $config_message = '<div class="config-alert config-alert-warning"><i class="fa-solid fa-check-circle me-2"></i>Elemento eliminado. Los submenús asociados (si existían) ahora son elementos principales.</div>';
 
         } catch (Exception $e) {
             $pdo->rollBack();
-            echo '<div class="alert alert-danger">Error: ' . $e->getMessage() . '</div>';
+            $config_message = '<div class="config-alert config-alert-danger"><i class="fa-solid fa-xmark-circle me-2"></i>Error: ' . htmlspecialchars($e->getMessage()) . '</div>';
+        }
+    }
+
+    // 4. TOGGLE MENU VISIBILITY POR USUARIO
+    if (isset($_POST['action']) && $_POST['action'] === 'toggle_menu_usuario' && $id_usuario_seleccionado > 0) {
+        try {
+            $id_menu = (int)$_POST['id_menu_access'];
+            $activo = (int)$_POST['activo'];
+            $pdo->prepare("INSERT INTO menu_access_usuario (id_usuario, id_menu_access, activo) VALUES (?, ?, ?) ON DUPLICATE KEY UPDATE activo = VALUES(activo)")
+                ->execute([$id_usuario_seleccionado, $id_menu, $activo]);
+            $config_message = '<div class="config-alert config-alert-success"><i class="fa-solid fa-check-circle me-2"></i>Visibilidad actualizada.</div>';
+        } catch (Exception $e) {
+            $config_message = '<div class="config-alert config-alert-danger"><i class="fa-solid fa-xmark-circle me-2"></i>Error: ' . htmlspecialchars($e->getMessage()) . '</div>';
         }
     }
 }
 
 // --- DATA FETCHING ---
-// 1. Config
+// 1. Config (global base)
 $stmt = $pdo->query("SELECT * FROM config_empresa WHERE id_config = 1");
-$config = $stmt->fetch(PDO::FETCH_ASSOC);
+$configGlobal = $stmt->fetch(PDO::FETCH_ASSOC) ?: [];
+
+// 2. Config por usuario (si hay usuario seleccionado)
+$config = $configGlobal;
+if ($id_usuario_seleccionado > 0) {
+    try {
+        $stmtU = $pdo->prepare("SELECT * FROM config_empresa_usuario WHERE id_usuario = ?");
+        $stmtU->execute([$id_usuario_seleccionado]);
+        $configU = $stmtU->fetch(PDO::FETCH_ASSOC);
+        if ($configU) {
+            foreach (['nombre_empresa','logo_url','color_primario','max_usuarios','max_busquedas_api','id_tipo_empresa','id_vulnerable','contrato_prefijo','contrato_siguiente','contrato_longitud','contrato_rellenar_ceros','folio_patron_pld','estatus_patron_pld','fecha_revalidacion_patron','fracciones_activas','no_habilitado_pld'] as $k) {
+                if (isset($configU[$k]) && $configU[$k] !== null) {
+                    $config[$k] = $configU[$k];
+                }
+            }
+        }
+    } catch (Exception $e) { /* tabla no existe aún */ }
+}
 
 // Ensure config has default values to prevent null errors
-if (!$config) {
-    $config = [
-        'nombre_empresa' => '',
-        'logo_url' => '',
-        'color_primario' => '#0d6efd',
-        'max_usuarios' => 10,
-        'max_busquedas_api' => 500,
-        'id_tipo_empresa' => 1,
-        'id_vulnerable' => 0,
-        'contrato_prefijo' => '',
-        'contrato_siguiente' => 1,
-        'contrato_longitud' => 6,
-        'contrato_rellenar_ceros' => 1
-    ];
-} else {
-    // Set defaults for null values
-    $config['nombre_empresa'] = $config['nombre_empresa'] ?? '';
-    $config['logo_url'] = $config['logo_url'] ?? '';
-    $config['color_primario'] = $config['color_primario'] ?? '#0d6efd';
-    $config['max_usuarios'] = $config['max_usuarios'] ?? 10;
-    $config['max_busquedas_api'] = $config['max_busquedas_api'] ?? 500;
-    $config['id_tipo_empresa'] = $config['id_tipo_empresa'] ?? 1;
-    $config['id_vulnerable'] = $config['id_vulnerable'] ?? 0;
-    $config['contrato_prefijo'] = $config['contrato_prefijo'] ?? '';
-    $config['contrato_siguiente'] = $config['contrato_siguiente'] ?? 1;
-    $config['contrato_longitud'] = $config['contrato_longitud'] ?? 6;
-    $config['contrato_rellenar_ceros'] = $config['contrato_rellenar_ceros'] ?? 1;
-}
+$config['nombre_empresa'] = $config['nombre_empresa'] ?? '';
+$config['logo_url'] = $config['logo_url'] ?? '';
+$config['color_primario'] = $config['color_primario'] ?? '#0d6efd';
+$config['max_usuarios'] = $config['max_usuarios'] ?? 10;
+$config['max_busquedas_api'] = $config['max_busquedas_api'] ?? 500;
+$config['id_tipo_empresa'] = $config['id_tipo_empresa'] ?? 1;
+$config['id_vulnerable'] = $config['id_vulnerable'] ?? 0;
+$config['contrato_prefijo'] = $config['contrato_prefijo'] ?? '';
+$config['contrato_siguiente'] = $config['contrato_siguiente'] ?? 1;
+$config['contrato_longitud'] = $config['contrato_longitud'] ?? 6;
+$config['contrato_rellenar_ceros'] = $config['contrato_rellenar_ceros'] ?? 1;
 
 // 2. Company Types
 $stmtTypes = $pdo->query("SELECT * FROM cat_tipo_empresa ORDER BY id_tipo_empresa ASC");
@@ -193,6 +228,14 @@ $stmtVuln = $pdo->query("SELECT * FROM cat_vulnerables ORDER BY nombre ASC");
 $vulnerables = $stmtVuln->fetchAll(PDO::FETCH_ASSOC);
 
 // 4. Menu Items
+$menuVisibility = [];
+if ($id_usuario_seleccionado > 0) {
+    try {
+        $stmtM = $pdo->prepare("SELECT id_menu_access, activo FROM menu_access_usuario WHERE id_usuario = ?");
+        $stmtM->execute([$id_usuario_seleccionado]);
+        while ($r = $stmtM->fetch(PDO::FETCH_ASSOC)) $menuVisibility[(int)$r['id_menu_access']] = (int)$r['activo'];
+    } catch (Exception $e) { /* tabla no existe */ }
+}
 $stmtMenu = $pdo->query("
     SELECT m.*, t.nombre as nombre_empresa_tipo 
     FROM menu_access m 
@@ -200,19 +243,205 @@ $stmtMenu = $pdo->query("
     ORDER BY m.id_tipo_empresa ASC, m.id_parent ASC, m.id_menu_access ASC
 ");
 $menuItems = $stmtMenu->fetchAll(PDO::FETCH_ASSOC);
-?>
 
-<div class="container mt-4 mb-5">
+// 5. Lista de usuarios para selector
+$stmtUsuarios = $pdo->prepare("
+    SELECT id_usuario, nombre, login_user
+    FROM usuarios
+    WHERE id_status_usuario = 1
+    ORDER BY nombre ASC
+");
+$stmtUsuarios->execute();
+$listaUsuarios = $stmtUsuarios->fetchAll(PDO::FETCH_ASSOC);
+?>
+<style>
+    body { background: linear-gradient(135deg, #f0f4f8 0%, #e8f0f5 50%, #f5f9fc 100%); min-height: 100vh; }
     
+    /* Alerts */
+    .config-page .config-alerts { margin-bottom: 1.5rem; }
+    .config-page .config-alert {
+        padding: 1rem 1.25rem; border-radius: 14px; font-weight: 500; display: flex; align-items: center;
+        box-shadow: 0 4px 16px rgba(0,0,0,0.08); border: none;
+    }
+    .config-page .config-alert-success { background: linear-gradient(135deg, #ecfdf5 0%, #d1fae5 100%); color: #065f46; }
+    .config-page .config-alert-danger { background: linear-gradient(135deg, #fef2f2 0%, #fee2e2 100%); color: #991b1b; }
+    .config-page .config-alert-warning { background: linear-gradient(135deg, #fffbeb 0%, #fef3c7 100%); color: #92400e; }
+    
+    /* Welcome */
+    .config-page .config-welcome {
+        background: linear-gradient(135deg, #0B3C8A 0%, #0B486B 100%);
+        border-radius: 20px; padding: 1.75rem 2rem; margin-bottom: 1.5rem; color: #fff;
+        box-shadow: 0 12px 40px rgba(11, 60, 138, 0.25);
+    }
+    .config-page .config-welcome h1 { font-size: 1.5rem; font-weight: 800; margin: 0; letter-spacing: -0.02em; }
+    .config-page .config-welcome p { margin: 0.35rem 0 0; opacity: 0.92; font-size: 0.9rem; }
+    
+    /* Selector */
+    .config-page .config-selector { border-radius: 16px; box-shadow: 0 4px 20px rgba(0,0,0,0.06); border: 1px solid rgba(0,0,0,0.04); overflow: hidden; }
+    .config-page .config-selector .card-header { background: linear-gradient(135deg, #1e293b 0%, #0f172a 100%); color: #fff; border: none; padding: 1rem 1.25rem; font-weight: 600; font-size: 0.95rem; }
+    .config-page .config-selector .form-select { border-radius: 10px; border: 2px solid #e2e8f0; padding: 0.5rem 1rem; }
+    
+    /* Tabs */
+    .config-page .nav-tabs { border-bottom: 2px solid #e2e8f0; gap: 0.5rem; padding-bottom: 0; }
+    .config-page .nav-tabs .nav-link {
+        border: none; border-radius: 12px 12px 0 0; padding: 0.85rem 1.35rem;
+        color: #64748b; font-weight: 600; background: transparent; transition: all 0.2s;
+    }
+    .config-page .nav-tabs .nav-link:hover { color: #0B3C8A; background: rgba(11, 60, 138, 0.08); }
+    .config-page .nav-tabs .nav-link.active { background: linear-gradient(135deg, #0B3C8A 0%, #0B486B 100%); color: #fff; }
+    .config-page .tab-content { padding-top: 1.5rem; }
+    
+    /* Cards */
+    .config-page .config-card {
+        border-radius: 16px; overflow: hidden; border: none;
+        box-shadow: 0 4px 20px rgba(0,0,0,0.06); border: 1px solid rgba(0,0,0,0.04);
+    }
+    .config-page .config-card .card-header {
+        background: linear-gradient(135deg, #1e293b 0%, #0f172a 100%);
+        color: #fff; border: none; padding: 1rem 1.25rem; font-weight: 600; font-size: 0.95rem;
+    }
+    .config-page .config-card .card-body { padding: 1.5rem; }
+    .config-page .config-card .form-control, .config-page .config-card .form-select,
+    .config-page .config-card .form-control-sm, .config-page .config-card .form-select-sm {
+        border-radius: 10px; border: 2px solid #e2e8f0; transition: border-color 0.2s, box-shadow 0.2s;
+    }
+    .config-page .config-card .form-control, .config-page .config-card .form-select { padding: 0.5rem 1rem; }
+    .config-page .config-card input[type="file"] { padding: 0.4rem 0.8rem; }
+    .config-page .config-card .form-control:focus, .config-page .config-card .form-select:focus,
+    .config-page .config-card .form-control-sm:focus, .config-page .config-card .form-select-sm:focus {
+        border-color: #0B3C8A; box-shadow: 0 0 0 3px rgba(11,60,138,0.15);
+    }
+    .config-page .config-card .form-control-color { height: 44px; border-radius: 10px; cursor: pointer; padding: 4px; }
+    .config-page .config-card .form-label { font-weight: 600; color: #334155; }
+    .config-page .config-card .form-check-input { width: 1.15em; height: 1.15em; margin-top: 0.15em; }
+    .config-page .config-card .form-check-input:checked { background-color: #0B3C8A; border-color: #0B3C8A; }
+    .config-page .section-title { color: #0B3C8A; font-weight: 700; margin-bottom: 1rem; font-size: 1rem; display: flex; align-items: center; }
+    .config-page .card-header.bg-primary { background: linear-gradient(135deg, #1e293b 0%, #0f172a 100%) !important; }
+    .config-page .card-header.bg-info { background: linear-gradient(135deg, #0ea5e9 0%, #0284c7 100%) !important; }
+    
+    /* Section separators */
+    .config-page .config-card hr { border: none; border-top: 2px solid #e2e8f0; margin: 1.75rem 0; opacity: 0.8; }
+    
+    /* Vulnerable box */
+    .config-page .config-vulnerable-box {
+        background: linear-gradient(135deg, #fffbeb 0%, #fef3c7 100%); border: 2px solid #f59e0b;
+        border-radius: 12px; padding: 1rem 1.25rem; margin-bottom: 1rem;
+    }
+    .config-page .config-vulnerable-box .form-select { border-color: #f59e0b; }
+    
+    /* Logo preview */
+    .config-page .config-logo-preview { display: inline-block; padding: 12px; background: #f8fafc; border: 2px dashed #e2e8f0; border-radius: 12px; }
+    .config-page .config-logo-preview img { border-radius: 8px; }
+    .config-page .config-folio-preview code { font-size: 0.95rem; }
+    .config-page .config-status-item { padding: 0.75rem 0; border-bottom: 1px solid #f1f5f9; }
+    .config-page .config-status-item:last-of-type { border-bottom: none; }
+    
+    /* Badges */
+    .config-page .badge { padding: 0.4em 0.75em; font-weight: 600; border-radius: 8px; }
+    .config-page .badge.bg-success { background: linear-gradient(135deg, #059669 0%, #10b981 100%) !important; }
+    .config-page .badge.bg-danger { background: linear-gradient(135deg, #dc2626 0%, #ef4444 100%) !important; }
+    .config-page .badge.bg-warning { background: linear-gradient(135deg, #f59e0b 0%, #fbbf24 100%) !important; color: #1f2937 !important; }
+    .config-page .badge.bg-info { background: linear-gradient(135deg, #0284c7 0%, #0ea5e9 100%) !important; }
+    
+    /* Tables */
+    .config-page .table { border-collapse: separate; border-spacing: 0; }
+    .config-page .table thead th {
+        background: #f1f5f9 !important; color: #475569; font-weight: 600; font-size: 0.7rem; text-transform: uppercase;
+        padding: 0.9rem 1rem; border-bottom: 2px solid #e2e8f0; letter-spacing: 0.5px;
+    }
+    .config-page .table tbody td { padding: 0.9rem 1rem; vertical-align: middle; }
+    .config-page .table tbody tr { transition: background 0.15s; }
+    .config-page .table tbody tr:hover { background: #f8fafc !important; }
+    .config-page .table-responsive { border-radius: 0 0 12px 12px; overflow: hidden; }
+    .config-page .table tbody tr.table-warning { background: #fffbeb !important; }
+    
+    /* Empty state */
+    .config-page .table td.text-center.text-muted { padding: 3rem 2rem !important; font-size: 0.95rem; }
+    
+    /* Info box Responsables */
+    .config-page .config-info-box {
+        background: linear-gradient(135deg, #eff6ff 0%, #dbeafe 100%); border-left: 4px solid #0B3C8A;
+        border-radius: 0 12px 12px 0; padding: 1rem 1.25rem; margin-bottom: 1.5rem; color: #1e40af;
+    }
+    
+    /* Buttons */
+    .config-page .btn { border-radius: 10px; font-weight: 600; padding: 0.5rem 1.25rem; transition: all 0.2s; }
+    .config-page .btn-primary { background: linear-gradient(135deg, #0B3C8A 0%, #0B486B 100%); border: none; }
+    .config-page .btn-primary:hover { opacity: 0.92; transform: translateY(-1px); }
+    .config-page .btn-success { background: linear-gradient(135deg, #059669 0%, #10b981 100%); border: none; color: #fff; }
+    .config-page .btn-success:hover { opacity: 0.92; }
+    .config-page .btn-warning { background: linear-gradient(135deg, #f59e0b 0%, #fbbf24 100%); border: none; color: #1f2937; }
+    .config-page .btn-warning:hover { opacity: 0.92; color: #1f2937; }
+    .config-page .btn-secondary { background: #64748b; border: none; color: #fff; }
+    .config-page .btn-outline-secondary { border: 2px solid #e2e8f0; color: #64748b; }
+    .config-page .btn-outline-secondary:hover { background: #f8fafc; border-color: #cbd5e1; }
+    .config-page .btn-sm { padding: 0.35rem 0.9rem; font-size: 0.85rem; }
+    
+    /* Input groups */
+    .config-page .input-group-text { border-radius: 10px 0 0 10px; border: 2px solid #e2e8f0; background: #f8fafc; }
+    .config-page .input-group .form-control { border-radius: 0 10px 10px 0; }
+    
+    /* Modal */
+    #designarResponsableModal .modal-content { border-radius: 16px; border: none; box-shadow: 0 24px 48px rgba(0,0,0,0.15); overflow: hidden; }
+    #designarResponsableModal .modal-header { background: linear-gradient(135deg, #0B3C8A 0%, #0B486B 100%); color: #fff; border: none; padding: 1.25rem; }
+    #designarResponsableModal .modal-header .btn-close { filter: brightness(0) invert(1); }
+    #designarResponsableModal .modal-body { padding: 1.5rem; }
+    #designarResponsableModal .modal-footer { padding: 1rem 1.25rem; border-top: 1px solid #e2e8f0; }
+#designarResponsableModal .form-select, #designarResponsableModal .form-control { border-radius: 10px; border: 2px solid #e2e8f0; }
+#designarResponsableModal .form-select:focus, #designarResponsableModal textarea:focus { border-color: #0B3C8A; box-shadow: 0 0 0 3px rgba(11,60,138,0.15); }
+    
+    /* Menu table actions */
+    .config-page .btn-outline-primary { border-radius: 8px; }
+    .config-page .btn-outline-danger { border-radius: 8px; }
+</style>
+
+<div class="config-page container mt-4 mb-5">
+    <?php if ($config_message): ?>
+    <div class="config-alerts"><?= $config_message ?></div>
+    <?php endif; ?>
+    <div class="config-welcome">
+        <h1><i class="fa-solid fa-gears me-2"></i>Configuración para Usuarios</h1>
+        <p>Identidad, límites, PLD y menús que ven los usuarios al iniciar sesión en la plataforma</p>
+    </div>
+
+    <div class="card config-selector mb-4">
+        <div class="card-header py-3">
+            <i class="fa-solid fa-user-gear me-2"></i> Configurar para los usuarios de:
+        </div>
+        <div class="card-body py-3">
+            <form method="GET" action="config.php" class="row g-2 align-items-center" id="formSelectCliente">
+                <div class="col-auto">
+                    <label class="col-form-label fw-bold"><i class="fa-solid fa-users me-2"></i>Ámbito de usuarios:</label>
+                </div>
+                <div class="col-md-5">
+                    <select name="id_usuario" class="form-select" onchange="this.form.submit()">
+                        <option value="">— Todos / Configuración general —</option>
+                        <?php foreach ($listaUsuarios as $u): ?>
+                            <option value="<?= (int)$u['id_usuario'] ?>" <?= $id_usuario_seleccionado === (int)$u['id_usuario'] ? 'selected' : '' ?>>
+                                <?= htmlspecialchars($u['nombre'] ?? 'Usuario') ?> (<?= htmlspecialchars($u['login_user'] ?? '') ?>)
+                            </option>
+                        <?php endforeach; ?>
+                    </select>
+                </div>
+                <?php if ($id_usuario_seleccionado > 0): ?>
+                <div class="col-auto">
+                    <a href="config.php" class="btn btn-outline-secondary btn-sm">Ver todos</a>
+                </div>
+                <?php endif; ?>
+            </form>
+        </div>
+    </div>
+
+    <?php $tabActivo = $id_usuario_seleccionado > 0 ? 'responsable-pld' : 'general'; ?>
     <ul class="nav nav-tabs mb-4" id="configTabs" role="tablist">
         <li class="nav-item" role="presentation">
-            <button class="nav-link active" id="general-tab" data-bs-toggle="tab" data-bs-target="#general" type="button" role="tab"><i class="fa-solid fa-gears me-2"></i>General</button>
+            <button class="nav-link <?= $tabActivo === 'general' ? 'active' : '' ?>" id="general-tab" data-bs-toggle="tab" data-bs-target="#general" type="button" role="tab"><i class="fa-solid fa-gears me-2"></i>General</button>
         </li>
         <li class="nav-item" role="presentation">
-            <button class="nav-link" id="pld-tab" data-bs-toggle="tab" data-bs-target="#pld" type="button" role="tab"><i class="fa-solid fa-shield-halved me-2"></i>Padrón PLD</button>
+            <button class="nav-link <?= $tabActivo === 'pld' ? 'active' : '' ?>" id="pld-tab" data-bs-toggle="tab" data-bs-target="#pld" type="button" role="tab"><i class="fa-solid fa-shield-halved me-2"></i>Padrón PLD</button>
         </li>
         <li class="nav-item" role="presentation">
-            <button class="nav-link" id="responsable-pld-tab" data-bs-toggle="tab" data-bs-target="#responsable-pld" type="button" role="tab"><i class="fa-solid fa-user-tie me-2"></i>Responsables PLD</button>
+            <button class="nav-link <?= $tabActivo === 'responsable-pld' ? 'active' : '' ?>" id="responsable-pld-tab" data-bs-toggle="tab" data-bs-target="#responsable-pld" type="button" role="tab"><i class="fa-solid fa-user-tie me-2"></i>Responsables PLD</button>
         </li>
         <li class="nav-item" role="presentation">
             <button class="nav-link" id="menu-tab" data-bs-toggle="tab" data-bs-target="#menu" type="button" role="tab"><i class="fa-solid fa-list-tree me-2"></i>Gestor de Menús</button>
@@ -221,14 +450,16 @@ $menuItems = $stmtMenu->fetchAll(PDO::FETCH_ASSOC);
 
     <div class="tab-content" id="configTabsContent">
         
-        <div class="tab-pane fade show active" id="general" role="tabpanel">
-            <div class="card shadow-sm">
+        <div class="tab-pane fade <?= $tabActivo === 'general' ? 'show active' : '' ?>" id="general" role="tabpanel">
+            <div class="card config-card mb-4">
+                <div class="card-header"><i class="fa-solid fa-gears me-2"></i>Configuración General</div>
                 <div class="card-body">
-                    <form method="POST" enctype="multipart/form-data">
+                    <form method="POST" enctype="multipart/form-data" action="config.php<?= $id_usuario_seleccionado > 0 ? '?id_usuario='.$id_usuario_seleccionado : '' ?>">
                         <input type="hidden" name="action" value="save_config">
+                        <input type="hidden" name="id_usuario_config" value="<?= (int)$id_usuario_seleccionado ?>">
                         <input type="hidden" name="existing_logo" value="<?= htmlspecialchars($config['logo_url']) ?>">
 
-                        <h5 class="mb-3 text-primary">Identidad Visual</h5>
+                        <h5 class="section-title"><i class="fa-solid fa-palette me-2"></i>Identidad Visual</h5>
                         <div class="row">
                             <div class="col-md-6 mb-3">
                                 <label class="form-label fw-bold">Nombre de la Empresa</label>
@@ -250,7 +481,7 @@ $menuItems = $stmtMenu->fetchAll(PDO::FETCH_ASSOC);
 
                         <div class="row mb-3" id="vulnerableContainer" style="display: none;">
                             <div class="col-md-12">
-                                <div class="p-3 bg-warning-subtle border border-warning rounded">
+                                <div class="config-vulnerable-box">
                                     <label class="form-label fw-bold text-dark"><i class="fa-solid fa-triangle-exclamation me-2"></i>Seleccione la Actividad Vulnerable</label>
                                     <select name="id_vulnerable" class="form-select border-warning">
                                         <option value="0">-- Seleccione --</option>
@@ -269,7 +500,9 @@ $menuItems = $stmtMenu->fetchAll(PDO::FETCH_ASSOC);
                         <?php if (!empty($config['logo_url'])): ?>
                         <div class="mb-3">
                             <label class="form-label fw-bold">Logo Actual</label><br>
-                            <img src="../<?= htmlspecialchars($config['logo_url']) ?>" alt="Logo" style="height: 50px; object-fit: contain;" class="border p-1 rounded" onerror="this.style.display='none'">
+                            <div class="config-logo-preview">
+                                <img src="../<?= htmlspecialchars($config['logo_url']) ?>" alt="Logo" style="height: 50px; object-fit: contain;" onerror="this.style.display='none'">
+                            </div>
                         </div>
                         <?php endif; ?>
 
@@ -280,11 +513,14 @@ $menuItems = $stmtMenu->fetchAll(PDO::FETCH_ASSOC);
 
                         <div class="mb-3">
                             <label class="form-label fw-bold">Color Primario</label>
-                            <input type="color" name="color_primario" class="form-control form-control-color" value="<?= htmlspecialchars($config['color_primario']) ?>">
+                            <div class="d-flex align-items-center gap-3">
+                                <input type="color" name="color_primario" class="form-control form-control-color" value="<?= htmlspecialchars($config['color_primario']) ?>" style="width:60px;height:44px;">
+                                <span class="text-muted small"><?= htmlspecialchars($config['color_primario']) ?></span>
+                            </div>
                         </div>
 
                         <hr>
-                        <h5 class="mb-3 text-primary">Límites</h5>
+                        <h5 class="section-title"><i class="fa-solid fa-sliders me-2"></i>Límites</h5>
                         <div class="row">
                             <div class="col-md-6 mb-3">
                                 <label class="form-label fw-bold">Máximo de Usuarios</label>
@@ -297,7 +533,7 @@ $menuItems = $stmtMenu->fetchAll(PDO::FETCH_ASSOC);
                         </div>
 
                         <hr>
-                        <h5 class="mb-3 text-primary">Folio de Contrato</h5>
+                        <h5 class="section-title"><i class="fa-solid fa-file-contract me-2"></i>Folio de Contrato</h5>
                         <div class="row">
                             <div class="col-md-4 mb-3">
                                 <label class="form-label fw-bold">Prefijo</label>
@@ -328,12 +564,17 @@ $menuItems = $stmtMenu->fetchAll(PDO::FETCH_ASSOC);
                                     : (string)$previewBase;
                                 $previewFolio = (string)($config['contrato_prefijo'] ?? '') . $previewSeq;
                                 ?>
-                                <small class="text-muted">Vista previa del folio: <strong id="contractPreview"><?= htmlspecialchars($previewFolio) ?></strong></small>
+                                <div class="config-folio-preview mt-1">
+                                    <span class="text-muted small">Vista previa:</span>
+                                    <code id="contractPreview" class="ms-2 px-2 py-1 rounded" style="background:#f1f5f9;color:#0B3C8A;font-weight:600;"><?= htmlspecialchars($previewFolio) ?></code>
+                                </div>
                             </div>
                         </div>
 
-                        <div class="text-end">
-                            <button type="submit" class="btn btn-primary">Guardar Configuración</button>
+                        <div class="text-end pt-2">
+                            <button type="submit" class="btn btn-primary px-4 py-2">
+                                <i class="fa-solid fa-save me-2"></i>Guardar Configuración
+                            </button>
                         </div>
                     </form>
                 </div>
@@ -341,41 +582,41 @@ $menuItems = $stmtMenu->fetchAll(PDO::FETCH_ASSOC);
         </div>
 
         <!-- TAB: Padrón PLD (VAL-PLD-001 y VAL-PLD-002) -->
-        <div class="tab-pane fade" id="pld" role="tabpanel" id="pld-revalidation">
+        <div class="tab-pane fade <?= $tabActivo === 'pld' ? 'show active' : '' ?>" id="pld" role="tabpanel">
             <?php
             require_once __DIR__ . '/../config/pld_validation.php';
             require_once __DIR__ . '/../config/pld_revalidation.php';
             
-            $pldValidation = validatePatronPLD($pdo);
-            $revalidationStatus = checkRevalidationDue($pdo);
+            $pldValidation = validatePatronPLD($pdo, null, $id_usuario_seleccionado);
+            $revalidationStatus = checkRevalidationDue($pdo, $id_usuario_seleccionado);
             ?>
             
             <div class="row">
                 <!-- Estado Actual -->
                 <div class="col-md-6 mb-4">
-                    <div class="card shadow-sm">
-                        <div class="card-header bg-primary text-white">
-                            <h5 class="mb-0"><i class="fa-solid fa-shield-halved me-2"></i>Estado del Padrón PLD</h5>
+                    <div class="card config-card">
+                        <div class="card-header bg-primary">
+                            <i class="fa-solid fa-shield-halved me-2"></i>Estado del Padrón PLD
                         </div>
                         <div class="card-body">
-                            <div class="mb-3">
-                                <label class="form-label fw-bold">Estatus de Habilitación</label>
-                                <div>
+                            <div class="config-status-item mb-4">
+                                <label class="form-label fw-bold small text-uppercase text-muted">Estatus de Habilitación</label>
+                                <div class="d-flex align-items-center gap-2 flex-wrap">
                                     <?php if ($pldValidation['habilitado']): ?>
-                                        <span class="badge bg-success fs-6">
+                                        <span class="badge bg-success fs-6 px-3 py-2">
                                             <i class="fa-solid fa-check-circle me-1"></i>HABILITADO
                                         </span>
                                     <?php else: ?>
-                                        <span class="badge bg-danger fs-6">
+                                        <span class="badge bg-danger fs-6 px-3 py-2">
                                             <i class="fa-solid fa-xmark-circle me-1"></i>NO HABILITADO
                                         </span>
                                     <?php endif; ?>
+                                    <small class="text-muted"><?= htmlspecialchars($pldValidation['razon'] ?? '') ?></small>
                                 </div>
-                                <small class="text-muted"><?= htmlspecialchars($pldValidation['razon'] ?? '') ?></small>
                             </div>
                             
-                            <div class="mb-3">
-                                <label class="form-label fw-bold">Revalidación Periódica</label>
+                            <div class="config-status-item mb-3">
+                                <label class="form-label fw-bold small text-uppercase text-muted">Revalidación Periódica</label>
                                 <div>
                                     <?php if ($revalidationStatus['vencida']): ?>
                                         <span class="badge bg-danger">
@@ -391,7 +632,7 @@ $menuItems = $stmtMenu->fetchAll(PDO::FETCH_ASSOC);
                                         </span>
                                     <?php endif; ?>
                                 </div>
-                                <small class="text-muted"><?= htmlspecialchars($revalidationStatus['mensaje'] ?? '') ?></small>
+                                <small class="text-muted d-block mt-1"><?= htmlspecialchars($revalidationStatus['mensaje'] ?? '') ?></small>
                             </div>
                             
                             <?php if (isset($pldValidation['detalles']) && !empty($pldValidation['detalles'])): ?>
@@ -412,9 +653,9 @@ $menuItems = $stmtMenu->fetchAll(PDO::FETCH_ASSOC);
                 
                 <!-- Configuración del Padrón -->
                 <div class="col-md-6 mb-4">
-                    <div class="card shadow-sm">
-                        <div class="card-header bg-info text-white">
-                            <h5 class="mb-0"><i class="fa-solid fa-edit me-2"></i>Configurar Padrón PLD</h5>
+                    <div class="card config-card">
+                        <div class="card-header bg-info">
+                            <i class="fa-solid fa-edit me-2"></i>Configurar Padrón PLD
                         </div>
                         <div class="card-body">
                             <form id="pldPatronForm">
@@ -453,7 +694,7 @@ $menuItems = $stmtMenu->fetchAll(PDO::FETCH_ASSOC);
                                     <small class="form-text text-muted">Formato JSON array o separado por comas</small>
                                 </div>
                                 
-                                <div class="d-grid gap-2">
+                                <div class="d-flex flex-wrap gap-2 mt-3">
                                     <button type="button" class="btn btn-primary" onclick="savePatronPLD()">
                                         <i class="fa-solid fa-save me-2"></i>Guardar Configuración
                                     </button>
@@ -468,12 +709,12 @@ $menuItems = $stmtMenu->fetchAll(PDO::FETCH_ASSOC);
             </div>
         </div>
 
-        <div class="tab-pane fade" id="responsable-pld" role="tabpanel">
+        <div class="tab-pane fade <?= $tabActivo === 'responsable-pld' ? 'show active' : '' ?>" id="responsable-pld" role="tabpanel">
             <?php
             require_once __DIR__ . '/../config/pld_responsable_validation.php';
             
-            // Obtener lista de clientes morales y fideicomisos
-            $stmt = $pdo->prepare("
+            // Obtener lista de clientes morales y fideicomisos (filtrado por usuario seleccionado: los que ese usuario registró)
+            $sqlClientes = "
                 SELECT 
                     c.id_cliente,
                     c.no_contrato,
@@ -487,9 +728,17 @@ $menuItems = $stmtMenu->fetchAll(PDO::FETCH_ASSOC);
                 LEFT JOIN clientes_fisicas cf ON c.id_cliente = cf.id_cliente
                 WHERE (tp.es_moral = 1 OR tp.es_fideicomiso = 1)
                   AND c.id_status = 1
-                ORDER BY c.fecha_apertura DESC
-            ");
-            $stmt->execute();
+            ";
+            if ($id_usuario_seleccionado > 0) {
+                $sqlClientes .= " AND c.id_usuario = ?";
+            }
+            $sqlClientes .= " ORDER BY c.fecha_apertura DESC";
+            $stmt = $pdo->prepare($sqlClientes);
+            if ($id_usuario_seleccionado > 0) {
+                $stmt->execute([$id_usuario_seleccionado]);
+            } else {
+                $stmt->execute();
+            }
             $clientesRequeridos = $stmt->fetchAll(PDO::FETCH_ASSOC);
             
             // Obtener lista de usuarios activos
@@ -503,16 +752,16 @@ $menuItems = $stmtMenu->fetchAll(PDO::FETCH_ASSOC);
             $usuarios = $stmt->fetchAll(PDO::FETCH_ASSOC);
             ?>
             
-            <div class="card shadow-sm">
-                <div class="card-header bg-primary text-white">
-                    <h5 class="mb-0"><i class="fa-solid fa-user-tie me-2"></i>Gestión de Responsables PLD</h5>
+            <div class="card config-card">
+                <div class="card-header">
+                    <i class="fa-solid fa-user-tie me-2"></i>Gestión de Responsables PLD
                 </div>
                 <div class="card-body">
-                    <p class="text-muted mb-4">
+                    <div class="config-info-box">
                         <i class="fa-solid fa-info-circle me-2"></i>
                         Las personas morales y fideicomisos deben tener un responsable PLD designado. 
-                        Seleccione un cliente para ver o designar su responsable.
-                    </p>
+                        Seleccione el ámbito para ver o designar el responsable que aplica a los usuarios.
+                    </div>
                     
                     <div class="table-responsive" style="max-height: 600px; overflow-y: auto;">
                         <table class="table table-hover">
@@ -585,7 +834,7 @@ $menuItems = $stmtMenu->fetchAll(PDO::FETCH_ASSOC);
             <div class="modal fade" id="designarResponsableModal" tabindex="-1">
                 <div class="modal-dialog">
                     <div class="modal-content">
-                        <div class="modal-header bg-primary text-white">
+                        <div class="modal-header">
                             <h5 class="modal-title">
                                 <i class="fa-solid fa-user-tie me-2"></i>Designar Responsable PLD
                             </h5>
@@ -624,13 +873,18 @@ $menuItems = $stmtMenu->fetchAll(PDO::FETCH_ASSOC);
             </div>
         </div>
 
-        <div class="tab-pane fade" id="menu" role="tabpanel">
+        <div class="tab-pane fade <?= $tabActivo === 'menu' ? 'show active' : '' ?>" id="menu" role="tabpanel">
+            <?php if ($id_usuario_seleccionado > 0): ?>
+            <div class="alert alert-info mb-3">
+                <i class="fa-solid fa-user me-2"></i>Configurando visibilidad de menú para el usuario seleccionado. Cada ítem puede mostrarse u ocultarse.
+            </div>
+            <?php endif; ?>
             <div class="row">
-                <div class="col-md-4">
+                <div class="col-md-4" style="<?= $id_usuario_seleccionado > 0 ? 'display:none;' : '' ?>">
                     <div class="card shadow-sm mb-3">
                         <div class="card-header bg-light fw-bold">Agregar / Editar Ítem</div>
                         <div class="card-body">
-                            <form method="POST">
+                            <form method="POST" action="config.php<?= $id_usuario_seleccionado > 0 ? '?id_usuario='.$id_usuario_seleccionado : '' ?>">
                                 <input type="hidden" name="action" value="save_menu">
                                 <input type="hidden" name="id_menu_access" id="menuId"> 
 
@@ -696,12 +950,15 @@ $menuItems = $stmtMenu->fetchAll(PDO::FETCH_ASSOC);
                                             <th>Archivo</th>
                                             <th>Padre ID</th>
                                             <th>Empresa</th>
+                                            <?php if ($id_usuario_seleccionado > 0): ?>
+                                            <th class="text-center">Visible</th>
+                                            <?php endif; ?>
                                             <th class="text-end">Acción</th>
                                         </tr>
                                     </thead>
                                     <tbody>
                                         <?php if(empty($menuItems)): ?>
-                                            <tr><td colspan="6" class="text-center text-muted p-3">No hay elementos configurados.</td></tr>
+                                            <tr><td colspan="<?= $id_usuario_seleccionado > 0 ? 7 : 6 ?>" class="text-center text-muted p-3">No hay elementos configurados.</td></tr>
                                         <?php else: ?>
                                             <?php foreach ($menuItems as $m): ?>
                                                 <tr>
@@ -716,16 +973,35 @@ $menuItems = $stmtMenu->fetchAll(PDO::FETCH_ASSOC);
                                                         <?php endif; ?>
                                                     </td>
                                                     <td class="small"><?= htmlspecialchars($m['nombre_empresa_tipo'] ?? 'N/A') ?></td>
+                                                    <?php if ($id_usuario_seleccionado > 0):
+                                                        $activo = isset($menuVisibility[(int)$m['id_menu_access']]) ? $menuVisibility[(int)$m['id_menu_access']] : 1;
+                                                    ?>
+                                                    <td class="text-center">
+                                                        <form method="POST" action="config.php?id_usuario=<?= $id_usuario_seleccionado ?>" class="d-inline">
+                                                            <input type="hidden" name="action" value="toggle_menu_usuario">
+                                                            <input type="hidden" name="id_menu_access" value="<?= (int)$m['id_menu_access'] ?>">
+                                                            <input type="hidden" name="activo" value="<?= $activo ? 0 : 1 ?>">
+                                                            <?php if ($activo): ?>
+                                                            <button type="submit" class="btn btn-success btn-sm px-2"><i class="fa-solid fa-eye me-1"></i>Sí</button>
+                                                            <?php else: ?>
+                                                            <button type="submit" class="btn btn-secondary btn-sm px-2"><i class="fa-solid fa-eye-slash me-1"></i>No</button>
+                                                            <?php endif; ?>
+                                                        </form>
+                                                    </td>
+                                                    <?php endif; ?>
                                                     <td class="text-end">
                                                         <button class="btn btn-xs btn-outline-primary border-0" 
-                                                            onclick='editMenu(<?= json_encode($m) ?>)'>
+                                                            onclick='editMenu(<?= json_encode($m) ?>)'
+                                                            style="<?= $id_usuario_seleccionado > 0 ? 'display:none;' : '' ?>">
                                                             <i class="fa-solid fa-pen"></i>
                                                         </button>
-                                                        <form method="POST" class="d-inline delete-menu-form">
+                                                        <?php if ($id_usuario_seleccionado <= 0): ?>
+                                                        <form method="POST" class="d-inline delete-menu-form" action="config.php">
                                                             <input type="hidden" name="action" value="delete_menu">
                                                             <input type="hidden" name="id_menu_delete" value="<?= $m['id_menu_access'] ?>">
                                                             <button type="button" class="btn btn-xs btn-outline-danger border-0" onclick="confirmDeleteMenu(this)"><i class="fa-solid fa-trash"></i></button>
                                                         </form>
+                                                        <?php endif; ?>
                                                     </td>
                                                 </tr>
                                             <?php endforeach; ?>
@@ -743,6 +1019,7 @@ $menuItems = $stmtMenu->fetchAll(PDO::FETCH_ASSOC);
 </div>
 
 <script>
+    window.idUsuarioConfig = <?= (int)$id_usuario_seleccionado ?>;
     // --- 1. TOGGLE VULNERABLE COMBO ---
     function toggleVulnerable() {
         const typeSelect = document.getElementById('selectTipoEmpresa');
@@ -844,7 +1121,8 @@ $menuItems = $stmtMenu->fetchAll(PDO::FETCH_ASSOC);
                 folio: folio || null,
                 estatus: estatus || null,
                 fracciones: fracciones || null,
-                confirmar: true
+                confirmar: true,
+                id_usuario: window.idUsuarioConfig || 0
             })
         })
         .then(res => {
@@ -994,7 +1272,8 @@ $menuItems = $stmtMenu->fetchAll(PDO::FETCH_ASSOC);
                     folio: folio || null,
                     estatus: estatus || null,
                     fracciones: fracciones || null,
-                    confirmar: false // Primero mostrar cambios
+                    confirmar: false,
+                    id_usuario: window.idUsuarioConfig || 0
                 })
             })
             .then(res => {
@@ -1036,7 +1315,8 @@ $menuItems = $stmtMenu->fetchAll(PDO::FETCH_ASSOC);
                                     folio: folio || null,
                                     estatus: estatus || null,
                                     fracciones: fracciones || null,
-                                    confirmar: true
+                                    confirmar: true,
+                                    id_usuario: window.idUsuarioConfig || 0
                                 })
                             })
                             .then(res => {
