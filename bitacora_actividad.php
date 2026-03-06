@@ -1,12 +1,15 @@
 <?php
 if (session_status() === PHP_SESSION_NONE) session_start();
 require_once __DIR__ . '/config/db.php';
+require_once __DIR__ . '/config/modules_helper.php';
 require_once __DIR__ . '/config/pld_middleware.php';
 
 if (!isset($_SESSION['user_id'])) {
     header('Location: login.php');
     exit;
 }
+requireModuleActive($pdo, 'reports');
+requireReporteActivo($pdo, 'bitacora_actividad.php');
 
 // VAL-PLD-001: Verificar habilitación PLD
 if (!checkHabilitadoPLD($pdo)) {

@@ -1,8 +1,11 @@
 <?php
 session_start();
 require_once 'config/db.php';
+require_once 'config/modules_helper.php';
 require_once 'config/pld_middleware.php';
 require_once 'config/pld_permisos.php';
+
+requireModuleActive($pdo, 'pld');
 
 if (!checkHabilitadoPLD($pdo)) {
     header('Location: index.php?error=pld_no_habilitado');

@@ -1,0 +1,234 @@
+/* Conservación PLD - Diseño moderno (extiende operaciones_pld.css) */
+
+/* Sin "footer" vacío: la página termina con el contenido (no min-height) */
+.conservacion-page.content-wrapper {
+    margin-bottom: 0;
+}
+
+/* Page header - hero style para conservación */
+.conservacion-page .page-header {
+    display: flex;
+    justify-content: space-between;
+    align-items: flex-start;
+    flex-wrap: wrap;
+    gap: 1.5rem;
+    margin-bottom: 2rem;
+    padding: 2rem 2.5rem;
+    background: linear-gradient(135deg, #2563eb 0%, #1d4ed8 50%, #1e40af 100%);
+    border-radius: 14px;
+    box-shadow: 0 20px 50px -15px rgba(37, 99, 235, 0.4);
+    color: #fff;
+}
+
+.conservacion-page .page-header h2 {
+    color: #fff !important;
+    margin-bottom: 0.5rem;
+    font-size: 1.85rem;
+    font-weight: 700;
+}
+
+.conservacion-page .page-header h2 .fa-solid {
+    color: rgba(255, 255, 255, 0.95) !important;
+}
+
+.conservacion-page .page-header .text-muted {
+    color: rgba(255, 255, 255, 0.85) !important;
+}
+
+.conservacion-page .page-header .btn-primary {
+    background: #fff !important;
+    color: #2563eb !important;
+    border: none;
+    box-shadow: 0 4px 14px rgba(0, 0, 0, 0.15);
+}
+
+.conservacion-page .page-header .btn-primary:hover {
+    background: #f8fafc !important;
+}
+
+.conservacion-page .page-header .btn-outline-primary {
+    color: #fff !important;
+    border-color: rgba(255, 255, 255, 0.6) !important;
+}
+
+.conservacion-page .page-header .btn-outline-primary:hover {
+    background: rgba(255, 255, 255, 0.15) !important;
+    border-color: #fff !important;
+}
+
+/* Info cards */
+.conservacion-page .cons-info-card {
+    border: none !important;
+    border-radius: 14px;
+    box-shadow: 0 4px 24px -4px rgba(0, 0, 0, 0.08);
+    overflow: hidden;
+}
+
+.conservacion-page .cons-info-header {
+    display: flex;
+    align-items: center;
+    gap: 1rem;
+    padding: 1rem 1.25rem;
+    cursor: pointer;
+    background: transparent;
+    border: none;
+    width: 100%;
+    text-align: left;
+}
+
+.conservacion-page .cons-info-header:hover {
+    background: rgba(0, 0, 0, 0.03);
+}
+
+.conservacion-page .cons-info-icon {
+    flex-shrink: 0;
+}
+
+.conservacion-page .cons-info-chevron {
+    flex-shrink: 0;
+    color: #94a3b8;
+    transition: transform 0.2s ease;
+}
+
+.conservacion-page .cons-info-header[aria-expanded="true"] .cons-info-chevron {
+    transform: rotate(180deg);
+}
+
+.conservacion-page .cons-info-card .card-body.pt-0 {
+    padding-top: 0;
+    padding-bottom: 1rem;
+}
+
+/* Collapse: ocultar bien sin fugas ni espacio residual */
+.conservacion-page .cons-info-card .collapse {
+    overflow: hidden;
+}
+.conservacion-page .cons-info-card .collapse:not(.show) {
+    min-height: 0;
+    margin-bottom: 0;
+    padding: 0;
+    border: none;
+}
+.conservacion-page .cons-info-card .collapse .card-body {
+    overflow: hidden;
+}
+
+/* Tab visitas y conservación: último card sin margen extra */
+.conservacion-page .tab-pane .card:last-of-type {
+    margin-bottom: 0;
+}
+
+/* Tab-content sin altura mínima extra */
+.conservacion-page #conservacionTabContent {
+    margin-bottom: 0;
+}
+
+.conservacion-page .cons-info-card.border-warning {
+    background: linear-gradient(135deg, #fffbeb 0%, #fef3c7 100%) !important;
+    border-left: 5px solid #f59e0b !important;
+}
+
+.conservacion-page .cons-info-card.border-info {
+    background: linear-gradient(135deg, #ecfeff 0%, #cffafe 100%) !important;
+    border-left: 5px solid #0ea5e9 !important;
+}
+
+/* KPI stats - horizontal */
+.conservacion-page .kpi-grid {
+    display: grid !important;
+    grid-template-columns: repeat(4, 1fr);
+    gap: 1.25rem;
+}
+
+.conservacion-page .kpi-card .card-body {
+    display: flex !important;
+    flex-direction: row !important;
+    align-items: center;
+    gap: 1rem;
+    padding: 1.25rem 1.5rem;
+}
+
+.conservacion-page .kpi-card .kpi-icon {
+    flex-shrink: 0;
+    font-size: 1.75rem;
+}
+
+.conservacion-page .kpi-card .kpi-content h3 {
+    font-size: 1.5rem;
+    font-weight: 700;
+    margin: 0 0 0.15rem 0;
+}
+
+.conservacion-page .kpi-card .kpi-content small {
+    font-size: 0.8rem;
+}
+
+/* Tabs */
+.conservacion-page #conservacionTabs {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 0.5rem;
+    padding: 0.6rem;
+    border-radius: 14px;
+    box-shadow: 0 4px 24px -4px rgba(0, 0, 0, 0.08);
+    border: 1px solid rgba(37, 99, 235, 0.08);
+}
+
+.conservacion-page #conservacionTabs .nav-link {
+    color: #64748b;
+    border: none;
+    padding: 0.85rem 1.35rem;
+    border-radius: 12px;
+    font-weight: 600;
+    transition: 0.3s ease;
+}
+
+.conservacion-page #conservacionTabs .nav-link:hover {
+    color: #2563eb;
+    background: rgba(37, 99, 235, 0.08);
+}
+
+.conservacion-page #conservacionTabs .nav-link.active {
+    color: #fff;
+    background: linear-gradient(135deg, #2563eb 0%, #1d4ed8 100%);
+}
+
+/* Filtros card */
+.conservacion-page .card.mb-4 .card-body {
+    padding: 1.5rem;
+}
+
+/* Cards y tablas */
+.conservacion-page .card {
+    border-radius: 14px;
+    box-shadow: 0 4px 24px -4px rgba(0, 0, 0, 0.08);
+}
+
+/* Tabla evidencias: menos espacio vacío en estado vacío */
+.conservacion-page #tabla-conservacion tbody td.text-center.text-muted {
+    padding-top: 1.5rem !important;
+    padding-bottom: 1.5rem !important;
+}
+
+.conservacion-page .visitas-header {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    margin-bottom: 1rem;
+}
+
+.conservacion-page .eventos-criticos-title {
+    margin-bottom: 0.5rem;
+}
+
+@media (max-width: 1200px) {
+    .conservacion-page .kpi-grid {
+        grid-template-columns: repeat(2, 1fr);
+    }
+}
+
+@media (max-width: 768px) {
+    .conservacion-page .kpi-grid {
+        grid-template-columns: 1fr;
+    }
+}

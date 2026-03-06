@@ -990,12 +990,11 @@ $listaUsuarios = $stmtUsuarios->fetchAll(PDO::FETCH_ASSOC);
                                                     </td>
                                                     <?php endif; ?>
                                                     <td class="text-end">
+                                                        <?php if ($id_usuario_seleccionado <= 0): ?>
                                                         <button class="btn btn-xs btn-outline-primary border-0" 
-                                                            onclick='editMenu(<?= json_encode($m) ?>)'
-                                                            style="<?= $id_usuario_seleccionado > 0 ? 'display:none;' : '' ?>">
+                                                            onclick='editMenu(<?= json_encode($m) ?>)'>
                                                             <i class="fa-solid fa-pen"></i>
                                                         </button>
-                                                        <?php if ($id_usuario_seleccionado <= 0): ?>
                                                         <form method="POST" class="d-inline delete-menu-form" action="config.php">
                                                             <input type="hidden" name="action" value="delete_menu">
                                                             <input type="hidden" name="id_menu_delete" value="<?= $m['id_menu_access'] ?>">

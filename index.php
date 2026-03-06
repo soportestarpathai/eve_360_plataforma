@@ -3,6 +3,7 @@ include 'templates/header.php';
 
 // Cargar utilidades mejoradas
 require_once __DIR__ . '/config/logger.php';
+require_once __DIR__ . '/config/modules_helper.php';
 require_once __DIR__ . '/config/cache.php';
 require_once __DIR__ . '/config/banxico_api.php';
 require_once __DIR__ . '/config/pld_validation.php';
@@ -256,6 +257,20 @@ if (!empty($_SESSION['user_id'])) {
     } catch (Exception $e) { /* tabla no existe */ }
 }
 
+// Filtrar por módulos del sistema (config_modulos_usuario)
+$sysModules = getSysModulesForUser($pdo);
+$rawMenu = array_filter($rawMenu, function($m) use ($sysModules) {
+    $fp = $m['file_path'] ?? '';
+    if (empty($fp)) return true;
+    foreach (MODULE_PAGE_MAP as $modKey => $paths) {
+        if (in_array($fp, $paths) && !isModuleActive($sysModules, $modKey)) {
+            return false;
+        }
+    }
+    return true;
+});
+$rawMenu = array_values($rawMenu);
+
 $menuTree = [];
 $ref = [];
 foreach ($rawMenu as $row) {
@@ -270,25 +285,38 @@ foreach ($rawMenu as $row) {
 foreach ($ref as &$node) { if (empty($node['submenu'])) unset($node['submenu']); }
 unset($node);
 
-// Reportes: submenú con 4 opciones; Operaciones PLD se muestra como "Transacciones"
+// Reportes: submenú con 4 opciones; control por reportes_usuario (admin/reportes.php)
+$reportesActivos = getReportesActivosForUser($pdo);
+$reportesSubmenu = [];
+$reportesDef = [
+    'conservacion_pld.php' => ['label' => 'Conservación y Verificación PLD', 'icon' => 'fa-archive', 'mod' => 'pld'],
+    'reporte_riesgos.php' => ['label' => 'Reporte de riesgos', 'icon' => 'fa-chart-line', 'mod' => 'risk'],
+    'reporte_transacciones.php' => ['label' => 'Reporte de transacciones', 'icon' => 'fa-file-invoice-dollar', 'mod' => 'reports'],
+    'bitacora_actividad.php' => ['label' => 'Bitácora de actividad de usuarios (SAT)', 'icon' => 'fa-clock-rotate-left', 'mod' => 'reports'],
+];
+foreach ($reportesDef as $file => $def) {
+    if (isModuleActive($sysModules, $def['mod']) && isReporteActivo($reportesActivos, $file)) {
+        $reportesSubmenu[] = [ 'label' => $def['label'], 'icon' => $def['icon'], 'link' => $file ];
+    }
+}
 foreach ($menuTree as &$item) {
     if (isset($item['label'])) {
         if ($item['label'] === 'Operaciones PLD') {
             $item['label'] = 'Transacciones';
         }
         if ($item['label'] === 'Reportes') {
-            $item['link'] = '#';
-            $item['submenu'] = [
-                [ 'label' => 'Conservación y Verificación PLD', 'icon' => 'fa-archive', 'link' => 'conservacion_pld.php' ],
-                [ 'label' => 'Reporte de riesgos', 'icon' => 'fa-chart-line', 'link' => 'reporte_riesgos.php' ],
-                [ 'label' => 'Reporte de transacciones', 'icon' => 'fa-file-invoice-dollar', 'link' => 'reporte_transacciones.php' ],
-                [ 'label' => 'Bitácora de actividad de usuarios (SAT)', 'icon' => 'fa-clock-rotate-left', 'link' => 'bitacora_actividad.php' ],
-            ];
+            if (!empty($reportesSubmenu)) {
+                $item['link'] = '#';
+                $item['submenu'] = $reportesSubmenu;
+            } else {
+                $item['_hide'] = true; // Marcar para quitar
+            }
         }
     }
 }
 unset($item);
 $menuTree = array_values(array_filter($menuTree, function ($item) {
+    if (isset($item['_hide']) && $item['_hide']) return false;
     return (isset($item['label']) && $item['label'] !== 'Conservación PLD');
 }));
 
@@ -724,8 +752,8 @@ try {
                             <p class="small text-muted mt-2 mb-0">No hay clientes activos para analizar</p>
                         </div>
                     <?php else: ?>
-                        <div id="riskChartLink" class="risk-chart-link d-block text-decoration-none" title="Ver Reporte de riesgos" role="link" tabindex="0" aria-label="Ir al Reporte de riesgos">
-                            <div style="position: relative; height: 300px; width: 100%; cursor: pointer;">
+                        <div id="riskChartLink" class="risk-chart-link d-block text-decoration-none <?= isModuleActive($sysModules, 'risk') ? '' : 'pe-none' ?>" title="<?= isModuleActive($sysModules, 'risk') ? 'Ver Reporte de riesgos' : '' ?>" role="link" tabindex="0" aria-label="Ir al Reporte de riesgos" <?= isModuleActive($sysModules, 'risk') ? 'data-href="reporte_riesgos.php"' : '' ?>>
+                            <div style="position: relative; height: 300px; width: 100%; cursor: <?= isModuleActive($sysModules, 'risk') ? 'pointer' : 'default' ?>;">
                                 <canvas id="riskChart"></canvas>
                             </div>
                         </div>
@@ -764,18 +792,22 @@ try {
                             </div>
                             <span class="quick-action-label">Ver Clientes</span>
                         </a>
+                        <?php if (isModuleActive($sysModules, 'risk')): ?>
                         <a href="config_ebr.php" class="quick-action-btn">
                             <div class="quick-action-icon" style="background: linear-gradient(135deg, #0B486B 0%, #0B3C8A 100%);">
                                 <i class="fa-solid fa-sliders"></i>
                             </div>
                             <span class="quick-action-label">Configurar EBR</span>
                         </a>
-                        <a href="conservacion_pld.php" class="quick-action-btn">
+                        <?php endif; ?>
+                        <?php if (isModuleActive($sysModules, 'pld') || isModuleActive($sysModules, 'reports')): ?>
+                        <a href="<?= isModuleActive($sysModules, 'pld') ? 'conservacion_pld.php' : 'reporte_transacciones.php' ?>" class="quick-action-btn">
                             <div class="quick-action-icon" style="background: linear-gradient(135deg, #FF6B6B 0%, #EE5A6F 100%);">
                                 <i class="fa-solid fa-chart-pie"></i>
                             </div>
                             <span class="quick-action-label">Reportes</span>
                         </a>
+                        <?php endif; ?>
                     </div>
                 </div>
             </div>

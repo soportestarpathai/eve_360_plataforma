@@ -6,8 +6,17 @@
 
 session_start();
 require_once __DIR__ . '/config/db.php';
+require_once __DIR__ . '/config/modules_helper.php';
 require_once __DIR__ . '/config/pld_middleware.php';
 require_once __DIR__ . '/config/pld_conservacion.php';
+
+if (!isset($_SESSION['user_id'])) {
+    header('Location: login.php');
+    exit;
+}
+
+requireModuleActive($pdo, 'pld');
+requireReporteActivo($pdo, 'conservacion_pld.php');
 
 // VAL-PLD-001: Bloquear si no está habilitado
 requirePLDHabilitado($pdo, false);
@@ -17,6 +26,7 @@ include 'templates/header.php';
 ?>
 <title>Conservación PLD - <?= htmlspecialchars($appConfig['nombre_empresa'] ?? 'EVE 360') ?></title>
 <link rel="stylesheet" href="assets/css/operaciones_pld.css">
+<link rel="stylesheet" href="assets/css/conservacion_pld.css">
 </head>
 <body>
 
@@ -25,26 +35,28 @@ $is_sub_page = true;
 include 'templates/top_bar.php';
 ?>
 
-<div class="content-wrapper">
+<div class="content-wrapper conservacion-page">
 <div class="container-fluid py-4">
     <!-- Header -->
-    <div class="d-flex justify-content-between align-items-center mb-4">
+    <div class="page-header">
         <div>
             <h2 class="mb-1">
-                <i class="fa-solid fa-archive me-2 text-primary"></i>
+                <i class="fa-solid fa-archive me-2"></i>
                 Conservación y Verificación PLD
             </h2>
             <p class="text-muted mb-0">VAL-PLD-013 | Conservación 10 años — VAL-PLD-014 | Visitas de verificación</p>
         </div>
-        <button class="btn btn-primary btn-conservacion-tab" onclick="abrirModalConservacion()">
-            <i class="fa-solid fa-plus me-2"></i>Registrar Evidencia
-        </button>
-        <button class="btn btn-outline-primary btn-visitas-tab d-none" onclick="abrirModalVisita()">
-            <i class="fa-solid fa-clipboard-check me-2"></i>Registrar Visita
-        </button>
+        <div>
+            <button class="btn btn-primary btn-conservacion-tab" onclick="abrirModalConservacion()">
+                <i class="fa-solid fa-plus me-2"></i>Registrar Evidencia
+            </button>
+            <button class="btn btn-outline-primary btn-visitas-tab d-none" onclick="abrirModalVisita()">
+                <i class="fa-solid fa-clipboard-check me-2"></i>Registrar Visita
+            </button>
+        </div>
     </div>
 
-    <ul class="nav nav-tabs mb-3" id="conservacionTabs" role="tablist">
+    <ul class="nav nav-tabs mb-4" id="conservacionTabs" role="tablist">
         <li class="nav-item" role="presentation">
             <button class="nav-link active" id="tab-conservacion-btn" data-bs-toggle="tab" data-bs-target="#tab-conservacion" type="button" role="tab">Conservación (VAL-PLD-013)</button>
         </li>
@@ -56,81 +68,84 @@ include 'templates/top_bar.php';
     <div class="tab-content" id="conservacionTabContent">
     <!-- Tab Conservación -->
     <div class="tab-pane fade show active" id="tab-conservacion" role="tabpanel">
-    <!-- Información VAL-PLD-013 -->
-    <div class="card mb-4 border-warning" style="background: linear-gradient(135deg, #fff3cd 0%, #fff8e1 100%);">
-        <div class="card-body">
-            <div class="row align-items-center">
-                <div class="col-md-1 text-center">
-                    <i class="fa-solid fa-archive fa-3x text-warning"></i>
+    <!-- Información VAL-PLD-013 (colapsable) -->
+    <div class="card mb-4 border-warning cons-info-card">
+        <div class="cons-info-header" type="button" data-bs-toggle="collapse" data-bs-target="#cons013-detail" aria-expanded="false" aria-controls="cons013-detail">
+            <i class="fa-solid fa-archive fa-2x text-warning cons-info-icon"></i>
+            <div class="flex-grow-1">
+                <h5 class="mb-0 text-warning">
+                    <i class="fa-solid fa-info-circle me-2"></i>VAL-PLD-013 | Conservación de Información
+                </h5>
+                <small class="text-muted">Conservación 10 años — Expande para más detalles</small>
+            </div>
+            <i class="fa-solid fa-chevron-down cons-info-chevron"></i>
+        </div>
+        <div class="collapse" id="cons013-detail">
+            <div class="card-body pt-0">
+                <p class="mb-2">
+                    <strong>Generalidad:</strong> La información debe conservarse por al menos <strong>10 años</strong>. 
+                    Esto incluye expedientes, documentos, avisos, transacciones y cualquier cambio o edición.
+                </p>
+                <div class="row mt-2">
+                    <div class="col-md-6">
+                        <small class="text-muted">
+                            <i class="fa-solid fa-check-circle me-1 text-success"></i>
+                            <strong>Validaciones:</strong> Evidencia asociada | Plazo vigente (10 años) | Cambios | Ediciones
+                        </small>
+                    </div>
+                    <div class="col-md-6">
+                        <small class="text-muted">
+                            <i class="fa-solid fa-exclamation-triangle me-1 text-danger"></i>
+                            <strong>Resultado:</strong> Falta de evidencia → <code>EXPEDIENTE_INCOMPLETO</code>
+                        </small>
+                    </div>
                 </div>
-                <div class="col-md-11">
-                    <h5 class="mb-2 text-warning">
-                        <i class="fa-solid fa-info-circle me-2"></i>
-                        VAL-PLD-013 | Conservación de Información
-                    </h5>
-                    <p class="mb-2">
-                        <strong>Generalidad:</strong> La información debe conservarse por al menos <strong>10 años</strong>. 
-                        Esto incluye expedientes, documentos, avisos, transacciones y cualquier cambio o edición.
-                    </p>
-                    <div class="row mt-2">
-                        <div class="col-md-6">
-                            <small class="text-muted">
-                                <i class="fa-solid fa-check-circle me-1 text-success"></i>
-                                <strong>Validaciones:</strong> Evidencia asociada | Plazo vigente (10 años) | Cambios | Ediciones
-                            </small>
-                        </div>
-                        <div class="col-md-6">
-                            <small class="text-muted">
-                                <i class="fa-solid fa-exclamation-triangle me-1 text-danger"></i>
-                                <strong>Resultado:</strong> Falta de evidencia → <code>EXPEDIENTE_INCOMPLETO</code>
-                            </small>
-                        </div>
-                    </div>
-                    <p class="mb-1 small text-muted">Cambios y ediciones se registran con <strong>fecha de modificación</strong> en cada evidencia.</p>
-                    <div class="alert alert-warning mt-2 mb-0">
-                        <i class="fa-solid fa-lightbulb me-2"></i>
-                        <strong>Nota:</strong> El sistema valida automáticamente que los archivos existan y que el plazo de conservación (10 años) esté vigente. 
-                        Si falta evidencia o está vencida, se marca como <code>EXPEDIENTE_INCOMPLETO</code>.
-                    </div>
-    <!-- Alerta resultado EXPEDIENTE_INCOMPLETO cuando hay faltantes o vencidas -->
-    <div id="alerta-expediente-incompleto" class="alert alert-danger mt-3 d-none" role="alert">
-        <i class="fa-solid fa-exclamation-triangle me-2"></i>
-        <strong>Resultado validación:</strong> <code>EXPEDIENTE_INCOMPLETO</code> — Falta evidencia o evidencia vencida. Corrija para cumplir VAL-PLD-013.
-    </div>
+                <p class="mb-2 mt-2 small text-muted">Cambios y ediciones se registran con <strong>fecha de modificación</strong> en cada evidencia.</p>
+                <div class="alert alert-warning py-2 mb-2">
+                    <i class="fa-solid fa-lightbulb me-2"></i>
+                    <strong>Nota:</strong> El sistema valida automáticamente que los archivos existan y que el plazo de conservación (10 años) esté vigente.
+                </div>
+                <div id="alerta-expediente-incompleto" class="alert alert-danger py-2 mb-0 d-none" role="alert">
+                    <i class="fa-solid fa-exclamation-triangle me-2"></i>
+                    <strong>Resultado validación:</strong> <code>EXPEDIENTE_INCOMPLETO</code> — Falta evidencia o evidencia vencida.
                 </div>
             </div>
         </div>
     </div>
 
     <!-- Estadísticas Rápidas -->
-    <div class="row mb-4" id="estadisticas-rapidas">
-        <div class="col-md-3">
-            <div class="card text-center border-primary">
-                <div class="card-body">
+    <div class="kpi-grid mb-4" id="estadisticas-rapidas">
+        <div class="kpi-card card border-primary">
+            <div class="card-body">
+                <i class="fa-solid fa-archive fa-2x text-primary kpi-icon"></i>
+                <div class="kpi-content">
                     <h3 class="mb-0 text-primary" id="total-evidencias">0</h3>
                     <small class="text-muted">Total Evidencias</small>
                 </div>
             </div>
         </div>
-        <div class="col-md-3">
-            <div class="card text-center border-success">
-                <div class="card-body">
+        <div class="kpi-card card border-success">
+            <div class="card-body">
+                <i class="fa-solid fa-check-circle fa-2x text-success kpi-icon"></i>
+                <div class="kpi-content">
                     <h3 class="mb-0 text-success" id="disponibles-count">0</h3>
                     <small class="text-muted">Disponibles</small>
                 </div>
             </div>
         </div>
-        <div class="col-md-3">
-            <div class="card text-center border-danger">
-                <div class="card-body">
+        <div class="kpi-card card border-danger">
+            <div class="card-body">
+                <i class="fa-solid fa-circle-xmark fa-2x text-danger kpi-icon"></i>
+                <div class="kpi-content">
                     <h3 class="mb-0 text-danger" id="faltantes-count">0</h3>
                     <small class="text-muted">Faltantes</small>
                 </div>
             </div>
         </div>
-        <div class="col-md-3">
-            <div class="card text-center border-warning">
-                <div class="card-body">
+        <div class="kpi-card card border-warning">
+            <div class="card-body">
+                <i class="fa-solid fa-clock fa-2x text-warning kpi-icon"></i>
+                <div class="kpi-content">
                     <h3 class="mb-0 text-warning" id="vencidas-count">0</h3>
                     <small class="text-muted">Vencidas</small>
                 </div>
@@ -273,52 +288,9 @@ include 'templates/top_bar.php';
     </div>
     <!-- Fin Tab Conservación -->
 
-    <!-- Tab Visitas de Verificación (VAL-PLD-014) -->
+    <!-- Tab Visitas de Verificación (VAL-PLD-014) - Se construye solo al cambiar a este tab -->
     <div class="tab-pane fade" id="tab-visitas" role="tabpanel">
-        <div class="card mb-4 border-info" style="background: linear-gradient(135deg, #e3f2fd 0%, #f0f7ff 100%);">
-            <div class="card-body">
-                <h5 class="mb-2 text-info"><i class="fa-solid fa-clipboard-check me-2"></i>VAL-PLD-014 | Atención a Visitas de Verificación</h5>
-                <p class="mb-2"><strong>Generalidad:</strong> Debe existir capacidad de atención a requerimientos de autoridad.</p>
-                <p class="mb-1 small"><strong>Validaciones:</strong> Acceso a expedientes | Evidencia disponible</p>
-                <p class="mb-0 small text-danger"><strong>Resultado:</strong> No disponible → <code>evento crítico</code></p>
-            </div>
-        </div>
-        <div class="row mb-3">
-            <div class="col-md-6"><h5 class="mb-2">Visitas registradas</h5></div>
-            <div class="col-md-6 text-end">
-                <button class="btn btn-primary" onclick="abrirModalVisita()"><i class="fa-solid fa-plus me-2"></i>Registrar Visita</button>
-            </div>
-        </div>
-        <div class="card mb-4">
-            <div class="card-body">
-                <div class="table-responsive">
-                    <table class="table table-hover">
-                        <thead>
-                            <tr><th>Fecha</th><th>Autoridad</th><th>Tipo requerimiento</th><th>Expedientes disponibles</th><th>Estatus</th></tr>
-                        </thead>
-                        <tbody id="visitas-tbody">
-                            <tr><td colspan="5" class="text-center text-muted">Cargando...</td></tr>
-                        </tbody>
-                    </table>
-                </div>
-            </div>
-        </div>
-        <h5 class="mb-2 text-danger"><i class="fa-solid fa-exclamation-triangle me-2"></i>Eventos críticos</h5>
-        <p class="small text-muted mb-2">Cuando expedientes o evidencia no están disponibles en una visita de verificación.</p>
-        <div class="card">
-            <div class="card-body">
-                <div class="table-responsive">
-                    <table class="table table-hover table-sm">
-                        <thead>
-                            <tr><th>Fecha</th><th>Tipo</th><th>Descripción</th><th>Visita #</th></tr>
-                        </thead>
-                        <tbody id="eventos-criticos-tbody">
-                            <tr><td colspan="4" class="text-center text-muted">Cargando...</td></tr>
-                        </tbody>
-                    </table>
-                </div>
-            </div>
-        </div>
+        <div id="tab-visitas-inner"></div>
     </div>
     </div>
 </div>
@@ -328,11 +300,12 @@ include 'templates/top_bar.php';
     <div class="modal-dialog">
         <div class="modal-content">
             <div class="modal-header">
-                <h5 class="modal-title"><i class="fa-solid fa-clipboard-check me-2"></i>Registrar Visita de Verificación</h5>
+                <h5 class="modal-title" id="modalVisitaTitle"><i class="fa-solid fa-clipboard-check me-2"></i>Registrar Visita de Verificación</h5>
                 <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
             </div>
             <div class="modal-body">
                 <form id="formVisita">
+                    <input type="hidden" id="visita_id_edicion" value="">
                     <div class="mb-3">
                         <label class="form-label">Fecha de visita *</label>
                         <input type="date" class="form-control" id="visita_fecha" required>
@@ -353,12 +326,12 @@ include 'templates/top_bar.php';
                     <div class="mb-3">
                         <label class="form-label">Observaciones</label>
                         <textarea class="form-control" id="visita_observaciones" rows="2"></textarea>
-                    </div>
-                </form>
+            </div>
+            </form>
             </div>
             <div class="modal-footer">
                 <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Cancelar</button>
-                <button type="button" class="btn btn-primary" onclick="guardarVisita()"><i class="fa-solid fa-save me-2"></i>Registrar</button>
+                <button type="button" class="btn btn-primary" onclick="guardarVisita()"><i class="fa-solid fa-save me-2"></i><span id="btnVisitaLabel">Registrar</span></button>
             </div>
         </div>
     </div>
@@ -381,14 +354,17 @@ document.addEventListener('DOMContentLoaded', function() {
             var target = e.target.getAttribute('data-bs-target');
             var btnConservacion = document.querySelector('.btn-conservacion-tab');
             var btnVisitas = document.querySelector('.btn-visitas-tab');
+            var inner = document.getElementById('tab-visitas-inner');
             if (target === '#tab-visitas') {
                 if (btnConservacion) btnConservacion.classList.add('d-none');
                 if (btnVisitas) btnVisitas.classList.remove('d-none');
+                construirTabVisitas();
                 cargarVisitas();
                 cargarEventosCriticos();
             } else {
                 if (btnConservacion) btnConservacion.classList.remove('d-none');
                 if (btnVisitas) btnVisitas.classList.add('d-none');
+                if (inner) inner.innerHTML = '';
             }
         });
     }
@@ -398,10 +374,15 @@ function cargarClientes() {
     fetch('api/get_clients.php')
         .then(res => res.json())
         .then(data => {
+            if (!Array.isArray(data)) {
+                console.error('get_clients: respuesta inválida', data);
+                return;
+            }
             clientesList = data;
             const select = document.getElementById('conservacion_id_cliente');
             const filtroSelect = document.getElementById('filtro-cliente');
-            
+            if (!select || !filtroSelect) return;
+
             data.forEach(cliente => {
                 const option = document.createElement('option');
                 option.value = cliente.id_cliente;
@@ -457,9 +438,9 @@ function renderEvidencias(evidencias, estadisticas) {
     if (evidencias.length === 0) {
         tbody.innerHTML = `
             <tr>
-                <td colspan="9" class="text-center text-muted py-5">
-                    <i class="fa-solid fa-archive fa-3x mb-3 d-block" style="opacity: 0.3;"></i>
-                    <p class="mb-0">No hay evidencias registradas</p>
+                <td colspan="9" class="text-center text-muted py-4">
+                    <i class="fa-solid fa-archive fa-3x mb-2 d-block" style="opacity: 0.3;"></i>
+                    <p class="mb-1">No hay evidencias registradas</p>
                     <small>Haz clic en "Registrar Evidencia" para comenzar</small>
                 </td>
             </tr>
@@ -651,6 +632,56 @@ function verDetalle(idConservacion) {
     });
 }
 
+// VAL-PLD-014: Construir el contenido del tab Visitas solo cuando se activa
+function construirTabVisitas() {
+    var inner = document.getElementById('tab-visitas-inner');
+    if (!inner) return;
+    inner.innerHTML = ''
+        + '<div class="card mb-4 border-info cons-info-card">'
+        + '  <div class="cons-info-header" type="button" data-bs-toggle="collapse" data-bs-target="#cons014-detail" aria-expanded="false" aria-controls="cons014-detail">'
+        + '    <i class="fa-solid fa-clipboard-check fa-2x text-info cons-info-icon"></i>'
+        + '    <div class="flex-grow-1">'
+        + '      <h5 class="mb-0 text-info"><i class="fa-solid fa-info-circle me-2"></i>VAL-PLD-014 | Atención a Visitas de Verificación</h5>'
+        + '      <small class="text-muted">Expandir para más detalles</small>'
+        + '    </div>'
+        + '    <i class="fa-solid fa-chevron-down cons-info-chevron"></i>'
+        + '  </div>'
+        + '  <div class="collapse" id="cons014-detail">'
+        + '    <div class="card-body pt-0">'
+        + '      <p class="mb-2"><strong>Generalidad:</strong> Debe existir capacidad de atención a requerimientos de autoridad.</p>'
+        + '      <p class="mb-1 small"><strong>Validaciones:</strong> Acceso a expedientes | Evidencia disponible</p>'
+        + '      <p class="mb-0 small text-danger"><strong>Resultado:</strong> No disponible → <code>evento crítico</code></p>'
+        + '    </div>'
+        + '  </div>'
+        + '</div>'
+        + '<div class="visitas-header">'
+        + '  <h5 class="mb-0">Visitas registradas</h5>'
+        + '  <button class="btn btn-primary" onclick="abrirModalVisita()"><i class="fa-solid fa-plus me-2"></i>Registrar Visita</button>'
+        + '</div>'
+        + '<div class="card mb-4">'
+        + '  <div class="card-body">'
+        + '    <div class="table-responsive">'
+        + '      <table class="table table-hover">'
+        + '        <thead><tr><th>Fecha</th><th>Autoridad</th><th>Tipo requerimiento</th><th>Expedientes disponibles</th><th>Estatus</th><th>Acciones</th></tr></thead>'
+        + '        <tbody id="visitas-tbody"><tr><td colspan="6" class="text-center text-muted">Cargando...</td></tr></tbody>'
+        + '      </table>'
+        + '    </div>'
+        + '  </div>'
+        + '</div>'
+        + '<h5 class="mb-2 text-danger eventos-criticos-title"><i class="fa-solid fa-exclamation-triangle me-2"></i>Eventos críticos</h5>'
+        + '<p class="small text-muted mb-3">Cuando expedientes o evidencia no están disponibles en una visita de verificación.</p>'
+        + '<div class="card">'
+        + '  <div class="card-body">'
+        + '    <div class="table-responsive">'
+        + '      <table class="table table-hover table-sm">'
+        + '        <thead><tr><th>Fecha</th><th>Tipo</th><th>Descripción</th><th>Visita #</th></tr></thead>'
+        + '        <tbody id="eventos-criticos-tbody"><tr><td colspan="4" class="text-center text-muted">Cargando...</td></tr></tbody>'
+        + '      </table>'
+        + '    </div>'
+        + '  </div>'
+        + '</div>';
+}
+
 // VAL-PLD-014: Visitas de verificación y eventos críticos
 function cargarVisitas() {
     fetch('api/get_visitas_verificacion.php')
@@ -659,18 +690,75 @@ function cargarVisitas() {
             var tbody = document.getElementById('visitas-tbody');
             if (!tbody) return;
             if (data.status !== 'success' || !data.visitas || data.visitas.length === 0) {
-                tbody.innerHTML = '<tr><td colspan="5" class="text-center text-muted">No hay visitas registradas</td></tr>';
+                tbody.innerHTML = '<tr><td colspan="6" class="text-center text-muted">No hay visitas registradas</td></tr>';
                 return;
             }
             tbody.innerHTML = data.visitas.map(v => {
                 var disp = v.expedientes_disponibles == 1 ? '<span class="badge bg-success">Sí</span>' : '<span class="badge bg-danger">No (evento crítico)</span>';
-                return '<tr><td>' + (v.fecha_visita || '-') + '</td><td>' + (v.autoridad || '-') + '</td><td>' + (v.tipo_requerimiento || '-') + '</td><td>' + disp + '</td><td><span class="badge bg-secondary">' + (v.estatus || '-') + '</span></td></tr>';
+                var acciones = '<button class="btn btn-sm btn-outline-primary me-1" onclick="editarVisita(' + v.id_visita + ')" title="Editar"><i class="fa-solid fa-pen"></i></button>' +
+                    '<button class="btn btn-sm btn-outline-danger" onclick="eliminarVisita(' + v.id_visita + ')" title="Eliminar"><i class="fa-solid fa-trash"></i></button>';
+                return '<tr><td>' + (v.fecha_visita || '-') + '</td><td>' + (v.autoridad || '-') + '</td><td>' + (v.tipo_requerimiento || '-') + '</td><td>' + disp + '</td><td><span class="badge bg-secondary">' + (v.estatus || '-') + '</span></td><td>' + acciones + '</td></tr>';
             }).join('');
         })
         .catch(err => {
             var tbody = document.getElementById('visitas-tbody');
-            if (tbody) tbody.innerHTML = '<tr><td colspan="5" class="text-center text-danger">Error al cargar</td></tr>';
+            if (tbody) tbody.innerHTML = '<tr><td colspan="6" class="text-center text-danger">Error al cargar</td></tr>';
         });
+}
+
+function editarVisita(idVisita) {
+    fetch('api/get_visitas_verificacion.php')
+        .then(res => res.json())
+        .then(data => {
+            if (data.status !== 'success' || !data.visitas) return;
+            var v = data.visitas.find(function(x) { return x.id_visita == idVisita; });
+            if (!v) return;
+            document.getElementById('visita_id_edicion').value = v.id_visita;
+            document.getElementById('visita_fecha').value = v.fecha_visita || '';
+            document.getElementById('visita_autoridad').value = v.autoridad || '';
+            document.getElementById('visita_tipo_requerimiento').value = v.tipo_requerimiento || '';
+            var exps = v.expedientes_solicitados;
+            if (typeof exps === 'string') {
+                try { var arr = JSON.parse(exps); exps = Array.isArray(arr) ? arr.join(', ') : exps; } catch(e) {}
+            }
+            document.getElementById('visita_expedientes').value = Array.isArray(exps) ? exps.join(', ') : (exps || '');
+            document.getElementById('visita_observaciones').value = v.observaciones || '';
+            document.getElementById('modalVisitaTitle').innerHTML = '<i class="fa-solid fa-pen me-2"></i>Editar Visita de Verificación';
+            document.getElementById('btnVisitaLabel').textContent = 'Guardar';
+            new bootstrap.Modal(document.getElementById('modalVisita')).show();
+        })
+        .catch(err => Swal.fire('Error', 'No se pudo cargar la visita', 'error'));
+}
+
+function eliminarVisita(idVisita) {
+    Swal.fire({
+        title: '¿Eliminar visita?',
+        text: 'Esta acción no se puede deshacer.',
+        icon: 'warning',
+        showCancelButton: true,
+        confirmButtonColor: '#dc3545',
+        cancelButtonText: 'Cancelar',
+        confirmButtonText: 'Sí, eliminar'
+    }).then(function(result) {
+        if (!result.isConfirmed) return;
+        fetch('api/eliminar_visita_verificacion.php', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ id_visita: idVisita })
+        })
+        .then(res => res.json())
+        .then(data => {
+            if (data.status === 'success') {
+                Swal.fire({ icon: 'success', title: 'Visita eliminada' }).then(function() {
+                    cargarVisitas();
+                    cargarEventosCriticos();
+                });
+            } else {
+                Swal.fire({ icon: 'error', title: 'Error', text: data.message || 'Error al eliminar' });
+            }
+        })
+        .catch(err => Swal.fire({ icon: 'error', title: 'Error', text: err.message || 'Error de conexión' }));
+    });
 }
 
 function cargarEventosCriticos() {
@@ -696,7 +784,10 @@ function cargarEventosCriticos() {
 
 function abrirModalVisita() {
     document.getElementById('formVisita').reset();
+    document.getElementById('visita_id_edicion').value = '';
     document.getElementById('visita_fecha').value = new Date().toISOString().slice(0, 10);
+    document.getElementById('modalVisitaTitle').innerHTML = '<i class="fa-solid fa-clipboard-check me-2"></i>Registrar Visita de Verificación';
+    document.getElementById('btnVisitaLabel').textContent = 'Registrar';
     new bootstrap.Modal(document.getElementById('modalVisita')).show();
 }
 
@@ -708,6 +799,7 @@ function guardarVisita() {
     }
     var expedientes = document.getElementById('visita_expedientes').value;
     var arr = expedientes ? expedientes.split(',').map(function(x) { return parseInt(x.trim(), 10); }).filter(function(n) { return !isNaN(n); }) : null;
+    var idEdicion = document.getElementById('visita_id_edicion').value;
     var payload = {
         fecha_visita: fecha,
         autoridad: document.getElementById('visita_autoridad').value || null,
@@ -715,7 +807,9 @@ function guardarVisita() {
         expedientes_solicitados: arr,
         observaciones: document.getElementById('visita_observaciones').value || null
     };
-    fetch('api/registrar_visita_verificacion.php', {
+    if (idEdicion) payload.id_visita = parseInt(idEdicion, 10);
+    var url = idEdicion ? 'api/actualizar_visita_verificacion.php' : 'api/registrar_visita_verificacion.php';
+    fetch(url, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify(payload)
@@ -725,8 +819,9 @@ function guardarVisita() {
         if (data.status === 'success') {
             var msg = data.message;
             if (data.evento_critico) msg += ' Se registró un <strong>evento crítico</strong> (expedientes no disponibles).';
-            Swal.fire({ icon: 'success', title: 'Visita registrada', html: msg }).then(function() {
-                bootstrap.Modal.getInstance(document.getElementById('modalVisita')).hide();
+            Swal.fire({ icon: 'success', title: idEdicion ? 'Visita actualizada' : 'Visita registrada', html: msg }).then(function() {
+                var m = bootstrap.Modal.getInstance(document.getElementById('modalVisita'));
+                if (m) m.hide();
                 cargarVisitas();
                 cargarEventosCriticos();
             });

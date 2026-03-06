@@ -1,0 +1,199 @@
+================================================================================
+  PERMISOS ADMIN vs USUARIO - Documentación Eve 360 Plataforma
+================================================================================
+  Fecha: 2025
+  Descripción: Resumen de filtros y permisos aplicados según rol (admin vs usuario)
+================================================================================
+
+CRITERIO PARA DETERMINAR SI ES ADMIN:
+-------------------------------------
+Se consulta la tabla usuarios_permisos:
+  SELECT administracion FROM usuarios_permisos WHERE id_usuario = ?
+  isAdmin = (perm && (int)(perm['administracion'] ?? 0) > 0)
+
+- ADMIN: administracion > 0 en usuarios_permisos
+- USUARIO: administracion = 0 o sin permiso
+
+
+================================================================================
+1. CLIENTES
+================================================================================
+
+API get_clients.php
+  ADMIN:     Ve todos los clientes
+  USUARIO:   Solo clientes donde clientes.id_usuario = session user_id
+
+Páginas index.php, reporte_riesgos.php
+  ADMIN:     Estadísticas y listados de todos los clientes
+  USUARIO:   Solo estadísticas y listados de sus clientes (c.id_usuario = ?)
+
+API get_client_details.php
+  ADMIN:     Puede ver detalle de cualquier cliente
+  USUARIO:   Solo si el cliente pertenece al usuario (details.general.id_usuario = session)
+
+API update_client.php
+  ADMIN:     Puede actualizar cualquier cliente
+  USUARIO:   Solo clientes propios (oldData.id_usuario = session)
+
+API delete_client.php
+  ADMIN:     Puede eliminar cualquier cliente
+  USUARIO:   Solo clientes propios (cliente.id_usuario = session)
+  Nota: catalogo_clientes > 0 O administracion > 0 habilita el borrado
+
+
+================================================================================
+2. OPERACIONES PLD
+================================================================================
+
+API get_operaciones_pld.php
+  ADMIN:     Ve todas las operaciones
+  USUARIO:   Solo operaciones de sus clientes (JOIN clientes WHERE c.id_usuario = ?)
+
+reporte_transacciones.php
+  ADMIN:     Ve todas las transacciones
+  USUARIO:   Solo transacciones de sus clientes
+
+
+================================================================================
+3. AVISOS PLD
+================================================================================
+
+API get_avisos_pld.php
+  ADMIN:     Ve todos los avisos
+  USUARIO:   Solo avisos de sus clientes (c.id_usuario = ?)
+
+
+================================================================================
+4. ACUMULACIONES PLD
+================================================================================
+
+API get_acumulaciones_pld.php
+  ADMIN:     Ve todas las acumulaciones
+  USUARIO:   Solo acumulaciones de sus clientes (c.id_usuario = ?)
+
+
+================================================================================
+5. INFORMES NO OPERACIONES (VAL-PLD-012)
+================================================================================
+
+API get_informes_no_operaciones.php
+  ADMIN:     Ve todos los informes
+  USUARIO:   Solo informes donde informes_no_operaciones_pld.id_usuario = ?
+  Nota: La tabla informes_no_operaciones_pld tiene columna id_usuario (migración add_id_usuario_informes_no_operaciones.sql)
+
+registrar_informe_no_operaciones / pld_avisos.php
+  USUARIO:   Al validar "operaciones en el período", solo cuenta operaciones de sus clientes
+
+
+================================================================================
+6. CONSERVACIÓN PLD (VAL-PLD-013) - Conservación 10 años
+================================================================================
+
+API get_conservacion_info.php
+  ADMIN:     Ve todas las evidencias de conservación
+  USUARIO:   Solo evidencias donde:
+             - id_cliente pertenece al usuario (clientes.id_usuario = ?)
+             - O id_operacion vinculada a cliente del usuario (operaciones_pld -> clientes.id_usuario = ?)
+             - O id_aviso vinculado a cliente del usuario (avisos_pld -> clientes.id_usuario = ?)
+
+API registrar_conservacion.php
+  ADMIN:     Puede registrar evidencia para cualquier cliente
+  USUARIO:   Solo si id_cliente pertenece al usuario (verifica clientes.id_usuario antes de registrar)
+
+
+================================================================================
+7. VISITAS DE VERIFICACIÓN (VAL-PLD-014)
+================================================================================
+
+Migración: add_id_usuario_visitas_verificacion_pld.sql
+  Agrega id_usuario a visitas_verificacion_pld (quién registró la visita)
+
+API get_visitas_verificacion.php
+  ADMIN:     Ve todas las visitas
+  USUARIO:   Solo visitas donde visitas_verificacion_pld.id_usuario = session
+
+API registrar_visita_verificacion.php
+  ADMIN:     Puede registrar visitas con cualquier expediente
+  USUARIO:   Los expedientes solicitados (IDs cliente) deben pertenecer a su cartera
+             Si intenta expedientes de otro usuario → 403 "no pertenecen a su cartera"
+
+API get_eventos_criticos_pld.php
+  ADMIN:     Ve todos los eventos críticos
+  USUARIO:   Solo eventos donde id_usuario_registro = ? O visita.id_usuario = ?
+
+
+================================================================================
+8. CONFIGURACIÓN POR USUARIO
+================================================================================
+
+Tablas (migración add_config_per_usuario.sql):
+  - config_empresa_usuario: logo, color, nombre, folios, límites API por usuario
+  - config_modulos_usuario: módulos activos/inactivos por usuario
+  - reportes_usuario: reportes visibles por usuario
+
+header.php / get_current_user.php
+  Carga config_empresa_usuario cuando hay sesión (logo, color, nombre empresa)
+
+admin/config.php, admin/modulos.php, admin/reportes.php
+  Configuración individual por usuario (admin gestiona qué ve cada uno)
+
+
+================================================================================
+9. OTRAS RESTRICCIONES ADMIN
+================================================================================
+
+admin/ (carpeta completa)
+  Solo usuarios con is_admin / administracion > 0
+
+templates/top_bar.php
+  Muestra sección "Configuración" solo si permissions.administracion > 0
+
+api/deshacer_cambio_pld.php
+  Solo usuarios con administracion > 0
+
+config/pld_permisos.php - canModifyPLD()
+  Requiere: administrador (administracion > 0) O responsable PLD del cliente
+
+cliente_nuevo.php
+  Verifica administracion para habilitar creación
+
+api/designar_responsable_pld.php, api/revalidate_patron_pld.php
+  Requieren permiso administración
+
+api/generar_notificaciones_avisos_pld.php, api/generar_corte_mensual_avisos_pld.php
+  Notificaciones a usuarios con administracion > 0
+
+
+================================================================================
+10. RESUMEN TABLA RÁPIDA
+================================================================================
+
+Módulo                    | ADMIN              | USUARIO
+--------------------------|--------------------|----------------------------------
+Clientes                  | Todos              | Solo c.id_usuario = session
+Operaciones PLD           | Todas              | Solo de sus clientes
+Avisos PLD                | Todos              | Solo de sus clientes
+Acumulaciones PLD         | Todas              | Solo de sus clientes
+Informes no operaciones   | Todos              | Solo id_usuario = session
+Conservación (evidencias) | Todas              | Solo de sus clientes/oper/avisos
+Visitas verificación      | Todas              | Solo visitas que él registró
+Eventos críticos          | Todos              | Solo de sus visitas
+Registrar conservación    | Cualquier cliente  | Solo sus clientes
+Registrar visita          | Cualquier expediente| Solo sus clientes (expedientes)
+Editar/eliminar cliente   | Cualquiera         | Solo sus clientes
+Admin (config, usuarios)  | Acceso total       | Sin acceso
+
+
+================================================================================
+11. TABLAS CON id_usuario PARA FILTRO
+================================================================================
+
+- clientes.id_usuario              (propietario del cliente)
+- informes_no_operaciones_pld.id_usuario
+- visitas_verificacion_pld.id_usuario  (quién registró la visita, migración)
+- eventos_criticos_pld.id_usuario_registro
+
+
+================================================================================
+FIN DEL DOCUMENTO
+================================================================================

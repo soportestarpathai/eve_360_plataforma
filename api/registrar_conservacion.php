@@ -175,18 +175,36 @@ try {
             $data['id_aviso'] = null;
         }
 
-        // Validar que el cliente pertenezca al usuario (no admins)
-        if (!empty($data['id_cliente'])) {
-            $stmtAdmin = $pdo->prepare("SELECT administracion FROM usuarios_permisos WHERE id_usuario = ?");
-            $stmtAdmin->execute([$id_usuario_actual]);
-            $perm = $stmtAdmin->fetch(PDO::FETCH_ASSOC);
-            $isAdmin = $perm && (int)($perm['administracion'] ?? 0) > 0;
-            if (!$isAdmin) {
+        // Validar ownership: cliente, operación y aviso deben pertenecer al usuario (no admins)
+        $stmtAdmin = $pdo->prepare("SELECT administracion FROM usuarios_permisos WHERE id_usuario = ?");
+        $stmtAdmin->execute([$id_usuario_actual]);
+        $perm = $stmtAdmin->fetch(PDO::FETCH_ASSOC);
+        $isAdmin = $perm && (int)($perm['administracion'] ?? 0) > 0;
+        if (!$isAdmin) {
+            if (!empty($data['id_cliente'])) {
                 $chk = $pdo->prepare("SELECT 1 FROM clientes WHERE id_cliente = ? AND id_usuario = ? AND id_status != 4");
                 $chk->execute([$data['id_cliente'], $id_usuario_actual]);
                 if (!$chk->fetch()) {
                     http_response_code(403);
                     echo json_encode(['status' => 'error', 'message' => 'No tiene permiso para registrar evidencia de ese cliente']);
+                    exit;
+                }
+            }
+            if (!empty($data['id_operacion'])) {
+                $chk = $pdo->prepare("SELECT 1 FROM operaciones_pld o JOIN clientes c ON o.id_cliente = c.id_cliente WHERE o.id_operacion = ? AND c.id_usuario = ? AND c.id_status != 4");
+                $chk->execute([$data['id_operacion'], $id_usuario_actual]);
+                if (!$chk->fetch()) {
+                    http_response_code(403);
+                    echo json_encode(['status' => 'error', 'message' => 'No tiene permiso para registrar evidencia de esa operación']);
+                    exit;
+                }
+            }
+            if (!empty($data['id_aviso'])) {
+                $chk = $pdo->prepare("SELECT 1 FROM avisos_pld a JOIN clientes c ON a.id_cliente = c.id_cliente WHERE a.id_aviso = ? AND c.id_usuario = ? AND c.id_status != 4");
+                $chk->execute([$data['id_aviso'], $id_usuario_actual]);
+                if (!$chk->fetch()) {
+                    http_response_code(403);
+                    echo json_encode(['status' => 'error', 'message' => 'No tiene permiso para registrar evidencia de ese aviso']);
                     exit;
                 }
             }

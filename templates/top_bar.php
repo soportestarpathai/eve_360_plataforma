@@ -54,8 +54,8 @@
                     <li><hr class="dropdown-divider"></li>
                     <li><h6 class="dropdown-header">Configuración del Sistema</h6></li>
                     
-                    <!-- 1. Configuración EBR -->
-                    <li>
+                    <!-- 1. Configuración EBR (oculto si módulo risk inactivo) -->
+                    <li id="topbarConfigEbr" style="display:none;">
                         <a class="dropdown-item" href="config_ebr.php">
                             <i class="fa-solid fa-sliders me-2"></i>Configuración EBR
                         </a>
@@ -99,24 +99,28 @@
             .then(res => res.ok ? res.json() : Promise.reject('Auth failed'))
             .then(data => {
                 if(data && data.status === 'success') {
-                    // Populate user info
+                    // Populate user info (escape to prevent XSS)
                     const userNameEl = document.getElementById('navUserName');
                     if (userNameEl) {
                         const nameSpan = userNameEl.querySelector('span');
                         if (nameSpan) {
-                            nameSpan.textContent = data.user.name;
+                            nameSpan.textContent = data.user.name || '';
                         } else {
-                            userNameEl.innerHTML = `<i class="fa-solid fa-user-circle"></i><span class="d-none d-md-inline">${data.user.name}</span>`;
+                            userNameEl.innerHTML = '<i class="fa-solid fa-user-circle"></i><span class="d-none d-md-inline"></span>';
+                            const sp = userNameEl.querySelector('span');
+                            if (sp) sp.textContent = data.user.name || '';
                         }
                     }
                     const avatarEl = document.getElementById('navUserAvatar');
-                    if (avatarEl) avatarEl.src = data.user.avatar;
+                    if (avatarEl && data.user) avatarEl.src = data.user.avatar || '';
                     
-                    // Apply permissions
+                    // Apply permissions and module visibility
                     // If user has 'administracion' permission > 0, show the config section
                     if (data.permissions && data.permissions.administracion > 0) {
                         const adminSection = document.getElementById('adminConfigSection');
                         if (adminSection) adminSection.classList.remove('restricted');
+                        const ebrLi = document.getElementById('topbarConfigEbr');
+                        if (ebrLi) ebrLi.style.display = (data.sys_modules && data.sys_modules.risk === 0) ? 'none' : '';
                     }
                 } else {
                     window.location.href = 'login.php';
@@ -192,26 +196,28 @@
              }));
              
              if(count > 0) {
+                 const escapeHtml = (s) => { if (s == null || s === undefined) return ''; const d = document.createElement('div'); d.textContent = String(s); return d.innerHTML; };
                  notifications.forEach(n => {
+                    const notifId = parseInt(n.id_notificacion, 10) || 0;
                     let typeClass = 'bg-light text-dark';
-                    const t = n.tipo.toLowerCase();
+                    const t = (n.tipo || '').toLowerCase();
                     if(t.includes('pld')) typeClass = 'bg-danger-subtle text-danger';
                     else if(t.includes('pep') || t.includes('listas')) typeClass = 'bg-dark text-white';
                     else if(t.includes('vencida')) typeClass = 'bg-warning-subtle text-warning-emphasis';
                     else if(t.includes('kyc') || t.includes('incompleto')) typeClass = 'bg-warning-subtle text-warning-emphasis';
-                    const date = new Date(n.fecha_generacion).toLocaleDateString('es-MX', { month: 'short', day: 'numeric', hour: '2-digit', minute:'2-digit' });
+                    const date = new Date(n.fecha_generacion || 0).toLocaleDateString('es-MX', { month: 'short', day: 'numeric', hour: '2-digit', minute:'2-digit' });
                     const itemHTML = `
-                        <div class="p-3 border-bottom" id="notif-${n.id_notificacion}">
+                        <div class="p-3 border-bottom" id="notif-${notifId}">
                             <div class="d-flex justify-content-between align-items-start mb-1">
-                                <span class="badge ${typeClass}">${n.tipo}</span>
-                                <small class="text-muted">${date}</small>
+                                <span class="badge ${typeClass}">${escapeHtml(n.tipo)}</span>
+                                <small class="text-muted">${escapeHtml(date)}</small>
                             </div>
-                            <div class="fw-bold small text-dark mb-1">${n.nombre_cliente || 'Cliente Desconocido'}</div>
-                            <div class="small text-secondary mb-2">${n.mensaje}</div>
+                            <div class="fw-bold small text-dark mb-1">${escapeHtml(n.nombre_cliente || 'Cliente Desconocido')}</div>
+                            <div class="small text-secondary mb-2">${escapeHtml(n.mensaje)}</div>
                             <div class="d-flex gap-2">
-                                <button class="btn btn-sm btn-outline-primary py-0 px-2" style="font-size: 0.75rem;" onclick="window.location.href='cliente_detalle.php?id=${n.id_cliente}'"><i class="fa-solid fa-arrow-up-right-from-square me-1"></i> Abrir</button>
-                                <button class="btn btn-sm btn-outline-warning py-0 px-2 text-dark" style="font-size: 0.75rem;" onclick="handleAction(${n.id_notificacion}, 'snooze')"><i class="fa-regular fa-clock me-1"></i> Posponer</button>
-                                <button class="btn btn-sm btn-outline-secondary py-0 px-2" style="font-size: 0.75rem;" onclick="handleAction(${n.id_notificacion}, 'dismiss')"><i class="fa-solid fa-xmark me-1"></i> Descartar</button>
+                                <button class="btn btn-sm btn-outline-primary py-0 px-2" style="font-size: 0.75rem;" onclick="window.location.href='cliente_detalle.php?id='+${parseInt(n.id_cliente,10)||0}"><i class="fa-solid fa-arrow-up-right-from-square me-1"></i> Abrir</button>
+                                <button class="btn btn-sm btn-outline-warning py-0 px-2 text-dark" style="font-size: 0.75rem;" onclick="handleAction(${notifId}, 'snooze')"><i class="fa-regular fa-clock me-1"></i> Posponer</button>
+                                <button class="btn btn-sm btn-outline-secondary py-0 px-2" style="font-size: 0.75rem;" onclick="handleAction(${notifId}, 'dismiss')"><i class="fa-solid fa-xmark me-1"></i> Descartar</button>
                             </div>
                         </div>`;
                      list.innerHTML += itemHTML;

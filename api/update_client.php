@@ -97,7 +97,12 @@ try {
     // Using form ID since we enable it briefly before submit
     $type_stmt = $pdo->prepare("SELECT * FROM cat_tipo_persona WHERE id_tipo_persona = ?");
     $type_stmt->execute([$data['id_tipo_persona']]);
-    $personaType = $type_stmt->fetch();
+    $personaType = $type_stmt->fetch(PDO::FETCH_ASSOC);
+    if (!$personaType) {
+        $pdo->rollBack();
+        echo json_encode(['status' => 'error', 'message' => 'Tipo de persona no encontrado']);
+        exit;
+    }
 
     function _ucIsValidDateYmd($v) {
         if (!is_string($v) || $v === '') return false;

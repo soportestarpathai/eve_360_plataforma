@@ -75,7 +75,13 @@ if (!function_exists('validateConservacionInformacion')) {
                 }
                 
                 // Verificar vencimiento (plazo vigente)
-                $fechaVencimiento = new DateTime($evidencia['fecha_vencimiento']);
+                $fechaVen = $evidencia['fecha_vencimiento'] ?? null;
+                if (empty($fechaVen)) continue;
+                try {
+                    $fechaVencimiento = new DateTime($fechaVen);
+                } catch (Exception $ex) {
+                    continue;
+                }
                 $hoy = new DateTime();
                 
                 if ($fechaVencimiento < $hoy) {
@@ -290,7 +296,13 @@ if (!function_exists('registrarConservacionInformacion')) {
                 }
                 
                 // Verificar vencimiento
-                $fechaVencimiento = new DateTime($evidencia['fecha_vencimiento']);
+                $fechaVen = $evidencia['fecha_vencimiento'] ?? null;
+                if (empty($fechaVen)) continue;
+                try {
+                    $fechaVencimiento = new DateTime($fechaVen);
+                } catch (Exception $ex) {
+                    continue;
+                }
                 $hoy = new DateTime();
                 
                 if ($fechaVencimiento < $hoy) {

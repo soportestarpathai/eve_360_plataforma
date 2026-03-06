@@ -60,6 +60,9 @@ try {
     $type_stmt = $pdo->prepare("SELECT * FROM cat_tipo_persona WHERE id_tipo_persona = ?");
     $type_stmt->execute([$tipo_persona_id]);
     $personaType = $type_stmt->fetch(PDO::FETCH_ASSOC);
+    if (!$personaType) {
+        throw new Exception("Tipo de persona no encontrado.");
+    }
 
     if ($personaType['es_fisica'] > 0) {
         $details['persona'] = fetchRelated($pdo, 'clientes_fisicas', $id_cliente)[0];
@@ -119,6 +122,11 @@ try {
         $stmt_apo_type = $pdo->prepare("SELECT nombre, es_fisica, es_moral FROM cat_tipo_persona WHERE id_tipo_persona = ?");
         $stmt_apo_type->execute([$apo['id_tipo_persona']]);
         $apoType = $stmt_apo_type->fetch(PDO::FETCH_ASSOC);
+        if (!$apoType) {
+            $apo['tipo_persona_nombre'] = 'N/A';
+            $details['apoderados'][] = $apo;
+            continue;
+        }
 
         $apo['tipo_persona_nombre'] = $apoType['nombre']; // Add name to response
 

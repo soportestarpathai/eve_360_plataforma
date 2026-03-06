@@ -1,8 +1,11 @@
 <?php 
 session_start();
 require_once 'config/db.php';
+require_once 'config/modules_helper.php';
 require_once 'config/pld_middleware.php';
 require_once 'config/pld_permisos.php';
+
+requireModuleActive($pdo, 'pld');
 
 // VAL-PLD-001: Verificar habilitación PLD
 if (!checkHabilitadoPLD($pdo)) {
@@ -66,7 +69,7 @@ include 'templates/top_bar.php';
     <?php endif; ?>
 
     <!-- Información VAL-PLD-008 -->
-    <div class="card mb-4 border-primary" style="background: linear-gradient(135deg, #e7f3ff 0%, #f0f8ff 100%);">
+    <div class="card mb-4 border-primary pld-info-card">
         <div class="card-body">
             <div class="row align-items-center">
                 <div class="col-md-1 text-center">
@@ -100,7 +103,7 @@ include 'templates/top_bar.php';
     </div>
 
     <!-- Información VAL-PLD-009 -->
-    <div class="card mb-4 border-info" style="background: linear-gradient(135deg, #e7f5ff 0%, #f0f9ff 100%);">
+    <div class="card mb-4 border-info pld-info-card">
         <div class="card-body">
             <div class="row align-items-center">
                 <div class="col-md-1 text-center">
@@ -141,41 +144,41 @@ include 'templates/top_bar.php';
     <div id="alertas-avisos" class="mb-4"></div>
 
     <!-- Estadísticas Rápidas -->
-    <div class="row mb-4" id="estadisticas-rapidas">
-        <div class="col-md-3">
-            <div class="card text-center border-primary">
-                <div class="card-body">
-                    <i class="fa-solid fa-file-invoice-dollar fa-2x text-primary mb-2"></i>
+    <div class="kpi-grid mb-4" id="estadisticas-rapidas">
+        <div class="kpi-card card border-primary">
+            <div class="card-body">
+                <i class="fa-solid fa-file-invoice-dollar fa-2x text-primary kpi-icon"></i>
+                <div class="kpi-content">
                     <h4 class="mb-0" id="total-operaciones">-</h4>
                     <small class="text-muted">Total Transacciones</small>
                 </div>
             </div>
         </div>
-        <div class="col-md-3">
-            <div class="card text-center border-warning">
-                <div class="card-body">
-                    <i class="fa-solid fa-bell fa-2x text-warning mb-2"></i>
+        <div class="kpi-card card border-warning">
+            <div class="card-body">
+                <i class="fa-solid fa-bell fa-2x text-warning kpi-icon"></i>
+                <div class="kpi-content">
                     <h4 class="mb-0" id="avisos-pendientes-count">-</h4>
                     <small class="text-muted">Avisos Pendientes</small>
-                    <div id="avisos-por-vencer-line" class="small text-warning mt-1 d-none">
+                    <div id="avisos-por-vencer-line" class="small text-warning d-none">
                         <i class="fa-solid fa-clock me-1"></i><span id="avisos-por-vencer-count">0</span> por vencer
                     </div>
                 </div>
             </div>
         </div>
-        <div class="col-md-3">
-            <div class="card text-center border-danger">
-                <div class="card-body">
-                    <i class="fa-solid fa-exclamation-triangle fa-2x text-danger mb-2"></i>
+        <div class="kpi-card card border-danger">
+            <div class="card-body">
+                <i class="fa-solid fa-exclamation-triangle fa-2x text-danger kpi-icon"></i>
+                <div class="kpi-content">
                     <h4 class="mb-0" id="avisos-vencidos-count">-</h4>
                     <small class="text-muted">Avisos Vencidos</small>
                 </div>
             </div>
         </div>
-        <div class="col-md-3">
-            <div class="card text-center border-success">
-                <div class="card-body">
-                    <i class="fa-solid fa-check-circle fa-2x text-success mb-2"></i>
+        <div class="kpi-card card border-success">
+            <div class="card-body">
+                <i class="fa-solid fa-check-circle fa-2x text-success kpi-icon"></i>
+                <div class="kpi-content">
                     <h4 class="mb-0" id="avisos-presentados-count">-</h4>
                     <small class="text-muted">Avisos Presentados</small>
                 </div>
