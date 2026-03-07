@@ -78,6 +78,7 @@ WHERE `id_config` = 1;
 -- ============================================
 -- EJEMPLOS DE FRACCIONES COMUNES
 -- ============================================
+-- Fracción II: Tarjetas de Servicios de Crédito (TSC)
 -- Fracción V: Actividades de intermediación
 -- Fracción V Bis: Actividades de desarrollo
 -- Fracción VI: Actividades de comercialización
@@ -88,6 +89,9 @@ WHERE `id_config` = 1;
 
 -- Ejemplo con múltiples fracciones:
 -- `fracciones_activas` = JSON_ARRAY('V', 'V Bis', 'VI')
+
+-- Ejemplo incluyendo Fracción II (TSC):
+-- `fracciones_activas` = JSON_ARRAY('II', 'V', 'V Bis', 'VI')
 
 -- Ejemplo con fracción XIII (donativos):
 -- `fracciones_activas` = JSON_ARRAY('XIII')

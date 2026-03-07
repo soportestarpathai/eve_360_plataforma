@@ -16,6 +16,7 @@ if (!checkHabilitadoPLD($pdo)) {
 $userId = $_SESSION['user_id'] ?? 0;
 $userFracciones = getUserFraccionesPLD($pdo, $userId);
 $canAccessDIN = userCanAccessDIN($pdo, $userId);
+$canAccessTSC = userCanAccessTSC($pdo, $userId);
 
 $page_title = 'Transacciones PLD';
 include 'templates/header.php'; 
@@ -41,13 +42,21 @@ include 'templates/top_bar.php';
         </div>
         <div class="page-header-actions">
             <div class="btn-group shadow-sm">
+                <?php if ($canAccessDIN || $canAccessTSC): ?>
                 <?php if ($canAccessDIN): ?>
                 <a href="operacion_din.php" class="btn btn-primary">
                     <i class="fa-solid fa-building me-2"></i>Registro DIN (V/V Bis)
                 </a>
+                <?php endif; ?>
+                <?php if ($canAccessTSC): ?>
+                <a href="operacion_tsc.php" class="btn btn-<?= $canAccessDIN ? 'outline-primary' : 'primary' ?>">
+                    <i class="fa-solid fa-credit-card me-2"></i>Aviso TSC (Fracción II)
+                </a>
+                <?php endif; ?>
                 <button type="button" class="btn btn-outline-primary dropdown-toggle dropdown-toggle-split" data-bs-toggle="dropdown"></button>
                 <ul class="dropdown-menu dropdown-menu-end">
-                    <li><a class="dropdown-item" href="operacion_din.php"><i class="fa-solid fa-file-code me-2"></i>Formulario DIN (Desarrollo Inmobiliario)</a></li>
+                    <?php if ($canAccessDIN): ?><li><a class="dropdown-item" href="operacion_din.php"><i class="fa-solid fa-file-code me-2"></i>Formulario DIN (Desarrollo Inmobiliario)</a></li><?php endif; ?>
+                    <?php if ($canAccessTSC): ?><li><a class="dropdown-item" href="operacion_tsc.php"><i class="fa-solid fa-credit-card me-2"></i>Formulario TSC (Tarjetas de Servicios de Crédito)</a></li><?php endif; ?>
                     <li><hr class="dropdown-divider"></li>
                     <li><a class="dropdown-item" href="#" onclick="abrirModalOperacion(); return false;"><i class="fa-solid fa-plus me-2"></i>Registro simplificado</a></li>
                 </ul>
@@ -64,6 +73,13 @@ include 'templates/top_bar.php';
     <div class="alert alert-warning alert-dismissible fade show" role="alert">
         <i class="fa-solid fa-triangle-exclamation me-2"></i>
         <strong>Sin acceso al formulario DIN.</strong> No tiene asignadas las fracciones V o V Bis. Solicite al administrador que se las asigne.
+        <button type="button" class="btn-close" data-bs-dismiss="alert"></button>
+    </div>
+    <?php endif; ?>
+    <?php if (isset($_GET['error']) && $_GET['error'] === 'sin_permiso_tsc'): ?>
+    <div class="alert alert-warning alert-dismissible fade show" role="alert">
+        <i class="fa-solid fa-triangle-exclamation me-2"></i>
+        <strong>Sin acceso al formulario TSC.</strong> No tiene asignada la Fracción II (Tarjetas de Servicios de Crédito). Solicite al administrador que se la asigne.
         <button type="button" class="btn-close" data-bs-dismiss="alert"></button>
     </div>
     <?php endif; ?>

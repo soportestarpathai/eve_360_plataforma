@@ -75,6 +75,14 @@ if (!function_exists('ensureFraccionesPLDColumn')) {
         $fracciones = getUserFraccionesPLD($pdo, $userId);
         return in_array('V', $fracciones) || in_array('V Bis', $fracciones);
     }
+
+    /**
+     * Verifica si el usuario tiene acceso al formulario TSC (requiere Fracción II).
+     */
+    function userCanAccessTSC($pdo, $userId) {
+        $fracciones = getUserFraccionesPLD($pdo, $userId);
+        return in_array('II', $fracciones);
+    }
 }
 
 if (!function_exists('canModifyPLD')) {

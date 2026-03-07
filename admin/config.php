@@ -690,8 +690,8 @@ $listaUsuarios = $stmtUsuarios->fetchAll(PDO::FETCH_ASSOC);
                                     <textarea id="fraccionesActivas" 
                                               class="form-control" 
                                               rows="3" 
-                                              placeholder='Ej: ["V", "V Bis", "VI"] o V, V Bis, VI'><?= htmlspecialchars($config['fracciones_activas'] ?? '') ?></textarea>
-                                    <small class="form-text text-muted">Formato JSON array o separado por comas</small>
+                                              placeholder='Ej: ["II", "V", "V Bis", "VI"] o II, V, V Bis, VI'><?= htmlspecialchars($config['fracciones_activas'] ?? '') ?></textarea>
+                                    <small class="form-text text-muted">Formato JSON array o separado por comas. II = TSC (Tarjetas de Servicios de Crédito)</small>
                                 </div>
                                 
                                 <div class="d-flex flex-wrap gap-2 mt-3">
