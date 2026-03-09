@@ -93,6 +93,9 @@ WHERE `id_config` = 1;
 -- Ejemplo incluyendo Fracción II (TSC):
 -- `fracciones_activas` = JSON_ARRAY('II', 'V', 'V Bis', 'VI')
 
+-- Ejemplo incluyendo Fracción XII (SPR - Servicios Profesionales):
+-- `fracciones_activas` = JSON_ARRAY('XII')
+
 -- Ejemplo con fracción XIII (donativos):
 -- `fracciones_activas` = JSON_ARRAY('XIII')
 

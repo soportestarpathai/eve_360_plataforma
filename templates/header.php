@@ -265,10 +265,10 @@ try {
             }
         }
 
-        /* Notification Panel Styles - Responsive */
+        /* Notification Panel Styles - Responsive (fixed para que baje con el header) */
         .notification-dropdown {
-            position: absolute; 
-            top: 70px; 
+            position: fixed; 
+            top: var(--header-height); 
             right: 20px; 
             width: 450px; 
             max-width: 90vw;
@@ -290,13 +290,13 @@ try {
         
         @media (max-width: 768px) {
             .notification-dropdown {
-                top: 65px;
+                top: var(--header-height);
             }
         }
 
         @media (max-width: 576px) {
             .notification-dropdown {
-                top: 60px;
+                top: var(--header-height);
                 right: 0; 
                 left: 0;
                 width: 100%;

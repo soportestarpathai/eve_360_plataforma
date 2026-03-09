@@ -17,6 +17,7 @@ $userId = $_SESSION['user_id'] ?? 0;
 $userFracciones = getUserFraccionesPLD($pdo, $userId);
 $canAccessDIN = userCanAccessDIN($pdo, $userId);
 $canAccessTSC = userCanAccessTSC($pdo, $userId);
+$canAccessSPR = userCanAccessSPR($pdo, $userId);
 
 $page_title = 'Transacciones PLD';
 include 'templates/header.php'; 
@@ -42,7 +43,7 @@ include 'templates/top_bar.php';
         </div>
         <div class="page-header-actions">
             <div class="btn-group shadow-sm">
-                <?php if ($canAccessDIN || $canAccessTSC): ?>
+                <?php if ($canAccessDIN || $canAccessTSC || $canAccessSPR): ?>
                 <?php if ($canAccessDIN): ?>
                 <a href="operacion_din.php" class="btn btn-primary">
                     <i class="fa-solid fa-building me-2"></i>Registro DIN (V/V Bis)
@@ -53,17 +54,23 @@ include 'templates/top_bar.php';
                     <i class="fa-solid fa-credit-card me-2"></i>Aviso TSC (Fracción II)
                 </a>
                 <?php endif; ?>
+                <?php if ($canAccessSPR): ?>
+                <a href="operacion_spr.php" class="btn btn-<?= ($canAccessDIN || $canAccessTSC) ? 'outline-primary' : 'primary' ?>">
+                    <i class="fa-solid fa-briefcase me-2"></i>Aviso SPR (Fracción XI)
+                </a>
+                <?php endif; ?>
                 <button type="button" class="btn btn-outline-primary dropdown-toggle dropdown-toggle-split" data-bs-toggle="dropdown"></button>
                 <ul class="dropdown-menu dropdown-menu-end">
                     <?php if ($canAccessDIN): ?><li><a class="dropdown-item" href="operacion_din.php"><i class="fa-solid fa-file-code me-2"></i>Formulario DIN (Desarrollo Inmobiliario)</a></li><?php endif; ?>
-                    <?php if ($canAccessTSC): ?><li><a class="dropdown-item" href="operacion_tsc.php"><i class="fa-solid fa-credit-card me-2"></i>Formulario TSC (Tarjetas de Servicios de Crédito)</a></li><?php endif; ?>
+                    <?php if ($canAccessTSC): ?><li><a class="dropdown-item" href="operacion_tsc.php"><i class="fa-solid fa-credit-card me-2"></i>Formulario TSC (Tarjetas de Servicio y de Crédito)</a></li><?php endif; ?>
+                    <?php if ($canAccessSPR): ?><li><a class="dropdown-item" href="operacion_spr.php"><i class="fa-solid fa-briefcase me-2"></i>Formulario SPR (Servicios Profesionales)</a></li><?php endif; ?>
                     <li><hr class="dropdown-divider"></li>
                     <li><a class="dropdown-item" href="#" onclick="abrirModalOperacion(); return false;"><i class="fa-solid fa-plus me-2"></i>Registro simplificado</a></li>
                 </ul>
                 <?php else: ?>
                 <button type="button" class="btn btn-primary" onclick="abrirModalOperacion();">
                     <i class="fa-solid fa-plus me-2"></i>Nueva Transacción
-            </button>
+                </button>
                 <?php endif; ?>
             </div>
         </div>
@@ -79,7 +86,14 @@ include 'templates/top_bar.php';
     <?php if (isset($_GET['error']) && $_GET['error'] === 'sin_permiso_tsc'): ?>
     <div class="alert alert-warning alert-dismissible fade show" role="alert">
         <i class="fa-solid fa-triangle-exclamation me-2"></i>
-        <strong>Sin acceso al formulario TSC.</strong> No tiene asignada la Fracción II (Tarjetas de Servicios de Crédito). Solicite al administrador que se la asigne.
+        <strong>Sin acceso al formulario TSC.</strong> No tiene asignada la Fracción II (Tarjetas de Servicio y de Crédito). Solicite al administrador que se la asigne.
+        <button type="button" class="btn-close" data-bs-dismiss="alert"></button>
+    </div>
+    <?php endif; ?>
+    <?php if (isset($_GET['error']) && $_GET['error'] === 'sin_permiso_spr'): ?>
+    <div class="alert alert-warning alert-dismissible fade show" role="alert">
+        <i class="fa-solid fa-triangle-exclamation me-2"></i>
+        <strong>Sin acceso al formulario SPR.</strong> No tiene asignada la Fracción XI (Servicios Profesionales). Solicite al administrador que se la asigne.
         <button type="button" class="btn-close" data-bs-dismiss="alert"></button>
     </div>
     <?php endif; ?>
@@ -487,7 +501,7 @@ include 'templates/top_bar.php';
                             </select>
                             <small class="text-muted">
                                 <i class="fa-solid fa-lightbulb me-1"></i>
-                                Ejemplos: V (Inmuebles), V Bis (Muebles), VI (Intermediación), XIII (Donativos)
+                                Ejemplos: II (TSC), XI (SPR), V (Inmuebles), V Bis (Muebles), VI (Intermediación), XIII (Donativos)
                             </small>
                         </div>
                         <div class="col-md-6 mb-3">

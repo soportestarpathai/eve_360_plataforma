@@ -28,6 +28,14 @@ function ensureContractFolioColumns(PDO $pdo): void {
 
 ensureContractFolioColumns($pdo);
 
+// Asegurar columna subfracciones_xi
+try {
+    $chk = $pdo->query("SELECT COUNT(*) FROM INFORMATION_SCHEMA.COLUMNS WHERE TABLE_SCHEMA = DATABASE() AND TABLE_NAME = 'config_empresa' AND COLUMN_NAME = 'subfracciones_xi'");
+    if ($chk && $chk->fetchColumn() == 0) {
+        $pdo->exec("ALTER TABLE config_empresa ADD COLUMN subfracciones_xi JSON DEFAULT NULL COMMENT 'Subfracciones XI (SPR) activas'");
+    }
+} catch (Exception $e) { /* ignorar */ }
+
 $id_usuario_seleccionado = (int)($_GET['id_usuario'] ?? 0);
 
 // --- ACTIONS HANDLER ---
@@ -197,7 +205,7 @@ if ($id_usuario_seleccionado > 0) {
         $stmtU->execute([$id_usuario_seleccionado]);
         $configU = $stmtU->fetch(PDO::FETCH_ASSOC);
         if ($configU) {
-            foreach (['nombre_empresa','logo_url','color_primario','max_usuarios','max_busquedas_api','id_tipo_empresa','id_vulnerable','contrato_prefijo','contrato_siguiente','contrato_longitud','contrato_rellenar_ceros','folio_patron_pld','estatus_patron_pld','fecha_revalidacion_patron','fracciones_activas','no_habilitado_pld'] as $k) {
+            foreach (['nombre_empresa','logo_url','color_primario','max_usuarios','max_busquedas_api','id_tipo_empresa','id_vulnerable','contrato_prefijo','contrato_siguiente','contrato_longitud','contrato_rellenar_ceros','folio_patron_pld','estatus_patron_pld','fecha_revalidacion_patron','fracciones_activas','subfracciones_xi','no_habilitado_pld'] as $k) {
                 if (isset($configU[$k]) && $configU[$k] !== null) {
                     $config[$k] = $configU[$k];
                 }
@@ -690,8 +698,32 @@ $listaUsuarios = $stmtUsuarios->fetchAll(PDO::FETCH_ASSOC);
                                     <textarea id="fraccionesActivas" 
                                               class="form-control" 
                                               rows="3" 
-                                              placeholder='Ej: ["II", "V", "V Bis", "VI"] o II, V, V Bis, VI'><?= htmlspecialchars($config['fracciones_activas'] ?? '') ?></textarea>
-                                    <small class="form-text text-muted">Formato JSON array o separado por comas. II = TSC (Tarjetas de Servicios de Crédito)</small>
+                                              placeholder='Ej: ["II", "XI", "V", "V Bis", "VI"] o II, XI, V, V Bis, VI'><?= htmlspecialchars($config['fracciones_activas'] ?? '') ?></textarea>
+                                    <small class="form-text text-muted">Formato JSON o separado por comas. II = TSC, XI = SPR (Servicios Profesionales)</small>
+                                </div>
+
+                                <div id="subfraccionesXiSection" class="mb-3 mt-3 nested-card" style="display:none;">
+                                    <label class="form-label fw-bold"><i class="fa-solid fa-layer-group me-2"></i>Subfracciones XI (SPR)</label>
+                                    <p class="small text-muted mb-2">Seleccione las actividades de Servicios Profesionales que aplican a su empresa:</p>
+                                    <div class="row g-2">
+                                        <?php
+                                        require_once __DIR__ . '/../config/spr_catalogos.php';
+                                        $tipoAct = $SPR_CATALOGOS['tipo_actividad'] ?? [];
+                                        $subfraccionesConfig = [];
+                                        if (!empty($config['subfracciones_xi'])) {
+                                            $dec = json_decode($config['subfracciones_xi'], true);
+                                            if (is_array($dec)) $subfraccionesConfig = $dec;
+                                        }
+                                        foreach ($tipoAct as $clave => $etiqueta):
+                                            $chk = in_array($clave, $subfraccionesConfig) ? ' checked' : '';
+                                        ?>
+                                        <div class="col-md-6"><div class="form-check">
+                                            <input class="form-check-input subfraccion-xi-check" type="checkbox" value="<?= htmlspecialchars($clave) ?>" id="subf_<?= htmlspecialchars($clave) ?>"<?= $chk ?>>
+                                            <label class="form-check-label" for="subf_<?= htmlspecialchars($clave) ?>"><?= htmlspecialchars($etiqueta) ?></label>
+                                        </div></div>
+                                        <?php endforeach; ?>
+                                    </div>
+                                    <small class="form-text text-muted d-block mt-2">Si no selecciona ninguna, se mostrarán todas en el formulario SPR.</small>
                                 </div>
                                 
                                 <div class="d-flex flex-wrap gap-2 mt-3">
@@ -1099,6 +1131,23 @@ $listaUsuarios = $stmtUsuarios->fetchAll(PDO::FETCH_ASSOC);
     }
 
     // --- 3. PLD PATRÓN FUNCTIONS ---
+    function toggleSubfraccionesXI() {
+        const ta = document.getElementById('fraccionesActivas');
+        const sec = document.getElementById('subfraccionesXiSection');
+        if (!ta || !sec) return;
+        const fraccionesStr = (ta.value || '').replace(/[\s\[\]\"]/g, '');
+        const tieneXI = /\bXI\b/.test(fraccionesStr) || fraccionesStr.includes('XI');
+        sec.style.display = tieneXI ? 'block' : 'none';
+    }
+    (function initSubfraccionesXI() {
+        const ta = document.getElementById('fraccionesActivas');
+        if (ta) {
+            toggleSubfraccionesXI();
+            ta.addEventListener('input', toggleSubfraccionesXI);
+            ta.addEventListener('change', toggleSubfraccionesXI);
+        }
+    })();
+
     function savePatronPLD() {
         const folio = document.getElementById('folioPatron').value.trim();
         const estatus = document.getElementById('estatusPatron').value;
@@ -1110,16 +1159,19 @@ $listaUsuarios = $stmtUsuarios->fetchAll(PDO::FETCH_ASSOC);
             const fraccionesArray = fracciones.split(',').map(f => f.trim()).filter(f => f);
             fracciones = JSON.stringify(fraccionesArray);
         }
+
+        const subfraccionesChecked = [];
+        document.querySelectorAll('.subfraccion-xi-check:checked').forEach(cb => subfraccionesChecked.push(cb.value));
+        const subfracciones = document.getElementById('subfraccionesXiSection').style.display !== 'none' ? subfraccionesChecked : null;
         
         fetch('../api/revalidate_patron_pld.php', {
             method: 'POST',
-            headers: {
-                'Content-Type': 'application/json'
-            },
+            headers: { 'Content-Type': 'application/json' },
             body: JSON.stringify({
                 folio: folio || null,
                 estatus: estatus || null,
                 fracciones: fracciones || null,
+                subfracciones_xi: subfracciones,
                 confirmar: true,
                 id_usuario: window.idUsuarioConfig || 0
             })
@@ -1261,16 +1313,17 @@ $listaUsuarios = $stmtUsuarios->fetchAll(PDO::FETCH_ASSOC);
                 const fraccionesArray = fracciones.split(',').map(f => f.trim()).filter(f => f);
                 fracciones = JSON.stringify(fraccionesArray);
             }
+            const subf = [];
+            document.querySelectorAll('.subfraccion-xi-check:checked').forEach(cb => subf.push(cb.value));
             
             fetch('../api/revalidate_patron_pld.php', {
                 method: 'POST',
-                headers: {
-                    'Content-Type': 'application/json'
-                },
+                headers: { 'Content-Type': 'application/json' },
                 body: JSON.stringify({
                     folio: folio || null,
                     estatus: estatus || null,
                     fracciones: fracciones || null,
+                    subfracciones_xi: subf,
                     confirmar: false,
                     id_usuario: window.idUsuarioConfig || 0
                 })

@@ -1,6 +1,6 @@
 <?php
 /**
- * Helper para generar XML TSC (Tarjetas de Servicios de Crédito) - Fracción II
+ * Helper para generar XML TSC (Tarjetas de Servicio y de Crédito) - Fracción II
  * Según XSD http://www.uif.shcp.gob.mx/recepcion/tsc
  * Estructura: archivo > informe > sujeto_obligado > aviso > persona_aviso > detalle_operaciones
  */

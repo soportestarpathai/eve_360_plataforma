@@ -13,7 +13,7 @@ $TSC_CATALOGOS = [];
  *    Para TSC siempre es "TSC"
  * ═══════════════════════════════════════════ */
 $TSC_CATALOGOS['clave_actividad'] = [
-    'TSC' => 'Tarjetas de Servicios de Crédito (emisión o comercialización habitual/profesional)',
+    'TSC' => 'Tarjetas de Servicio y de Crédito (emisión o comercialización habitual/profesional)',
 ];
 
 /* ═══════════════════════════════════════════

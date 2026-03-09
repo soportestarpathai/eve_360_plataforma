@@ -1,14 +1,17 @@
 <?php
 // config/risk_engine.php
-// Motor EBR: calcula nivel de riesgo usando TODOS los factores configurados en config_ebr.php
+// Motor EBR: calcula nivel de riesgo usando config del usuario que registró el cliente
+require_once __DIR__ . '/ebr_usuario_helper.php';
 
 if (!function_exists('calculateClientRisk')) {
     
     function calculateClientRisk($pdo, $id_cliente) {
-        $stmt = $pdo->prepare("SELECT id_cliente, id_tipo_persona FROM clientes WHERE id_cliente = ?");
+        $stmt = $pdo->prepare("SELECT id_cliente, id_tipo_persona, id_usuario FROM clientes WHERE id_cliente = ?");
         $stmt->execute([$id_cliente]);
         $clientData = $stmt->fetch(PDO::FETCH_ASSOC);
         if (!$clientData) return 0;
+
+        $id_usuario_cliente = isset($clientData['id_usuario']) ? (int)$clientData['id_usuario'] : 0;
 
         $factors = $pdo->query("SELECT * FROM config_factores_riesgo ORDER BY id_factor")->fetchAll(PDO::FETCH_ASSOC);
         $totalRiskScore = 0;
@@ -25,7 +28,7 @@ if (!function_exists('calculateClientRisk')) {
 
             if ($table === 'cat_tipo_persona') {
                 $valId = $clientData['id_tipo_persona'] ?? null;
-                $riskValue = getRiskValue($pdo, $factor['id_factor'], $valId);
+                $riskValue = getRiskValueForUser($pdo, $factor['id_factor'], $valId, $id_usuario_cliente);
                 $foundValueName = getCatalogName($pdo, $table, $campoClave ?: 'id_tipo_persona', $campoNombre, $valId);
             }
             elseif ($table === 'cat_pais') {
@@ -37,7 +40,7 @@ if (!function_exists('calculateClientRisk')) {
                 $bestName = "Sin Nacionalidad";
                 if (!empty($nacionalidades)) {
                     foreach ($nacionalidades as $idPais) {
-                        $r = getRiskValue($pdo, $factor['id_factor'], $idPais);
+                        $r = getRiskValueForUser($pdo, $factor['id_factor'], $idPais, $id_usuario_cliente);
                         if ($r >= $maxRisk) {
                             $maxRisk = $r;
                             $bestName = getCatalogName($pdo, $table, 'id_pais', 'nombre', $idPais);
@@ -49,7 +52,7 @@ if (!function_exists('calculateClientRisk')) {
             }
             elseif ($table === 'cat_rango_edades') {
                 $valId = getClientIdRangoEdad($pdo, $id_cliente);
-                $riskValue = getRiskValue($pdo, $factor['id_factor'], $valId);
+                $riskValue = getRiskValueForUser($pdo, $factor['id_factor'], $valId, $id_usuario_cliente);
                 $foundValueName = getCatalogName($pdo, $table, 'id_rango_edad', 'nombre', $valId);
             }
             else {
@@ -57,7 +60,7 @@ if (!function_exists('calculateClientRisk')) {
                 if ($campoClave !== '') {
                     $valId = getClientCatalogValueGeneric($pdo, $id_cliente, $table, $campoClave);
                     if ($valId !== null) {
-                        $riskValue = getRiskValue($pdo, $factor['id_factor'], $valId);
+                        $riskValue = getRiskValueForUser($pdo, $factor['id_factor'], $valId, $id_usuario_cliente);
                         $foundValueName = getCatalogName($pdo, $table, $campoClave, $campoNombre, $valId);
                     }
                 }
@@ -78,7 +81,7 @@ if (!function_exists('calculateClientRisk')) {
         $stmtUpdate = $pdo->prepare("UPDATE clientes SET nivel_riesgo = ?, fecha_calculo_riesgo = NOW() WHERE id_cliente = ?");
         $stmtUpdate->execute([$totalRiskScore, $id_cliente]);
 
-        $ranges = $pdo->query("SELECT * FROM config_riesgo_rangos ORDER BY min_valor ASC")->fetchAll(PDO::FETCH_ASSOC);
+        $ranges = getRangosRiesgoUsuario($pdo, $id_usuario_cliente);
         $finalLabel = "Desconocido";
         $finalColor = "#6c757d";
 
@@ -98,12 +101,12 @@ if (!function_exists('calculateClientRisk')) {
         ];
     }
 
+    function getRiskValueForUser($pdo, $idFactor, $idValor, $id_usuario = 0) {
+        return getRiskValorUsuario($pdo, $idFactor, $idValor, $id_usuario);
+    }
+
     function getRiskValue($pdo, $idFactor, $idValor) {
-        if ($idValor === null || $idValor === '') return 0;
-        $stmt = $pdo->prepare("SELECT nivel_riesgo FROM config_riesgo_valores WHERE id_factor = ? AND id_valor_catalogo = ?");
-        $stmt->execute([$idFactor, (int)$idValor]);
-        $res = $stmt->fetch(PDO::FETCH_COLUMN);
-        return $res ? floatval($res) : 0; 
+        return getRiskValueForUser($pdo, $idFactor, $idValor, 0);
     }
 
     function getCatalogName($pdo, $table, $pk, $nameCol, $id) {

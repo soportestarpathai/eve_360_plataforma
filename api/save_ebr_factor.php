@@ -77,8 +77,11 @@ try {
         $stmtOldVals->execute([$id]);
         $oldValues = $stmtOldVals->fetchAll(PDO::FETCH_ASSOC);
 
-        // Delete
+        // Delete (global y por usuario)
         $pdo->prepare("DELETE FROM config_riesgo_valores WHERE id_factor = ?")->execute([$id]);
+        try {
+            $pdo->prepare("DELETE FROM config_riesgo_valores_usuario WHERE id_factor = ?")->execute([$id]);
+        } catch (Exception $e) { /* tabla puede no existir */ }
         $pdo->prepare("DELETE FROM config_factores_riesgo WHERE id_factor = ?")->execute([$id]);
         
         // Log Deletion (Log factor and values separately or together)

@@ -48,12 +48,8 @@ while ($r = $stmtClientes->fetch(PDO::FETCH_ASSOC)) {
     $kpiPorCliente[$r['id_cliente']] = $r;
 }
 
-// 3. RANGOS DE RIESGO (homologados con reporte_riesgos)
-$riesgoRangos = [];
-try {
-    $stmtR = $pdo->query("SELECT * FROM config_riesgo_rangos ORDER BY min_valor ASC");
-    $riesgoRangos = $stmtR ? $stmtR->fetchAll(PDO::FETCH_ASSOC) : [];
-} catch (Exception $e) { /* fallback */ }
+// 3. RANGOS DE RIESGO: por usuario (cada cliente usa la config del usuario que lo registró)
+require_once __DIR__ . '/config/ebr_usuario_helper.php';
 
 function obtenerSemaforo($nivel, $rangos) {
     $nivel = (float)$nivel;
@@ -79,7 +75,7 @@ function obtenerSemaforo($nivel, $rangos) {
 // 4. TRANSACCIONES DETALLADAS - filtradas por usuario
 $sql = "SELECT 
             op.id_operacion, op.id_cliente, op.fecha_operacion, op.monto, op.tipo_operacion, op.requiere_aviso,
-            c.no_contrato, c.nivel_riesgo,
+            c.no_contrato, c.nivel_riesgo, c.id_usuario,
             CASE WHEN c.id_tipo_persona = 1 THEN CONCAT(cf.nombre, ' ', cf.apellido_paterno)
                  WHEN c.id_tipo_persona = 2 THEN cm.razon_social ELSE c.alias END AS cliente_nombre,
             COALESCE(cf.tax_id, cm.tax_id) AS rfc_cliente, av.folio_sppld, av.estatus AS estatus_aviso
@@ -96,10 +92,19 @@ $stmt = $pdo->prepare($sql);
 $stmt->execute($opUserParams);
 $db_data = $stmt->fetchAll(PDO::FETCH_ASSOC);
 
-// 5. DATOS PARA JAVASCRIPT (con riesgo homologado)
+// 5. DATOS PARA JAVASCRIPT (con riesgo homologado por usuario)
+$rangosPorUsuarioRep = [];
+foreach ($db_data as $row) {
+    $uid = isset($row['id_usuario']) ? (int)$row['id_usuario'] : 0;
+    if (!isset($rangosPorUsuarioRep[$uid])) {
+        $rangosPorUsuarioRep[$uid] = getRangosRiesgoUsuario($pdo, $uid);
+    }
+}
 $reporte_json = [];
 foreach ($db_data as $row) {
-    $s = obtenerSemaforo($row['nivel_riesgo'] ?? 0, $riesgoRangos);
+    $uid = isset($row['id_usuario']) ? (int)$row['id_usuario'] : 0;
+    $rangosRep = $rangosPorUsuarioRep[$uid] ?? [];
+    $s = obtenerSemaforo($row['nivel_riesgo'] ?? 0, $rangosRep);
     $reporte_json[] = [
         'id' => $row['id_operacion'],
         'id_cliente' => (int)$row['id_cliente'],

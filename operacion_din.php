@@ -374,7 +374,7 @@ try {
                 <div class="row g-3">
                     <div class="col-md-6 mb-2">
                         <label class="form-label">Referencia Aviso * <span class="badge bg-danger badge-xsd">Obl.</span></label>
-                        <input type="text" class="form-control" id="referencia_aviso" maxlength="14" required placeholder="REF001">
+                        <input type="text" class="form-control" id="referencia_aviso" maxlength="14" required placeholder="Ej: REF202601001">
                         <div class="section-help">1-14 caracteres alfanuméricos</div>
                     </div>
                     <div class="col-md-6 mb-2">
@@ -422,12 +422,12 @@ try {
                         <div class="row g-3">
                             <div class="col-md-5 mb-2">
                                 <label class="form-label">Folio Modificación * <span class="badge bg-danger badge-xsd">Obl.</span></label>
-                                <input type="text" class="form-control" id="folio_modificacion" maxlength="14" placeholder="AAAA-999999999">
+                                <input type="text" class="form-control" id="folio_modificacion" maxlength="14" placeholder="Ej: 2026-123456789">
                                 <div class="section-help">Patrón AAAA-999999999, 6-14 car.</div>
                             </div>
                             <div class="col-md-7 mb-2">
                                 <label class="form-label">Descripción Modificación * <span class="badge bg-danger badge-xsd">Obl.</span></label>
-                                <textarea class="form-control" id="descripcion_modificacion" maxlength="3000" rows="2"></textarea>
+                                <textarea class="form-control" id="descripcion_modificacion" maxlength="3000" rows="2" placeholder="Ej: Describa los cambios realizados al aviso original"></textarea>
                                 <div class="section-help">Hasta 3,000 caracteres</div>
                             </div>
                         </div>
@@ -468,7 +468,7 @@ try {
                     </div>
                     <div class="col-md-6 mb-2">
                         <label class="form-label">Registro/Licencia * <span class="badge bg-danger badge-xsd">Obl.</span></label>
-                        <input type="text" class="form-control" id="registro_licencia" maxlength="200" required placeholder="REG-001">
+                        <input type="text" class="form-control" id="registro_licencia" maxlength="200" required placeholder="Ej: REG-001-2025">
                         <div class="section-help">1-200 caracteres alfanuméricos</div>
                     </div>
                 </div>
@@ -478,16 +478,16 @@ try {
                 <div class="row g-3">
                     <div class="col-md-4 mb-2">
                         <label class="form-label">Código Postal * <span class="badge bg-danger badge-xsd">Obl.</span></label>
-                        <input type="text" class="form-control" id="codigo_postal" pattern="\d{5}" maxlength="5" required placeholder="02000" inputmode="numeric" autocomplete="postal-code">
+                        <input type="text" class="form-control" id="codigo_postal" pattern="\d{5}" maxlength="5" required placeholder="Ej: 02000" inputmode="numeric" autocomplete="postal-code">
                         <div class="section-help">5 dígitos</div>
                     </div>
                     <div class="col-md-4 mb-2">
                         <label class="form-label">Colonia * <span class="badge bg-danger badge-xsd">Obl.</span></label>
-                        <input type="text" class="form-control text-uppercase" id="colonia" maxlength="50" required>
+                        <input type="text" class="form-control text-uppercase" id="colonia" maxlength="50" required placeholder="Ej: CENTRO">
                     </div>
                     <div class="col-md-4 mb-2">
                         <label class="form-label">Calle * <span class="badge bg-danger badge-xsd">Obl.</span></label>
-                        <input type="text" class="form-control text-uppercase" id="calle" maxlength="100" required>
+                        <input type="text" class="form-control text-uppercase" id="calle" maxlength="100" required placeholder="Ej: AV. REFORMA 123">
                     </div>
                     <div class="col-md-6 mb-2">
                         <label class="form-label">Tipo Desarrollo * <span class="badge bg-danger badge-xsd">Obl.</span></label>
@@ -497,19 +497,19 @@ try {
                     </div>
                     <div class="col-md-6 mb-2">
                         <label class="form-label">Descripción Desarrollo <span class="badge bg-warning text-dark badge-xsd">Obl. si tipo=99</span></label>
-                        <input type="text" class="form-control" id="descripcion_desarrollo" maxlength="3000" placeholder="Obligatorio si tipo = 99">
+                        <input type="text" class="form-control" id="descripcion_desarrollo" maxlength="3000" placeholder="Ej: Desarrollo mixto residencial y comercial (obligatorio si tipo = 99)">
                     </div>
                     <div class="col-md-4 mb-2">
                         <label class="form-label">Monto Desarrollo (MXN) * <span class="badge bg-danger badge-xsd">Obl.</span></label>
-                        <input type="number" class="form-control" id="monto_desarrollo" step="0.01" min="0" required placeholder="0.00">
+                        <input type="number" class="form-control" id="monto_desarrollo" step="0.01" min="0" required placeholder="Ej: 5000000.00 (MXN)">
                     </div>
                     <div class="col-md-4 mb-2">
                         <label class="form-label">Unidades Comercializadas * <span class="badge bg-danger badge-xsd">Obl.</span></label>
-                        <input type="number" class="form-control" id="unidades_comercializadas" step="0.01" min="0" value="1" required>
+                        <input type="number" class="form-control" id="unidades_comercializadas" step="0.01" min="0" value="1" required placeholder="Ej: 1">
                     </div>
                     <div class="col-md-4 mb-2">
                         <label class="form-label">Costo por Unidad * <span class="badge bg-danger badge-xsd">Obl.</span></label>
-                        <input type="number" class="form-control" id="costo_unidad" step="0.01" min="0" required placeholder="0.00">
+                        <input type="number" class="form-control" id="costo_unidad" step="0.01" min="0" required placeholder="Ej: 250000.00 (MXN)">
                     </div>
                     <div class="col-md-6 mb-2">
                         <label class="form-label">Otras Empresas * <span class="badge bg-danger badge-xsd">Obl.</span></label>
@@ -577,7 +577,7 @@ try {
                                 </div>
                                 <div class="col-md-4 mb-2">
                                     <label class="form-label">Monto Aportación * <span class="badge bg-danger badge-xsd">Obl.</span></label>
-                                    <input type="number" class="form-control" id="monto_aportacion" step="0.01" min="0" required placeholder="0.00">
+                                    <input type="number" class="form-control" id="monto_aportacion" step="0.01" min="0" required placeholder="Ej: 500000.00 (MXN)">
                                 </div>
                                 <div class="col-md-4 mb-2">
                                     <label class="form-label">¿Fideicomiso? * <span class="badge bg-danger badge-xsd">Obl.</span></label>
@@ -588,7 +588,7 @@ try {
                                 </div>
                                 <div class="col-md-4 mb-2" id="rp_nombre_inst_div">
                                     <label class="form-label">Nombre Institución <span class="badge bg-warning text-dark badge-xsd">Cond.</span></label>
-                                    <input type="text" class="form-control" id="nombre_institucion" maxlength="254" placeholder="Si fideicomiso = SI">
+                                    <input type="text" class="form-control" id="nombre_institucion" maxlength="254" placeholder="Ej: BANCO XYZ S.A. (si fideicomiso = SI)">
                                 </div>
                             </div>
                         </div>
@@ -596,11 +596,11 @@ try {
                             <div class="row g-3">
                                 <div class="col-md-7 mb-2">
                                     <label class="form-label">Descripción del Bien * <span class="badge bg-danger badge-xsd">Obl.</span></label>
-                                    <textarea class="form-control" id="rp_descripcion_bien" maxlength="3000" rows="2"></textarea>
+                                    <textarea class="form-control" id="rp_descripcion_bien" maxlength="3000" rows="2" placeholder="Ej: Terreno urbano con edificio comercial"></textarea>
                                 </div>
                                 <div class="col-md-5 mb-2">
                                     <label class="form-label">Monto Estimado (MXN) * <span class="badge bg-danger badge-xsd">Obl.</span></label>
-                                    <input type="number" class="form-control" id="rp_monto_estimado" step="0.01" min="0" placeholder="0.00">
+                                    <input type="number" class="form-control" id="rp_monto_estimado" step="0.01" min="0" placeholder="Ej: 1500000.00 (MXN)">
                                 </div>
                             </div>
                         </div>
@@ -659,7 +659,7 @@ try {
                             </div>
                             <div class="col-md-6 mb-2">
                                 <label class="form-label">Institución * <span class="badge bg-danger badge-xsd">Obl.</span></label>
-                                <input type="text" class="form-control" id="pf_institucion" maxlength="254" required>
+                                <input type="text" class="form-control" id="pf_institucion" maxlength="254" required placeholder="Ej: BANCO XYZ S.A. DE C.V.">
                             </div>
                             <div class="col-md-6 mb-2">
                                 <label class="form-label">Tipo Crédito * <span class="badge bg-danger badge-xsd">Obl.</span></label>
@@ -675,11 +675,11 @@ try {
                             </div>
                             <div class="col-md-6 mb-2">
                                 <label class="form-label">Monto Préstamo * <span class="badge bg-danger badge-xsd">Obl.</span></label>
-                                <input type="number" class="form-control" id="pf_monto_prestamo" step="0.01" min="0" placeholder="0.00" required>
+                                <input type="number" class="form-control" id="pf_monto_prestamo" step="0.01" min="0" placeholder="Ej: 500000.00 (MXN)" required>
                             </div>
                             <div class="col-md-6 mb-2">
                                 <label class="form-label">Plazo (meses) * <span class="badge bg-danger badge-xsd">Obl.</span></label>
-                                <input type="number" class="form-control" id="pf_plazo_meses" min="1" max="99999999" required>
+                                <input type="number" class="form-control" id="pf_plazo_meses" min="1" max="99999999" required placeholder="Ej: 12">
                             </div>
                         </div>
                     </div>
@@ -691,7 +691,7 @@ try {
                         <div class="row g-3">
                             <div class="col-md-4 mb-2">
                                 <label class="form-label">Monto Préstamo * <span class="badge bg-danger badge-xsd">Obl.</span></label>
-                                <input type="number" class="form-control" id="pnf_monto_prestamo" step="0.01" min="0" placeholder="0.00" required>
+                                <input type="number" class="form-control" id="pnf_monto_prestamo" step="0.01" min="0" placeholder="Ej: 300000.00 (MXN)" required>
                             </div>
                             <div class="col-md-4 mb-2">
                                 <label class="form-label">Moneda * <span class="badge bg-danger badge-xsd">Obl.</span></label>
@@ -701,7 +701,7 @@ try {
                             </div>
                             <div class="col-md-4 mb-2">
                                 <label class="form-label">Plazo (meses) * <span class="badge bg-danger badge-xsd">Obl.</span></label>
-                                <input type="number" class="form-control" id="pnf_plazo_meses" min="1" max="99999999" required>
+                                <input type="number" class="form-control" id="pnf_plazo_meses" min="1" max="99999999" required placeholder="Ej: 24">
                             </div>
                             <div class="col-12 mb-2">
                                 <button type="button" class="btn btn-outline-success btn-sm" onclick="addAcreedor()">
@@ -723,11 +723,11 @@ try {
                             </div>
                             <div class="col-md-4 mb-2">
                                 <label class="form-label">Monto Solicitado * <span class="badge bg-danger badge-xsd">Obl.</span></label>
-                                <input type="number" class="form-control" id="fb_monto_solicitado" step="0.01" min="0" placeholder="0.00" required>
+                                <input type="number" class="form-control" id="fb_monto_solicitado" step="0.01" min="0" placeholder="Ej: 1000000.00 (MXN)" required>
                             </div>
                             <div class="col-md-4 mb-2">
                                 <label class="form-label">Monto Recibido * <span class="badge bg-danger badge-xsd">Obl.</span></label>
-                                <input type="number" class="form-control" id="fb_monto_recibido" step="0.01" min="0" placeholder="0.00" required>
+                                <input type="number" class="form-control" id="fb_monto_recibido" step="0.01" min="0" placeholder="Ej: 950000.00 (MXN)" required>
                             </div>
                         </div>
                     </div>
@@ -753,7 +753,7 @@ try {
                     </div>
                     <div class="col-lg-3 col-md-6 mb-3" id="fecha_sospecha_div" style="display:none;">
                         <label class="form-label">Fecha conocimiento sospecha</label>
-                        <input type="datetime-local" class="form-control" id="fecha_conocimiento_sospecha">
+                        <input type="datetime-local" class="form-control" id="fecha_conocimiento_sospecha" placeholder="Ej: 2026-02-05 14:30">
                     </div>
                     <div class="col-lg-3 col-md-6 mb-3">
                         <label class="form-label">Match listas restringidas</label>
@@ -800,41 +800,41 @@ try {
         </div>
         <div class="persona-section pf-section active">
             <div class="row g-3">
-                <div class="col-md-6 mb-2"><label class="form-label">Nombre(s) *</label><input type="text" class="form-control pf-nombre" maxlength="200" required></div>
-                <div class="col-md-6 mb-2"><label class="form-label">Apellido Paterno *</label><input type="text" class="form-control pf-apellido-paterno" maxlength="200" required></div>
-                <div class="col-md-6 mb-2"><label class="form-label">Apellido Materno *</label><input type="text" class="form-control pf-apellido-materno" maxlength="200" required></div>
-                <div class="col-md-6 mb-2"><label class="form-label">Fecha Nacimiento *</label><input type="date" class="form-control pf-fecha-nacimiento" required></div>
-                <div class="col-md-6 mb-2"><label class="form-label">RFC (13 car.) *</label><input type="text" class="form-control pf-rfc" maxlength="13" required></div>
-                <div class="col-md-6 mb-2"><label class="form-label">CURP (18 car.) *</label><input type="text" class="form-control pf-curp" maxlength="18" required></div>
+                <div class="col-md-6 mb-2"><label class="form-label">Nombre(s) *</label><input type="text" class="form-control pf-nombre" maxlength="200" required placeholder="Ej: JUAN CARLOS"></div>
+                <div class="col-md-6 mb-2"><label class="form-label">Apellido Paterno *</label><input type="text" class="form-control pf-apellido-paterno" maxlength="200" required placeholder="Ej: LÓPEZ"></div>
+                <div class="col-md-6 mb-2"><label class="form-label">Apellido Materno *</label><input type="text" class="form-control pf-apellido-materno" maxlength="200" required placeholder="Ej: GARCÍA"></div>
+                <div class="col-md-6 mb-2"><label class="form-label">Fecha Nacimiento *</label><input type="date" class="form-control pf-fecha-nacimiento" required title="AAAA-MM-DD"></div>
+                <div class="col-md-6 mb-2"><label class="form-label">RFC (13 car.) *</label><input type="text" class="form-control pf-rfc" maxlength="13" required placeholder="Ej: LOPG900101ABC"></div>
+                <div class="col-md-6 mb-2"><label class="form-label">CURP (18 car.) *</label><input type="text" class="form-control pf-curp" maxlength="18" required placeholder="Ej: LOPG900101HDFLRN01"></div>
                 <div class="col-md-6 mb-2"><label class="form-label">País Nacionalidad *</label><select class="form-select pf-pais-nacionalidad" required><?= dinCatalogoOptions('pais', 'MX') ?></select></div>
                 <div class="col-md-6 mb-2"><label class="form-label">Act. Económica (SCIAN) *</label><input type="text" class="form-control pf-actividad-economica" maxlength="7" pattern="\d{7}" placeholder="7 dígitos" required></div>
             </div>
         </div>
         <div class="persona-section pm-section">
             <div class="row g-3">
-                <div class="col-md-6 mb-2"><label class="form-label">Denominación/Razón Social *</label><input type="text" class="form-control pm-denominacion" maxlength="254" required></div>
-                <div class="col-md-6 mb-2"><label class="form-label">RFC (12 car.)</label><input type="text" class="form-control pm-rfc" maxlength="12" placeholder="Opcional"></div>
-                <div class="col-md-6 mb-2"><label class="form-label">Fecha Constitución *</label><input type="date" class="form-control pm-fecha-constitucion" required></div>
+                <div class="col-md-6 mb-2"><label class="form-label">Denominación/Razón Social *</label><input type="text" class="form-control pm-denominacion" maxlength="254" required placeholder="Ej: EMPRESA EJEMPLO S.A. DE C.V."></div>
+                <div class="col-md-6 mb-2"><label class="form-label">RFC (12 car.)</label><input type="text" class="form-control pm-rfc" maxlength="12" placeholder="Ej: EEE900101AAA (opcional)"></div>
+                <div class="col-md-6 mb-2"><label class="form-label">Fecha Constitución *</label><input type="date" class="form-control pm-fecha-constitucion" required title="AAAA-MM-DD"></div>
                 <div class="col-md-6 mb-2"><label class="form-label">País Nacionalidad *</label><select class="form-select pm-pais-nacionalidad" required><?= dinCatalogoOptions('pais', 'MX') ?></select></div>
-                <div class="col-md-6 mb-2"><label class="form-label">Giro Mercantil (7 díg.) *</label><input type="text" class="form-control pm-giro-mercantil" maxlength="7" pattern="\d{7}" required></div>
+                <div class="col-md-6 mb-2"><label class="form-label">Giro Mercantil (7 díg.) *</label><input type="text" class="form-control pm-giro-mercantil" maxlength="7" pattern="\d{7}" required placeholder="Ej: 5311111"></div>
             </div>
             <div class="mt-3 p-2 rounded" style="background:var(--din-light);">
                 <label class="form-label fw-bold" style="color:var(--din-primary)"><i class="fa-solid fa-user-tie me-1"></i>Representante/Apoderado Legal</label>
                 <div class="row g-3">
-                    <div class="col-md-6 mb-2"><label class="form-label">Nombre(s) *</label><input type="text" class="form-control pm-rep-nombre" maxlength="200" required></div>
-                    <div class="col-md-6 mb-2"><label class="form-label">Ap. Paterno *</label><input type="text" class="form-control pm-rep-apellido-paterno" maxlength="200" required></div>
-                    <div class="col-md-6 mb-2"><label class="form-label">Ap. Materno *</label><input type="text" class="form-control pm-rep-apellido-materno" maxlength="200" required></div>
-                    <div class="col-md-6 mb-2"><label class="form-label">Fecha Nac. *</label><input type="date" class="form-control pm-rep-fecha-nacimiento" required></div>
-                    <div class="col-md-6 mb-2"><label class="form-label">RFC (13 car.) *</label><input type="text" class="form-control pm-rep-rfc" maxlength="13" required></div>
-                    <div class="col-md-6 mb-2"><label class="form-label">CURP (18 car.) *</label><input type="text" class="form-control pm-rep-curp" maxlength="18" required></div>
+                    <div class="col-md-6 mb-2"><label class="form-label">Nombre(s) *</label><input type="text" class="form-control pm-rep-nombre" maxlength="200" required placeholder="Ej: MARÍA FERNANDA"></div>
+                    <div class="col-md-6 mb-2"><label class="form-label">Ap. Paterno *</label><input type="text" class="form-control pm-rep-apellido-paterno" maxlength="200" required placeholder="Ej: MARTÍNEZ"></div>
+                    <div class="col-md-6 mb-2"><label class="form-label">Ap. Materno *</label><input type="text" class="form-control pm-rep-apellido-materno" maxlength="200" required placeholder="Ej: SÁNCHEZ"></div>
+                    <div class="col-md-6 mb-2"><label class="form-label">Fecha Nac. *</label><input type="date" class="form-control pm-rep-fecha-nacimiento" required title="AAAA-MM-DD"></div>
+                    <div class="col-md-6 mb-2"><label class="form-label">RFC (13 car.) *</label><input type="text" class="form-control pm-rep-rfc" maxlength="13" required placeholder="Ej: MAMS850310ABC"></div>
+                    <div class="col-md-6 mb-2"><label class="form-label">CURP (18 car.) *</label><input type="text" class="form-control pm-rep-curp" maxlength="18" required placeholder="Ej: MAMS850310MDFRNR01"></div>
                 </div>
             </div>
         </div>
         <div class="persona-section fid-section">
             <div class="row g-3">
-                <div class="col-12 mb-2"><label class="form-label">Denominación/Razón Social Fiduciario *</label><input type="text" class="form-control fid-denominacion" maxlength="254" required></div>
-                <div class="col-md-6 mb-2"><label class="form-label">RFC Fideicomiso (12 car.) *</label><input type="text" class="form-control fid-rfc" maxlength="12" required></div>
-                <div class="col-md-6 mb-2"><label class="form-label">Identificador Fideicomiso *</label><input type="text" class="form-control fid-identificador" maxlength="40" required></div>
+                <div class="col-12 mb-2"><label class="form-label">Denominación/Razón Social Fiduciario *</label><input type="text" class="form-control fid-denominacion" maxlength="254" required placeholder="Ej: FIDEICOMISO EJEMPLO S.A. DE C.V."></div>
+                <div class="col-md-6 mb-2"><label class="form-label">RFC Fideicomiso (12 car.) *</label><input type="text" class="form-control fid-rfc" maxlength="12" required placeholder="Ej: FDE900101AAA"></div>
+                <div class="col-md-6 mb-2"><label class="form-label">Identificador Fideicomiso *</label><input type="text" class="form-control fid-identificador" maxlength="40" required placeholder="Ej: FID-001-2026"></div>
             </div>
         </div>
     </div>
@@ -853,23 +853,23 @@ try {
         </div>
         <div class="domicilio-section dom-nacional active">
             <div class="row g-3">
-                <div class="col-md-6 mb-2"><label class="form-label">Colonia *</label><input type="text" class="form-control text-uppercase dn-colonia" maxlength="50" required></div>
-                <div class="col-md-6 mb-2"><label class="form-label">Calle *</label><input type="text" class="form-control text-uppercase dn-calle" maxlength="100" required></div>
-                <div class="col-md-4 mb-2"><label class="form-label">Núm. Exterior *</label><input type="text" class="form-control dn-numero-exterior" maxlength="56" required></div>
-                <div class="col-md-4 mb-2"><label class="form-label">Núm. Interior</label><input type="text" class="form-control dn-numero-interior" maxlength="40"></div>
-                <div class="col-md-4 mb-2"><label class="form-label">C.P. *</label><input type="text" class="form-control dn-codigo-postal" maxlength="5" pattern="\d{5}" required></div>
+                <div class="col-md-6 mb-2"><label class="form-label">Colonia *</label><input type="text" class="form-control text-uppercase dn-colonia" maxlength="50" required placeholder="Ej: CENTRO"></div>
+                <div class="col-md-6 mb-2"><label class="form-label">Calle *</label><input type="text" class="form-control text-uppercase dn-calle" maxlength="100" required placeholder="Ej: AV. REFORMA 123"></div>
+                <div class="col-md-4 mb-2"><label class="form-label">Núm. Exterior *</label><input type="text" class="form-control dn-numero-exterior" maxlength="56" required placeholder="Ej: 123"></div>
+                <div class="col-md-4 mb-2"><label class="form-label">Núm. Interior</label><input type="text" class="form-control dn-numero-interior" maxlength="40" placeholder="Ej: 4 (opcional)"></div>
+                <div class="col-md-4 mb-2"><label class="form-label">C.P. *</label><input type="text" class="form-control dn-codigo-postal" maxlength="5" pattern="\d{5}" required placeholder="Ej: 06000"></div>
             </div>
         </div>
         <div class="domicilio-section dom-extranjero">
             <div class="row g-3">
                 <div class="col-md-6 mb-2"><label class="form-label">País *</label><select class="form-select de-pais" required><?= dinCatalogoOptions('pais', 'US') ?></select></div>
-                <div class="col-md-6 mb-2"><label class="form-label">Estado/Provincia *</label><input type="text" class="form-control de-estado-provincia" maxlength="100" required></div>
-                <div class="col-md-6 mb-2"><label class="form-label">Ciudad/Población *</label><input type="text" class="form-control de-ciudad-poblacion" maxlength="100" required></div>
-                <div class="col-md-6 mb-2"><label class="form-label">Colonia *</label><input type="text" class="form-control text-uppercase de-colonia" maxlength="50" required></div>
-                <div class="col-md-6 mb-2"><label class="form-label">Calle *</label><input type="text" class="form-control text-uppercase de-calle" maxlength="100" required></div>
-                <div class="col-md-6 mb-2"><label class="form-label">C.P. *</label><input type="text" class="form-control de-codigo-postal" maxlength="12" required></div>
-                <div class="col-md-6 mb-2"><label class="form-label">Núm. Exterior *</label><input type="text" class="form-control de-numero-exterior" maxlength="56" required></div>
-                <div class="col-md-6 mb-2"><label class="form-label">Núm. Interior</label><input type="text" class="form-control de-numero-interior" maxlength="40"></div>
+                <div class="col-md-6 mb-2"><label class="form-label">Estado/Provincia *</label><input type="text" class="form-control de-estado-provincia" maxlength="100" required placeholder="Ej: CALIFORNIA"></div>
+                <div class="col-md-6 mb-2"><label class="form-label">Ciudad/Población *</label><input type="text" class="form-control de-ciudad-poblacion" maxlength="100" required placeholder="Ej: LOS ANGELES"></div>
+                <div class="col-md-6 mb-2"><label class="form-label">Colonia *</label><input type="text" class="form-control text-uppercase de-colonia" maxlength="50" required placeholder="Ej: DOWNTOWN"></div>
+                <div class="col-md-6 mb-2"><label class="form-label">Calle *</label><input type="text" class="form-control text-uppercase de-calle" maxlength="100" required placeholder="Ej: MAIN STREET 456"></div>
+                <div class="col-md-6 mb-2"><label class="form-label">C.P. *</label><input type="text" class="form-control de-codigo-postal" maxlength="12" required placeholder="Ej: 90001"></div>
+                <div class="col-md-6 mb-2"><label class="form-label">Núm. Exterior *</label><input type="text" class="form-control de-numero-exterior" maxlength="56" required placeholder="Ej: 456"></div>
+                <div class="col-md-6 mb-2"><label class="form-label">Núm. Interior</label><input type="text" class="form-control de-numero-interior" maxlength="40" placeholder="Ej: 2 (opcional)"></div>
             </div>
         </div>
     </div>
@@ -879,8 +879,8 @@ try {
     <div class="mt-2">
         <div class="row g-3">
             <div class="col-md-4 mb-2"><label class="form-label">País Tel. *</label><select class="form-select tel-clave-pais" required><?= dinCatalogoOptions('pais', 'MX') ?></select></div>
-            <div class="col-md-4 mb-2"><label class="form-label">Teléfono *</label><input type="text" class="form-control tel-numero" maxlength="12" pattern="\d{10,12}" required></div>
-            <div class="col-md-4 mb-2"><label class="form-label">Correo Electrónico</label><input type="email" class="form-control tel-correo" maxlength="60"></div>
+            <div class="col-md-4 mb-2"><label class="form-label">Teléfono *</label><input type="text" class="form-control tel-numero" maxlength="12" pattern="\d{10,12}" required placeholder="Ej: 5512345678"></div>
+            <div class="col-md-4 mb-2"><label class="form-label">Correo Electrónico</label><input type="email" class="form-control tel-correo" maxlength="60" placeholder="Ej: correo@ejemplo.com"></div>
         </div>
     </div>
 </template>
@@ -900,15 +900,15 @@ try {
             <div class="row g-3">
                 <div class="col-md-6 mb-2"><label class="form-label">Instr. Monetario *</label><select class="form-select ea-instrumento" required><?= dinCatalogoOptions('instrumento_monetario', '1') ?></select></div>
                 <div class="col-md-6 mb-2"><label class="form-label">Moneda *</label><select class="form-select ea-moneda" required><?= dinCatalogoOptions('moneda', '1') ?></select></div>
-                <div class="col-md-4 mb-2"><label class="form-label">Monto *</label><input type="number" class="form-control ea-monto" step="0.01" min="0" placeholder="0.00" required></div>
+                <div class="col-md-4 mb-2"><label class="form-label">Monto *</label><input type="number" class="form-control ea-monto" step="0.01" min="0" placeholder="Ej: 250000.00 (MXN)" required></div>
                 <div class="col-md-4 mb-2"><label class="form-label">¿Fideicomiso? *</label><select class="form-select ea-fideicomiso" required><option value="NO">NO</option><option value="SI">SI</option></select></div>
-                <div class="col-md-4 mb-2"><label class="form-label">Nombre Institución</label><input type="text" class="form-control ea-nombre-inst" maxlength="254"></div>
+                <div class="col-md-4 mb-2"><label class="form-label">Nombre Institución</label><input type="text" class="form-control ea-nombre-inst" maxlength="254" placeholder="Ej: BANCO ABC S.A."></div>
             </div>
         </div>
         <div class="entidad-aport-especie" style="display:none;">
             <div class="row g-3">
-                <div class="col-md-7 mb-2"><label class="form-label">Descripción del Bien *</label><textarea class="form-control ea-desc-bien" maxlength="3000" rows="1" required></textarea></div>
-                <div class="col-md-5 mb-2"><label class="form-label">Monto Estimado *</label><input type="number" class="form-control ea-monto-estimado" step="0.01" min="0" required></div>
+                <div class="col-md-7 mb-2"><label class="form-label">Descripción del Bien *</label><textarea class="form-control ea-desc-bien" maxlength="3000" rows="1" required placeholder="Ej: Terreno urbano con edificio comercial"></textarea></div>
+                <div class="col-md-5 mb-2"><label class="form-label">Monto Estimado *</label><input type="number" class="form-control ea-monto-estimado" step="0.01" min="0" required placeholder="Ej: 1500000.00 (MXN)"></div>
             </div>
         </div>
     </div>
