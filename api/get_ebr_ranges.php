@@ -1,6 +1,7 @@
 <?php
 session_start();
 require_once '../config/db.php';
+require_once '../config/ebr_usuario_helper.php';
 header('Content-Type: application/json');
 
 if (!isset($_SESSION['user_id'])) {
@@ -10,9 +11,12 @@ if (!isset($_SESSION['user_id'])) {
 }
 
 try {
-    $stmt = $pdo->query("SELECT * FROM config_riesgo_rangos ORDER BY min_valor ASC");
-    $ranges = $stmt->fetchAll(PDO::FETCH_ASSOC);
-    
+    $id_usuario = (int)$_SESSION['user_id'];
+    $ranges = getRangosRiesgoUsuario($pdo, $id_usuario);
+    // Añadir id_rango simulado para compatibilidad con el frontend
+    foreach ($ranges as $i => $r) {
+        $ranges[$i]['id_rango'] = $i + 1;
+    }
     echo json_encode(['status' => 'success', 'data' => $ranges]);
 
 } catch (Exception $e) {

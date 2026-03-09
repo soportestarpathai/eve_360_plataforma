@@ -49,19 +49,21 @@
                     </a>
                 </li>
                 
-                <!-- System Config Section (Hidden by default, shown via JS permissions) -->
-                <div id="adminConfigSection" class="restricted">
+                <!-- Configuración EBR: visible para cualquier usuario con módulo risk (admin o no) -->
+                <div id="topbarEbrSection" class="restricted">
                     <li><hr class="dropdown-divider"></li>
-                    <li><h6 class="dropdown-header">Configuración del Sistema</h6></li>
-                    
-                    <!-- 1. Configuración EBR (oculto si módulo risk inactivo) -->
-                    <li id="topbarConfigEbr" style="display:none;">
+                    <li>
                         <a class="dropdown-item" href="config_ebr.php">
                             <i class="fa-solid fa-sliders me-2"></i>Configuración EBR
                         </a>
                     </li>
-                    
-                    <!-- Future config items go here -->
+                </div>
+
+                <!-- System Config Section (solo para usuarios con administracion > 0) -->
+                <div id="adminConfigSection" class="restricted">
+                    <li><hr class="dropdown-divider"></li>
+                    <li><h6 class="dropdown-header">Configuración del Sistema</h6></li>
+                    <!-- Future admin-only config items go here -->
                     <!-- <li><a class="dropdown-item" href="config_users.php"><i class="fa-solid fa-users-gear me-2"></i>Usuarios</a></li> -->
                 </div>
 
@@ -115,12 +117,15 @@
                     if (avatarEl && data.user) avatarEl.src = data.user.avatar || '';
                     
                     // Apply permissions and module visibility
-                    // If user has 'administracion' permission > 0, show the config section
+                    // Configuración EBR: visible para cualquier usuario con módulo risk activo (admin o no)
+                    const riskActive = data.sys_modules && data.sys_modules.risk !== 0;
+                    const ebrSection = document.getElementById('topbarEbrSection');
+                    if (ebrSection) ebrSection.classList.toggle('restricted', !riskActive);
+
+                    // Admin config section: solo si tiene permiso administracion
                     if (data.permissions && data.permissions.administracion > 0) {
                         const adminSection = document.getElementById('adminConfigSection');
                         if (adminSection) adminSection.classList.remove('restricted');
-                        const ebrLi = document.getElementById('topbarConfigEbr');
-                        if (ebrLi) ebrLi.style.display = (data.sys_modules && data.sys_modules.risk === 0) ? 'none' : '';
                     }
                 } else {
                     window.location.href = 'login.php';

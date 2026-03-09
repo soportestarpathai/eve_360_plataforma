@@ -40,6 +40,11 @@ if (!function_exists('ensureFraccionesPLDColumn')) {
                 $decoded = json_decode($row['fracciones_activas'], true);
                 if (is_array($decoded)) $empresaFracciones = $decoded;
             }
+            // Asegurar II (TSC) y XI (SPR) siempre disponibles para asignación de usuarios
+            $fraccionesBase = ['II', 'XI', 'V', 'V Bis', 'VI'];
+            foreach ($fraccionesBase as $fb) {
+                if (!in_array($fb, $empresaFracciones, true)) $empresaFracciones[] = $fb;
+            }
 
             if (empty($empresaFracciones)) return [];
 
@@ -82,6 +87,15 @@ if (!function_exists('ensureFraccionesPLDColumn')) {
     function userCanAccessTSC($pdo, $userId) {
         $fracciones = getUserFraccionesPLD($pdo, $userId);
         return in_array('II', $fracciones);
+    }
+
+    /**
+     * Verifica si el usuario tiene acceso al formulario SPR (requiere Fracción XI).
+     * Servicios Profesionales — compraventa inmuebles, cesión derechos, administración recursos, etc.
+     */
+    function userCanAccessSPR($pdo, $userId) {
+        $fracciones = getUserFraccionesPLD($pdo, $userId);
+        return in_array('XI', $fracciones);
     }
 }
 

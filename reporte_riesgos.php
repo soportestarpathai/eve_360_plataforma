@@ -2,6 +2,7 @@
 if (session_status() === PHP_SESSION_NONE) session_start();
 require_once __DIR__ . '/config/db.php';
 require_once __DIR__ . '/config/modules_helper.php';
+require_once __DIR__ . '/config/ebr_usuario_helper.php';
 
 if (!isset($_SESSION['user_id'])) {
     header('Location: login.php');
@@ -71,12 +72,14 @@ $stmt = $pdo->prepare($query);
 $stmt->execute($params);
 $resultados_db = $stmt->fetchAll(PDO::FETCH_ASSOC);
 
-// 4. RANGOS DE RIESGO (usa config_riesgo_rangos, igual que el motor EBR)
-$riesgoRangos = [];
-try {
-    $stmtR = $pdo->query("SELECT * FROM config_riesgo_rangos ORDER BY min_valor ASC");
-    $riesgoRangos = $stmtR ? $stmtR->fetchAll(PDO::FETCH_ASSOC) : [];
-} catch (Exception $e) { /* fallback abajo */ }
+// 4. RANGOS DE RIESGO: por usuario (cada cliente usa la config del usuario que lo registró)
+$rangosPorUsuario = [];
+foreach ($resultados_db as $r) {
+    $uid = isset($r['id_usuario']) ? (int)$r['id_usuario'] : 0;
+    if (!isset($rangosPorUsuario[$uid])) {
+        $rangosPorUsuario[$uid] = getRangosRiesgoUsuario($pdo, $uid);
+    }
+}
 
 function obtenerSemaforo($nivel, $docs, $rangos) {
     $nivel = (float)$nivel;
@@ -104,7 +107,9 @@ $reporte = [];
 $countAlto = 0; $countMedio = 0; $countBajo = 0;
 
 foreach ($resultados_db as $r) {
-    $s = obtenerSemaforo($r['nivel_riesgo'], $r['total_docs'], $riesgoRangos);
+    $uid = isset($r['id_usuario']) ? (int)$r['id_usuario'] : 0;
+    $rangos = $rangosPorUsuario[$uid] ?? [];
+    $s = obtenerSemaforo($r['nivel_riesgo'], $r['total_docs'], $rangos);
     
     // Contadores para tarjetas
     if ($s['val'] == 'alto') $countAlto++;

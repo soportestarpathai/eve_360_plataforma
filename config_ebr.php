@@ -170,7 +170,7 @@ include 'templates/header.php';
         <div class="col-lg-4">
             <div class="ebr-card ebr-ranges-card mb-4">
                 <div class="card-header d-flex justify-content-between align-items-center">
-                    <span><i class="fa-solid fa-chart-pie me-2"></i>Rangos Globales</span>
+                    <span><i class="fa-solid fa-chart-pie me-2"></i>Mis Rangos</span>
                     <button class="btn btn-sm ebr-btn-save" onclick="saveRanges()">
                         <i class="fa-solid fa-save me-1"></i>Guardar
                     </button>

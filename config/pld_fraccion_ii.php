@@ -1,6 +1,6 @@
 <?php
 /**
- * PLD Fracción II — Tarjetas de Servicios de Crédito (TSC)
+ * PLD Fracción II — Tarjetas de Servicio y de Crédito (TSC)
  * Constantes y helpers según LFPIORPI, RCG, SPPLD.
  *
  * Umbrales según RCG Fracción II:
@@ -41,7 +41,7 @@ if (!function_exists('getUmbralAvisoII')) {
 if (!function_exists('requireFraccionIIActiva')) {
     /**
      * Valida que el sujeto obligado esté habilitado en el padrón PLD con Fracción II activa.
-     * VAL-PLD-001 (especializado para Tarjetas de Servicios de Crédito).
+     * VAL-PLD-001 (especializado para Tarjetas de Servicio y de Crédito).
      *
      * @param PDO $pdo Conexión a la base de datos
      * @return array Mismo formato que validatePatronPLD

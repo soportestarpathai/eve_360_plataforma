@@ -1,14 +1,14 @@
 <?php
 /**
- * API: Registrar Aviso TSC (Tarjetas de Servicio y de Crédito) - Fracción II
- * Genera XML según instructivo TSC, almacena en operaciones_pld
+ * API: Registrar Aviso SPR (Servicios Profesionales) - Fracción XII
+ * Genera XML según instructivo SPR, almacena en operaciones_pld
  */
 session_start();
 require_once __DIR__ . '/../config/db.php';
 require_once __DIR__ . '/../config/pld_avisos.php';
 require_once __DIR__ . '/../config/bitacora.php';
 require_once __DIR__ . '/../config/pld_middleware.php';
-require_once __DIR__ . '/../config/pld_fraccion_ii.php';
+require_once __DIR__ . '/../config/pld_fraccion_xi.php';
 header('Content-Type: application/json');
 
 if (!isset($_SESSION['user_id'])) {
@@ -36,40 +36,40 @@ if (empty($data['informe']) || !is_array($data['informe'])) {
 
 $id_cliente = (int)($data['id_cliente'] ?? 0);
 
-// Obtener monto desde detalle_operaciones TSC (monto_gasto)
 $monto = 0;
-$fecha_periodo = null;
-if (isset($data['informe'][0]['aviso'][0]['detalle_operaciones'][0]['datos_operacion'][0])) {
-    $op = $data['informe'][0]['aviso'][0]['detalle_operaciones'][0]['datos_operacion'][0];
-    if (isset($op['monto_gasto'])) {
-        $monto = floatval($op['monto_gasto']);
-    }
-    if (isset($op['fecha_periodo']) && strlen($op['fecha_periodo']) === 6) {
-        $fecha_periodo = $op['fecha_periodo'];
+$fecha_operacion = date('Y-m-d');
+$detalle = $data['informe'][0]['aviso'][0]['detalle_operaciones'] ?? [];
+if (isset($detalle['datos_operacion']) && is_array($detalle['datos_operacion'])) {
+    foreach ($detalle['datos_operacion'] as $op) {
+        $fin = $op['datos_operacion_financiera'] ?? [];
+        if (is_array($fin)) {
+            foreach ($fin as $f) {
+                $m = floatval($f['monto_operacion'] ?? 0);
+                if ($m > 0) $monto += $m;
+            }
+        }
+        if (!empty($op['fecha_operacion'])) {
+            $fo = $op['fecha_operacion'];
+            if (strlen($fo) >= 8) {
+                $fecha_operacion = substr($fo, 0, 4) . '-' . substr($fo, 4, 2) . '-' . substr($fo, 6, 2);
+            }
+        }
     }
 }
 
-// Fecha operación: último día del periodo (AAAAMM) o hoy
-$fecha_operacion = date('Y-m-d');
-if ($fecha_periodo) {
-    $y = substr($fecha_periodo, 0, 4);
-    $m = substr($fecha_periodo, 4, 2);
-    if (checkdate((int)$m, 1, (int)$y)) {
-        $fecha_operacion = date('Y-m-t', strtotime("$y-$m-01"));
-    }
-}
+if ($monto <= 0) $monto = 1;
 
 $id_fraccion = null;
-if (function_exists('getIdVulnerableFraccionII')) {
-    $id_fraccion = getIdVulnerableFraccionII($pdo);
+if (function_exists('getIdVulnerableFraccionXI')) {
+    $id_fraccion = getIdVulnerableFraccionXI($pdo);
 }
 
 $operacionData = [
     'id_cliente' => $id_cliente,
-    'monto' => $monto > 0 ? $monto : 1,
+    'monto' => $monto,
     'fecha_operacion' => $fecha_operacion,
     'id_fraccion' => $id_fraccion,
-    'tipo_operacion' => 'TSC',
+    'tipo_operacion' => 'SPR',
     'es_sospechosa' => $data['es_sospechosa'] ?? 0,
     'fecha_conocimiento_sospecha' => $data['fecha_conocimiento_sospecha'] ?? null,
     'match_listas_restringidas' => $data['match_listas_restringidas'] ?? 0,
@@ -89,35 +89,35 @@ $id_operacion = $result['id_operacion'];
 $xml = '';
 $xmlNombre = '';
 $xmlErrors = [];
-if (file_exists(__DIR__ . '/../config/tsc_xml_helper.php')) {
-    require_once __DIR__ . '/../config/tsc_xml_helper.php';
-    $gen = generateTSCXml($data);
+if (file_exists(__DIR__ . '/../config/spr_xml_helper.php')) {
+    require_once __DIR__ . '/../config/spr_xml_helper.php';
+    $gen = generateSPRXml($data);
     $xml = $gen['xml'] ?? '';
     $xmlErrors = $gen['errors'] ?? [];
     if (!empty($xmlErrors) && function_exists('logChange')) {
-        logChange($pdo, $_SESSION['user_id'], 'REGISTRAR_AVISO_TSC', 'operaciones_pld', $id_operacion, null, ['xml_errors' => $xmlErrors]);
+        logChange($pdo, $_SESSION['user_id'], 'REGISTRAR_AVISO_SPR', 'operaciones_pld', $id_operacion, null, ['xml_errors' => $xmlErrors]);
     }
 }
 
 if ($xml) {
-    $xmlNombre = 'tsc_' . date('Ymd_His') . '_op' . $id_operacion . '.xml';
+    $xmlNombre = 'spr_' . date('Ymd_His') . '_op' . $id_operacion . '.xml';
     try {
         $stmt = $pdo->prepare("UPDATE operaciones_pld SET xml_contenido = ?, xml_nombre_archivo = ? WHERE id_operacion = ?");
         $stmt->execute([$xml, $xmlNombre, $id_operacion]);
     } catch (Exception $e) {
-        if (strpos($e->getMessage(), 'xml_contenido') !== false) {
-            // Columnas no existen
+        if (strpos($e->getMessage(), 'xml_contenido') === false) {
+            error_log('SPR xml save: ' . $e->getMessage());
         }
     }
 }
 
 if (function_exists('logChange')) {
-    logChange($pdo, $_SESSION['user_id'], 'REGISTRAR_AVISO_TSC', 'operaciones_pld', $id_operacion, null, $operacionData);
+    logChange($pdo, $_SESSION['user_id'], 'REGISTRAR_AVISO_SPR', 'operaciones_pld', $id_operacion, null, $operacionData);
 }
 
 $resp = [
     'status' => 'success',
-    'message' => 'Aviso TSC registrado correctamente.',
+    'message' => 'Aviso SPR registrado correctamente.',
     'id_operacion' => $id_operacion,
     'id_aviso' => $result['id_aviso'] ?? null,
     'requiere_aviso' => $result['requiere_aviso'] ?? false,

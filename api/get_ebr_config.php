@@ -1,6 +1,7 @@
 <?php
 session_start();
 require_once '../config/db.php';
+require_once '../config/ebr_usuario_helper.php';
 header('Content-Type: application/json');
 
 if (!isset($_SESSION['user_id'])) {
@@ -38,21 +39,43 @@ try {
             exit;
         }
 
-        // 2. Dynamic Query
-        $sql = "
-            SELECT 
-                c.{$factor['campo_clave']} as id_item,
-                c.{$factor['campo_nombre']} as nombre_item,
-                COALESCE(r.nivel_riesgo, 0) as nivel_riesgo
-            FROM {$factor['tabla_catalogo']} c
-            LEFT JOIN config_riesgo_valores r 
-                ON r.id_valor_catalogo = c.{$factor['campo_clave']} 
-                AND r.id_factor = ?
-            ORDER BY c.{$factor['campo_nombre']} ASC
-        ";
+        // 2. Dynamic Query: usa config por usuario con fallback a global
+        $id_usuario = (int)($_SESSION['user_id'] ?? 0);
+        $tablaValores = ($id_usuario > 0 && ebrTablaUsuarioExiste($pdo))
+            ? 'config_riesgo_valores_usuario' : null;
 
-        $stmt = $pdo->prepare($sql);
-        $stmt->execute([$id_factor]);
+        if ($tablaValores) {
+            $sql = "
+                SELECT 
+                    c.{$factor['campo_clave']} as id_item,
+                    c.{$factor['campo_nombre']} as nombre_item,
+                    COALESCE(r.nivel_riesgo, g.nivel_riesgo, 0) as nivel_riesgo
+                FROM {$factor['tabla_catalogo']} c
+                LEFT JOIN config_riesgo_valores_usuario r 
+                    ON r.id_valor_catalogo = c.{$factor['campo_clave']} 
+                    AND r.id_factor = ? AND r.id_usuario = ?
+                LEFT JOIN config_riesgo_valores g 
+                    ON g.id_valor_catalogo = c.{$factor['campo_clave']} 
+                    AND g.id_factor = ?
+                ORDER BY c.{$factor['campo_nombre']} ASC
+            ";
+            $stmt = $pdo->prepare($sql);
+            $stmt->execute([$id_factor, $id_usuario, $id_factor]);
+        } else {
+            $sql = "
+                SELECT 
+                    c.{$factor['campo_clave']} as id_item,
+                    c.{$factor['campo_nombre']} as nombre_item,
+                    COALESCE(r.nivel_riesgo, 0) as nivel_riesgo
+                FROM {$factor['tabla_catalogo']} c
+                LEFT JOIN config_riesgo_valores r 
+                    ON r.id_valor_catalogo = c.{$factor['campo_clave']} 
+                    AND r.id_factor = ?
+                ORDER BY c.{$factor['campo_nombre']} ASC
+            ";
+            $stmt = $pdo->prepare($sql);
+            $stmt->execute([$id_factor]);
+        }
         $items = $stmt->fetchAll(PDO::FETCH_ASSOC);
 
         echo json_encode(['status' => 'success', 'data' => $items]);

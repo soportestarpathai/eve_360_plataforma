@@ -167,10 +167,9 @@ $riskLabels = [];
 $riskColors = [];
 
 try {
-    // 1. Get Ranges (Optimizada - Índice sugerido: PRIMARY KEY o índice en id_config_riesgo)
-    // Índice sugerido: CREATE INDEX idx_riesgo_min_max ON config_riesgo_rangos(min_valor, max_valor);
-    $stmtRanges = $pdo->query("SELECT * FROM config_riesgo_rangos ORDER BY min_valor ASC");
-    $ranges = $stmtRanges->fetchAll(PDO::FETCH_ASSOC);
+    require_once __DIR__ . '/config/ebr_usuario_helper.php';
+    // 1. Get Ranges: por usuario (dashboard usa la config del usuario actual)
+    $ranges = getRangosRiesgoUsuario($pdo, $statsUserId);
     
     // Initialize counters
     $stats = [];

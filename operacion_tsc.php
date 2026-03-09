@@ -18,7 +18,7 @@ if (!userCanAccessTSC($pdo, $userId)) {
     exit;
 }
 
-$page_title = 'Aviso TSC - Tarjetas de Servicios de Crédito';
+$page_title = 'Aviso TSC - Tarjetas de Servicio y de Crédito';
 include 'templates/header.php';
 
 $clave_sujeto_obligado = '';
@@ -118,7 +118,7 @@ $paisOptions = tscCatalogoOptions('pais', 'MX');
         <div class="d-flex justify-content-between align-items-center flex-wrap gap-3">
             <div>
                 <h2><i class="fa-solid fa-credit-card me-2"></i>Aviso TSC</h2>
-                <p>Tarjetas de Servicios de Crédito — Fracción II
+                <p>Tarjetas de Servicio y de Crédito — Fracción II
                     <a href="https://www.sat.gob.mx/consulta/44891/portal-de-prevencion-de-lavado-de-dinero" target="_blank" rel="noopener" class="ms-2">
                         <i class="fa-solid fa-external-link-alt"></i> Portal PLD
                     </a>
@@ -196,7 +196,7 @@ $paisOptions = tscCatalogoOptions('pais', 'MX');
                     <div class="col-md-4 mb-2">
                         <label class="form-label">Clave Actividad * <span class="badge bg-danger badge-xsd">Obl.</span></label>
                         <input type="text" class="form-control" id="clave_actividad" value="TSC" readonly maxlength="3">
-                        <div class="section-help">Fijo "TSC" para Tarjetas de Servicios de Crédito</div>
+                        <div class="section-help">Fijo "TSC" para Tarjetas de Servicio y de Crédito</div>
                     </div>
                     <div class="col-md-4 mb-2">
                         <label class="form-label">Entidad Colegiada <span class="badge bg-warning text-dark badge-xsd">Opc.</span></label>
@@ -223,7 +223,7 @@ $paisOptions = tscCatalogoOptions('pais', 'MX');
                 <div class="row g-3">
                     <div class="col-md-6 mb-2">
                         <label class="form-label">Referencia Aviso * <span class="badge bg-danger badge-xsd">Obl.</span></label>
-                        <input type="text" class="form-control text-uppercase" id="referencia_aviso" maxlength="14" required placeholder="REF001" pattern="[A-ZÑ0-9]{1,14}" title="Solo A-Z, Ñ, 0-9, máx 14 caracteres">
+                        <input type="text" class="form-control text-uppercase" id="referencia_aviso" maxlength="14" required placeholder="Ej: REF202601001 o AVI-001" pattern="[A-ZÑ0-9]{1,14}" title="Solo A-Z, Ñ, 0-9, máx 14 caracteres">
                         <div class="section-help">XSD: [A-ZÑ0-9]{1,14}</div>
                     </div>
                     <div class="col-md-6 mb-2">
@@ -260,12 +260,12 @@ $paisOptions = tscCatalogoOptions('pais', 'MX');
                         <div class="row g-3">
                             <div class="col-md-5 mb-2">
                                 <label class="form-label">Folio Modificación *</label>
-                                <input type="text" class="form-control" id="folio_modificacion" maxlength="14" placeholder="2026-123456789" pattern="\d{4}-\d{1,9}" title="Formato: AAAA-N (6-14 car.)">
+                                <input type="text" class="form-control" id="folio_modificacion" maxlength="14" placeholder="Ej: 2026-123456789 (formato AAAA-N)" pattern="\d{4}-\d{1,9}" title="Formato: AAAA-N (6-14 car.)">
                                 <div class="section-help">XSD: \d{4}-\d{1,9} ej. 2026-123456789</div>
                             </div>
                             <div class="col-md-7 mb-2">
                                 <label class="form-label">Descripción Modificación *</label>
-                                <textarea class="form-control" id="descripcion_modificacion" maxlength="3000" rows="2"></textarea>
+                                <textarea class="form-control" id="descripcion_modificacion" maxlength="3000" rows="2" placeholder="Describa los cambios realizados al aviso original"></textarea>
                             </div>
                         </div>
                     </div>
@@ -293,51 +293,51 @@ $paisOptions = tscCatalogoOptions('pais', 'MX');
                 </div>
                 <div id="persona_fisica_block" class="persona-section active">
                         <div class="row g-3">
-                        <div class="col-md-6 mb-2"><label class="form-label">Nombre(s) *</label><input type="text" class="form-control text-uppercase" id="pf_nombre" maxlength="200" required placeholder="XSD: [A-ZÑ ]"></div>
-                        <div class="col-md-6 mb-2"><label class="form-label">Apellido Paterno *</label><input type="text" class="form-control text-uppercase" id="pf_apellido_paterno" maxlength="200" required></div>
-                        <div class="col-md-6 mb-2"><label class="form-label">Apellido Materno *</label><input type="text" class="form-control text-uppercase" id="pf_apellido_materno" maxlength="200" required></div>
-                        <div class="col-md-6 mb-2"><label class="form-label">Fecha Nacimiento *</label><input type="date" class="form-control" id="pf_fecha_nacimiento" required></div>
-                        <div class="col-md-6 mb-2"><label class="form-label">RFC (13 car.) *</label><input type="text" class="form-control" id="pf_rfc" maxlength="13" required></div>
-                        <div class="col-md-6 mb-2"><label class="form-label">CURP (18 car.) *</label><input type="text" class="form-control" id="pf_curp" maxlength="18" required></div>
+                        <div class="col-md-6 mb-2"><label class="form-label">Nombre(s) *</label><input type="text" class="form-control text-uppercase" id="pf_nombre" maxlength="200" required placeholder="Ej: JUAN CARLOS"></div>
+                        <div class="col-md-6 mb-2"><label class="form-label">Apellido Paterno *</label><input type="text" class="form-control text-uppercase" id="pf_apellido_paterno" maxlength="200" required placeholder="Ej: LÓPEZ"></div>
+                        <div class="col-md-6 mb-2"><label class="form-label">Apellido Materno *</label><input type="text" class="form-control text-uppercase" id="pf_apellido_materno" maxlength="200" required placeholder="Ej: GARCÍA"></div>
+                        <div class="col-md-6 mb-2"><label class="form-label">Fecha Nacimiento *</label><input type="date" class="form-control" id="pf_fecha_nacimiento" required title="Formato: AAAA-MM-DD"><div class="section-help">Ej: 15/01/1990 → 1990-01-15</div></div>
+                        <div class="col-md-6 mb-2"><label class="form-label">RFC (13 car.) *</label><input type="text" class="form-control" id="pf_rfc" maxlength="13" required placeholder="Ej: LOPG900101ABC"></div>
+                        <div class="col-md-6 mb-2"><label class="form-label">CURP (18 car.) *</label><input type="text" class="form-control" id="pf_curp" maxlength="18" required placeholder="Ej: LOPG900101HDFLRN01"></div>
                         <div class="col-md-6 mb-2"><label class="form-label">País Nacionalidad *</label><select class="form-select" id="pf_pais_nacionalidad" required><?= $paisOptions ?></select></div>
                         <div class="col-md-6 mb-2"><label class="form-label">Act. Económica (SCIAN) *</label><select class="form-select" id="pf_actividad_economica" required><?= tscCatalogoOptions('actividad_economica', '1000000') ?></select></div>
                     </div>
                 </div>
                 <div id="persona_moral_block" class="persona-section">
                     <div class="row g-3">
-                        <div class="col-md-6 mb-2"><label class="form-label">Denominación/Razón Social *</label><input type="text" class="form-control text-uppercase" id="pm_denominacion" maxlength="254" required placeholder="XSD: [A-ZÑ\d #\-\.&,_@'()]"></div>
-                        <div class="col-md-6 mb-2"><label class="form-label">RFC (12 car.)</label><input type="text" class="form-control" id="pm_rfc" maxlength="12"></div>
-                        <div class="col-md-6 mb-2"><label class="form-label">Fecha Constitución *</label><input type="date" class="form-control" id="pm_fecha_constitucion" required></div>
+                        <div class="col-md-6 mb-2"><label class="form-label">Denominación/Razón Social *</label><input type="text" class="form-control text-uppercase" id="pm_denominacion" maxlength="254" required placeholder="Ej: EMPRESA EJEMPLO S.A. DE C.V."></div>
+                        <div class="col-md-6 mb-2"><label class="form-label">RFC (12 car.)</label><input type="text" class="form-control" id="pm_rfc" maxlength="12" placeholder="Ej: EEE900101AAA"></div>
+                        <div class="col-md-6 mb-2"><label class="form-label">Fecha Constitución *</label><input type="date" class="form-control" id="pm_fecha_constitucion" required title="AAAA-MM-DD"><div class="section-help">Ej: 20/05/2010 → 2010-05-20</div></div>
                         <div class="col-md-6 mb-2"><label class="form-label">País Nacionalidad *</label><select class="form-select" id="pm_pais_nacionalidad" required><?= $paisOptions ?></select></div>
                         <div class="col-md-6 mb-2"><label class="form-label">Giro Mercantil *</label><select class="form-select" id="pm_giro_mercantil" required><?= tscCatalogoOptions('giro_mercantil', '0000000') ?></select></div>
                     </div>
                     <div class="mt-3 p-2 rounded" style="background:#f0fdfa;">
                         <label class="form-label fw-bold" style="color:var(--tsc-primary)"><i class="fa-solid fa-user-tie me-1"></i>Representante/Apoderado Legal</label>
                         <div class="row g-3">
-                            <div class="col-md-6 mb-2"><label class="form-label">Nombre(s) *</label><input type="text" class="form-control text-uppercase" id="pm_rep_nombre" maxlength="200" required></div>
-                            <div class="col-md-6 mb-2"><label class="form-label">Ap. Paterno *</label><input type="text" class="form-control text-uppercase" id="pm_rep_apellido_paterno" maxlength="200" required></div>
-                            <div class="col-md-6 mb-2"><label class="form-label">Ap. Materno *</label><input type="text" class="form-control text-uppercase" id="pm_rep_apellido_materno" maxlength="200" required></div>
-                            <div class="col-md-6 mb-2"><label class="form-label">Fecha Nac. *</label><input type="date" class="form-control" id="pm_rep_fecha_nacimiento" required></div>
-                            <div class="col-md-6 mb-2"><label class="form-label">RFC (13 car.) *</label><input type="text" class="form-control" id="pm_rep_rfc" maxlength="13" required></div>
-                            <div class="col-md-6 mb-2"><label class="form-label">CURP (18 car.) *</label><input type="text" class="form-control" id="pm_rep_curp" maxlength="18" required></div>
+                            <div class="col-md-6 mb-2"><label class="form-label">Nombre(s) *</label><input type="text" class="form-control text-uppercase" id="pm_rep_nombre" maxlength="200" required placeholder="Ej: MARÍA FERNANDA"></div>
+                            <div class="col-md-6 mb-2"><label class="form-label">Ap. Paterno *</label><input type="text" class="form-control text-uppercase" id="pm_rep_apellido_paterno" maxlength="200" required placeholder="Ej: MARTÍNEZ"></div>
+                            <div class="col-md-6 mb-2"><label class="form-label">Ap. Materno *</label><input type="text" class="form-control text-uppercase" id="pm_rep_apellido_materno" maxlength="200" required placeholder="Ej: SÁNCHEZ"></div>
+                            <div class="col-md-6 mb-2"><label class="form-label">Fecha Nac. *</label><input type="date" class="form-control" id="pm_rep_fecha_nacimiento" required placeholder="AAAA-MM-DD"></div>
+                            <div class="col-md-6 mb-2"><label class="form-label">RFC (13 car.) *</label><input type="text" class="form-control" id="pm_rep_rfc" maxlength="13" required placeholder="Ej: MAMS800101ABC"></div>
+                            <div class="col-md-6 mb-2"><label class="form-label">CURP (18 car.) *</label><input type="text" class="form-control" id="pm_rep_curp" maxlength="18" required placeholder="Ej: MAMS800101MDFRNR01"></div>
                         </div>
                     </div>
                 </div>
                 <div id="fideicomiso_block" class="persona-section">
                     <div class="row g-3">
-                        <div class="col-12 mb-2"><label class="form-label">Denominación Fiduciario *</label><input type="text" class="form-control text-uppercase" id="fid_denominacion" maxlength="254" required></div>
-                        <div class="col-md-6 mb-2"><label class="form-label">RFC Fideicomiso (12 car.) *</label><input type="text" class="form-control" id="fid_rfc" maxlength="12" required></div>
-                        <div class="col-md-6 mb-2"><label class="form-label">Identificador Fideicomiso *</label><input type="text" class="form-control" id="fid_identificador" maxlength="40" required></div>
+                        <div class="col-12 mb-2"><label class="form-label">Denominación Fiduciario *</label><input type="text" class="form-control text-uppercase" id="fid_denominacion" maxlength="254" required placeholder="Ej: FIDEICOMISO EJEMPLO S.A. DE C.V."></div>
+                        <div class="col-md-6 mb-2"><label class="form-label">RFC Fideicomiso (12 car.) *</label><input type="text" class="form-control" id="fid_rfc" maxlength="12" required placeholder="Ej: FDE900101AAA"></div>
+                        <div class="col-md-6 mb-2"><label class="form-label">Identificador Fideicomiso *</label><input type="text" class="form-control" id="fid_identificador" maxlength="40" required placeholder="Ej: FID-001-2026"></div>
                     </div>
                     <div class="mt-3 p-2 rounded" style="background:#f0fdfa;">
                         <label class="form-label fw-bold"><i class="fa-solid fa-user-tie me-1"></i>Apoderado/Delegado</label>
                         <div class="row g-3">
-                            <div class="col-md-6 mb-2"><label class="form-label">Nombre(s) *</label><input type="text" class="form-control text-uppercase" id="fid_apod_nombre" maxlength="200" required></div>
-                            <div class="col-md-6 mb-2"><label class="form-label">Ap. Paterno *</label><input type="text" class="form-control text-uppercase" id="fid_apod_apellido_paterno" maxlength="200" required></div>
-                            <div class="col-md-6 mb-2"><label class="form-label">Ap. Materno *</label><input type="text" class="form-control text-uppercase" id="fid_apod_apellido_materno" maxlength="200" required></div>
-                            <div class="col-md-6 mb-2"><label class="form-label">Fecha Nac. *</label><input type="date" class="form-control" id="fid_apod_fecha_nacimiento" required></div>
-                            <div class="col-md-6 mb-2"><label class="form-label">RFC *</label><input type="text" class="form-control" id="fid_apod_rfc" maxlength="13" required></div>
-                            <div class="col-md-6 mb-2"><label class="form-label">CURP *</label><input type="text" class="form-control" id="fid_apod_curp" maxlength="18" required></div>
+                            <div class="col-md-6 mb-2"><label class="form-label">Nombre(s) *</label><input type="text" class="form-control text-uppercase" id="fid_apod_nombre" maxlength="200" required placeholder="Ej: PEDRO ANTONIO"></div>
+                            <div class="col-md-6 mb-2"><label class="form-label">Ap. Paterno *</label><input type="text" class="form-control text-uppercase" id="fid_apod_apellido_paterno" maxlength="200" required placeholder="Ej: HERNÁNDEZ"></div>
+                            <div class="col-md-6 mb-2"><label class="form-label">Ap. Materno *</label><input type="text" class="form-control text-uppercase" id="fid_apod_apellido_materno" maxlength="200" required placeholder="Ej: RAMÍREZ"></div>
+                            <div class="col-md-6 mb-2"><label class="form-label">Fecha Nac. *</label><input type="date" class="form-control" id="fid_apod_fecha_nacimiento" required placeholder="AAAA-MM-DD"></div>
+                            <div class="col-md-6 mb-2"><label class="form-label">RFC *</label><input type="text" class="form-control" id="fid_apod_rfc" maxlength="13" required placeholder="Ej: HERP700101ABC"></div>
+                            <div class="col-md-6 mb-2"><label class="form-label">CURP *</label><input type="text" class="form-control" id="fid_apod_curp" maxlength="18" required placeholder="Ej: HERP700101HDFLRN01"></div>
                         </div>
                     </div>
                 </div>
@@ -355,23 +355,23 @@ $paisOptions = tscCatalogoOptions('pais', 'MX');
                 </div>
                 <div id="domicilio_nacional" class="domicilio-section active">
                     <div class="row g-3">
-                        <div class="col-md-6 mb-2"><label class="form-label">Colonia *</label><input type="text" class="form-control text-uppercase" id="dom_colonia" maxlength="50" required></div>
-                        <div class="col-md-6 mb-2"><label class="form-label">Calle *</label><input type="text" class="form-control text-uppercase" id="dom_calle" maxlength="100" required></div>
-                        <div class="col-md-4 mb-2"><label class="form-label">Núm. Exterior *</label><input type="text" class="form-control" id="dom_numero_exterior" maxlength="56" required></div>
-                        <div class="col-md-4 mb-2"><label class="form-label">Núm. Interior</label><input type="text" class="form-control" id="dom_numero_interior" maxlength="40"></div>
-                        <div class="col-md-4 mb-2"><label class="form-label">C.P. *</label><input type="text" class="form-control" id="dom_codigo_postal" maxlength="5" pattern="\d{5}" required></div>
+                        <div class="col-md-6 mb-2"><label class="form-label">Colonia *</label><input type="text" class="form-control text-uppercase" id="dom_colonia" maxlength="50" required placeholder="Ej: CENTRO"></div>
+                        <div class="col-md-6 mb-2"><label class="form-label">Calle *</label><input type="text" class="form-control text-uppercase" id="dom_calle" maxlength="100" required placeholder="Ej: AV. REFORMA 123"></div>
+                        <div class="col-md-4 mb-2"><label class="form-label">Núm. Exterior *</label><input type="text" class="form-control" id="dom_numero_exterior" maxlength="56" required placeholder="Ej: 123"></div>
+                        <div class="col-md-4 mb-2"><label class="form-label">Núm. Interior</label><input type="text" class="form-control" id="dom_numero_interior" maxlength="40" placeholder="Ej: 4 (opcional)"></div>
+                        <div class="col-md-4 mb-2"><label class="form-label">C.P. *</label><input type="text" class="form-control" id="dom_codigo_postal" maxlength="5" pattern="\d{5}" required placeholder="Ej: 06000"></div>
                     </div>
                 </div>
                 <div id="domicilio_extranjero" class="domicilio-section">
                     <div class="row g-3">
                         <div class="col-md-6 mb-2"><label class="form-label">País *</label><select class="form-select" id="dom_pais" required><?= $paisOptions ?></select></div>
-                        <div class="col-md-6 mb-2"><label class="form-label">Estado/Provincia *</label><input type="text" class="form-control" id="dom_estado" maxlength="100" required></div>
-                        <div class="col-md-6 mb-2"><label class="form-label">Ciudad *</label><input type="text" class="form-control" id="dom_ciudad" maxlength="100" required></div>
-                        <div class="col-md-6 mb-2"><label class="form-label">Colonia *</label><input type="text" class="form-control text-uppercase" id="dom_ext_colonia" maxlength="50" required></div>
-                        <div class="col-md-6 mb-2"><label class="form-label">Calle *</label><input type="text" class="form-control text-uppercase" id="dom_ext_calle" maxlength="100" required></div>
-                        <div class="col-md-6 mb-2"><label class="form-label">Núm. Exterior *</label><input type="text" class="form-control" id="dom_ext_numero" maxlength="56" required></div>
-                        <div class="col-md-6 mb-2"><label class="form-label">Núm. Interior</label><input type="text" class="form-control" id="dom_ext_numero_int" maxlength="40"></div>
-                        <div class="col-md-6 mb-2"><label class="form-label">C.P. *</label><input type="text" class="form-control" id="dom_ext_cp" maxlength="12" required></div>
+                        <div class="col-md-6 mb-2"><label class="form-label">Estado/Provincia *</label><input type="text" class="form-control" id="dom_estado" maxlength="100" required placeholder="Ej: CALIFORNIA"></div>
+                        <div class="col-md-6 mb-2"><label class="form-label">Ciudad *</label><input type="text" class="form-control" id="dom_ciudad" maxlength="100" required placeholder="Ej: LOS ANGELES"></div>
+                        <div class="col-md-6 mb-2"><label class="form-label">Colonia *</label><input type="text" class="form-control text-uppercase" id="dom_ext_colonia" maxlength="50" required placeholder="Ej: DOWNTOWN"></div>
+                        <div class="col-md-6 mb-2"><label class="form-label">Calle *</label><input type="text" class="form-control text-uppercase" id="dom_ext_calle" maxlength="100" required placeholder="Ej: MAIN STREET 456"></div>
+                        <div class="col-md-6 mb-2"><label class="form-label">Núm. Exterior *</label><input type="text" class="form-control" id="dom_ext_numero" maxlength="56" required placeholder="Ej: 456"></div>
+                        <div class="col-md-6 mb-2"><label class="form-label">Núm. Interior</label><input type="text" class="form-control" id="dom_ext_numero_int" maxlength="40" placeholder="Ej: 2 (opcional)"></div>
+                        <div class="col-md-6 mb-2"><label class="form-label">C.P. *</label><input type="text" class="form-control" id="dom_ext_cp" maxlength="12" required placeholder="Ej: 90001"></div>
                     </div>
                 </div>
 
@@ -379,8 +379,8 @@ $paisOptions = tscCatalogoOptions('pais', 'MX');
                 <h6 class="fw-bold mb-2"><i class="fa-solid fa-phone me-1"></i>Teléfono</h6>
                 <div class="row g-3">
                     <div class="col-md-4 mb-2"><label class="form-label">País Tel. *</label><select class="form-select" id="tel_clave_pais" required><?= $paisOptions ?></select></div>
-                    <div class="col-md-4 mb-2"><label class="form-label">Número *</label><input type="text" class="form-control" id="tel_numero" maxlength="12" pattern="\d{10,12}" required></div>
-                    <div class="col-md-4 mb-2"><label class="form-label">Correo Electrónico</label><input type="email" class="form-control" id="tel_correo" maxlength="60"></div>
+                    <div class="col-md-4 mb-2"><label class="form-label">Número *</label><input type="text" class="form-control" id="tel_numero" maxlength="12" pattern="\d{10,12}" required placeholder="Ej: 5512345678 (10-12 dígitos)"></div>
+                    <div class="col-md-4 mb-2"><label class="form-label">Correo Electrónico</label><input type="email" class="form-control" id="tel_correo" maxlength="60" placeholder="Ej: correo@ejemplo.com (opcional)"></div>
                 </div>
 
                 <hr class="my-3">
@@ -403,51 +403,51 @@ $paisOptions = tscCatalogoOptions('pais', 'MX');
                         </div>
                         <div id="db_persona_fisica_block" class="db-persona-section active">
                             <div class="row g-3">
-                                <div class="col-md-6 mb-2"><label class="form-label">Nombre(s) *</label><input type="text" class="form-control text-uppercase" id="db_pf_nombre" maxlength="200" placeholder="XSD: [A-ZÑ ]"></div>
-                                <div class="col-md-6 mb-2"><label class="form-label">Apellido Paterno *</label><input type="text" class="form-control text-uppercase" id="db_pf_apellido_paterno" maxlength="200"></div>
-                                <div class="col-md-6 mb-2"><label class="form-label">Apellido Materno *</label><input type="text" class="form-control text-uppercase" id="db_pf_apellido_materno" maxlength="200"></div>
-                                <div class="col-md-6 mb-2"><label class="form-label">Fecha Nacimiento *</label><input type="date" class="form-control" id="db_pf_fecha_nacimiento"></div>
-                                <div class="col-md-6 mb-2"><label class="form-label">RFC (13 car.) *</label><input type="text" class="form-control" id="db_pf_rfc" maxlength="13"></div>
-                                <div class="col-md-6 mb-2"><label class="form-label">CURP (18 car.) *</label><input type="text" class="form-control" id="db_pf_curp" maxlength="18"></div>
+                                <div class="col-md-6 mb-2"><label class="form-label">Nombre(s) *</label><input type="text" class="form-control text-uppercase" id="db_pf_nombre" maxlength="200" placeholder="Ej: JUAN CARLOS"></div>
+                                <div class="col-md-6 mb-2"><label class="form-label">Apellido Paterno *</label><input type="text" class="form-control text-uppercase" id="db_pf_apellido_paterno" maxlength="200" placeholder="Ej: LÓPEZ"></div>
+                                <div class="col-md-6 mb-2"><label class="form-label">Apellido Materno *</label><input type="text" class="form-control text-uppercase" id="db_pf_apellido_materno" maxlength="200" placeholder="Ej: GARCÍA"></div>
+                                <div class="col-md-6 mb-2"><label class="form-label">Fecha Nacimiento *</label><input type="date" class="form-control" id="db_pf_fecha_nacimiento" placeholder="AAAA-MM-DD"></div>
+                                <div class="col-md-6 mb-2"><label class="form-label">RFC (13 car.) *</label><input type="text" class="form-control" id="db_pf_rfc" maxlength="13" placeholder="Ej: LOPG900101ABC"></div>
+                                <div class="col-md-6 mb-2"><label class="form-label">CURP (18 car.) *</label><input type="text" class="form-control" id="db_pf_curp" maxlength="18" placeholder="Ej: LOPG900101HDFLRN01"></div>
                                 <div class="col-md-6 mb-2"><label class="form-label">País Nacionalidad *</label><select class="form-select" id="db_pf_pais_nacionalidad"><?= $paisOptions ?></select></div>
                                 <div class="col-md-6 mb-2"><label class="form-label">Act. Económica (SCIAN) *</label><select class="form-select" id="db_pf_actividad_economica"><?= tscCatalogoOptions('actividad_economica', '1000000') ?></select></div>
                             </div>
                         </div>
                         <div id="db_persona_moral_block" class="db-persona-section" style="display:none;">
                             <div class="row g-3">
-                                <div class="col-md-6 mb-2"><label class="form-label">Denominación/Razón Social *</label><input type="text" class="form-control text-uppercase" id="db_pm_denominacion" maxlength="254"></div>
-                                <div class="col-md-6 mb-2"><label class="form-label">RFC (12 car.)</label><input type="text" class="form-control" id="db_pm_rfc" maxlength="12"></div>
-                                <div class="col-md-6 mb-2"><label class="form-label">Fecha Constitución *</label><input type="date" class="form-control" id="db_pm_fecha_constitucion"></div>
+                                <div class="col-md-6 mb-2"><label class="form-label">Denominación/Razón Social *</label><input type="text" class="form-control text-uppercase" id="db_pm_denominacion" maxlength="254" placeholder="Ej: EMPRESA EJEMPLO S.A. DE C.V."></div>
+                                <div class="col-md-6 mb-2"><label class="form-label">RFC (12 car.)</label><input type="text" class="form-control" id="db_pm_rfc" maxlength="12" placeholder="Ej: EEE900101AAA"></div>
+                                <div class="col-md-6 mb-2"><label class="form-label">Fecha Constitución *</label><input type="date" class="form-control" id="db_pm_fecha_constitucion" placeholder="AAAA-MM-DD"></div>
                                 <div class="col-md-6 mb-2"><label class="form-label">País Nacionalidad *</label><select class="form-select" id="db_pm_pais_nacionalidad"><?= $paisOptions ?></select></div>
                                 <div class="col-md-6 mb-2"><label class="form-label">Giro Mercantil *</label><select class="form-select" id="db_pm_giro_mercantil"><?= tscCatalogoOptions('giro_mercantil', '0000000') ?></select></div>
                             </div>
                             <div class="mt-2 p-2 rounded" style="background:#e0f2fe;">
                                 <label class="form-label fw-bold" style="color:#0369a1"><i class="fa-solid fa-user-tie me-1"></i>Representante/Apoderado Legal</label>
                                 <div class="row g-3">
-                                    <div class="col-md-6 mb-2"><label class="form-label">Nombre(s) *</label><input type="text" class="form-control text-uppercase" id="db_pm_rep_nombre" maxlength="200"></div>
-                                    <div class="col-md-6 mb-2"><label class="form-label">Ap. Paterno *</label><input type="text" class="form-control text-uppercase" id="db_pm_rep_apellido_paterno" maxlength="200"></div>
-                                    <div class="col-md-6 mb-2"><label class="form-label">Ap. Materno *</label><input type="text" class="form-control text-uppercase" id="db_pm_rep_apellido_materno" maxlength="200"></div>
-                                    <div class="col-md-6 mb-2"><label class="form-label">Fecha Nac. *</label><input type="date" class="form-control" id="db_pm_rep_fecha_nacimiento"></div>
-                                    <div class="col-md-6 mb-2"><label class="form-label">RFC (13 car.) *</label><input type="text" class="form-control" id="db_pm_rep_rfc" maxlength="13"></div>
-                                    <div class="col-md-6 mb-2"><label class="form-label">CURP (18 car.) *</label><input type="text" class="form-control" id="db_pm_rep_curp" maxlength="18"></div>
+                                    <div class="col-md-6 mb-2"><label class="form-label">Nombre(s) *</label><input type="text" class="form-control text-uppercase" id="db_pm_rep_nombre" maxlength="200" placeholder="Ej: MARÍA FERNANDA"></div>
+                                    <div class="col-md-6 mb-2"><label class="form-label">Ap. Paterno *</label><input type="text" class="form-control text-uppercase" id="db_pm_rep_apellido_paterno" maxlength="200" placeholder="Ej: MARTÍNEZ"></div>
+                                    <div class="col-md-6 mb-2"><label class="form-label">Ap. Materno *</label><input type="text" class="form-control text-uppercase" id="db_pm_rep_apellido_materno" maxlength="200" placeholder="Ej: SÁNCHEZ"></div>
+                                    <div class="col-md-6 mb-2"><label class="form-label">Fecha Nac. *</label><input type="date" class="form-control" id="db_pm_rep_fecha_nacimiento" placeholder="AAAA-MM-DD"></div>
+                                    <div class="col-md-6 mb-2"><label class="form-label">RFC (13 car.) *</label><input type="text" class="form-control" id="db_pm_rep_rfc" maxlength="13" placeholder="Ej: MAMS800101ABC"></div>
+                                    <div class="col-md-6 mb-2"><label class="form-label">CURP (18 car.) *</label><input type="text" class="form-control" id="db_pm_rep_curp" maxlength="18" placeholder="Ej: MAMS800101MDFRNR01"></div>
                                 </div>
                             </div>
                         </div>
                         <div id="db_fideicomiso_block" class="db-persona-section" style="display:none;">
                             <div class="row g-3">
-                                <div class="col-12 mb-2"><label class="form-label">Denominación Fiduciario *</label><input type="text" class="form-control text-uppercase" id="db_fid_denominacion" maxlength="254"></div>
-                                <div class="col-md-6 mb-2"><label class="form-label">RFC Fideicomiso (12 car.) *</label><input type="text" class="form-control" id="db_fid_rfc" maxlength="12"></div>
-                                <div class="col-md-6 mb-2"><label class="form-label">Identificador Fideicomiso *</label><input type="text" class="form-control" id="db_fid_identificador" maxlength="40"></div>
+                                <div class="col-12 mb-2"><label class="form-label">Denominación Fiduciario *</label><input type="text" class="form-control text-uppercase" id="db_fid_denominacion" maxlength="254" placeholder="Ej: FIDEICOMISO EJEMPLO"></div>
+                                <div class="col-md-6 mb-2"><label class="form-label">RFC Fideicomiso (12 car.) *</label><input type="text" class="form-control" id="db_fid_rfc" maxlength="12" placeholder="Ej: FDE900101AAA"></div>
+                                <div class="col-md-6 mb-2"><label class="form-label">Identificador Fideicomiso *</label><input type="text" class="form-control" id="db_fid_identificador" maxlength="40" placeholder="Ej: FID-001-2026"></div>
                             </div>
                             <div class="mt-2 p-2 rounded" style="background:#e0f2fe;">
                                 <label class="form-label fw-bold"><i class="fa-solid fa-user-tie me-1"></i>Apoderado/Delegado</label>
                                 <div class="row g-3">
-                                    <div class="col-md-6 mb-2"><label class="form-label">Nombre(s) *</label><input type="text" class="form-control text-uppercase" id="db_fid_apod_nombre" maxlength="200"></div>
-                                    <div class="col-md-6 mb-2"><label class="form-label">Ap. Paterno *</label><input type="text" class="form-control text-uppercase" id="db_fid_apod_apellido_paterno" maxlength="200"></div>
-                                    <div class="col-md-6 mb-2"><label class="form-label">Ap. Materno *</label><input type="text" class="form-control text-uppercase" id="db_fid_apod_apellido_materno" maxlength="200"></div>
-                                    <div class="col-md-6 mb-2"><label class="form-label">Fecha Nac. *</label><input type="date" class="form-control" id="db_fid_apod_fecha_nacimiento"></div>
-                                    <div class="col-md-6 mb-2"><label class="form-label">RFC *</label><input type="text" class="form-control" id="db_fid_apod_rfc" maxlength="13"></div>
-                                    <div class="col-md-6 mb-2"><label class="form-label">CURP *</label><input type="text" class="form-control" id="db_fid_apod_curp" maxlength="18"></div>
+                                    <div class="col-md-6 mb-2"><label class="form-label">Nombre(s) *</label><input type="text" class="form-control text-uppercase" id="db_fid_apod_nombre" maxlength="200" placeholder="Ej: PEDRO ANTONIO"></div>
+                                    <div class="col-md-6 mb-2"><label class="form-label">Ap. Paterno *</label><input type="text" class="form-control text-uppercase" id="db_fid_apod_apellido_paterno" maxlength="200" placeholder="Ej: HERNÁNDEZ"></div>
+                                    <div class="col-md-6 mb-2"><label class="form-label">Ap. Materno *</label><input type="text" class="form-control text-uppercase" id="db_fid_apod_apellido_materno" maxlength="200" placeholder="Ej: RAMÍREZ"></div>
+                                    <div class="col-md-6 mb-2"><label class="form-label">Fecha Nac. *</label><input type="date" class="form-control" id="db_fid_apod_fecha_nacimiento" placeholder="AAAA-MM-DD"></div>
+                                    <div class="col-md-6 mb-2"><label class="form-label">RFC *</label><input type="text" class="form-control" id="db_fid_apod_rfc" maxlength="13" placeholder="Ej: HERP700101ABC"></div>
+                                    <div class="col-md-6 mb-2"><label class="form-label">CURP *</label><input type="text" class="form-control" id="db_fid_apod_curp" maxlength="18" placeholder="Ej: HERP700101HDFLRN01"></div>
                                 </div>
                             </div>
                         </div>
@@ -464,31 +464,31 @@ $paisOptions = tscCatalogoOptions('pais', 'MX');
                         </div>
                         <div id="db_domicilio_nacional" class="db-domicilio-section active">
                             <div class="row g-3">
-                                <div class="col-md-6 mb-2"><label class="form-label">Colonia *</label><input type="text" class="form-control text-uppercase" id="db_dom_colonia" maxlength="50"></div>
-                                <div class="col-md-6 mb-2"><label class="form-label">Calle *</label><input type="text" class="form-control text-uppercase" id="db_dom_calle" maxlength="100"></div>
-                                <div class="col-md-4 mb-2"><label class="form-label">Núm. Exterior *</label><input type="text" class="form-control" id="db_dom_numero_exterior" maxlength="56"></div>
-                                <div class="col-md-4 mb-2"><label class="form-label">Núm. Interior</label><input type="text" class="form-control" id="db_dom_numero_interior" maxlength="40"></div>
-                                <div class="col-md-4 mb-2"><label class="form-label">C.P. *</label><input type="text" class="form-control" id="db_dom_codigo_postal" maxlength="5" pattern="\d{5}"></div>
+                                <div class="col-md-6 mb-2"><label class="form-label">Colonia *</label><input type="text" class="form-control text-uppercase" id="db_dom_colonia" maxlength="50" placeholder="Ej: CENTRO"></div>
+                                <div class="col-md-6 mb-2"><label class="form-label">Calle *</label><input type="text" class="form-control text-uppercase" id="db_dom_calle" maxlength="100" placeholder="Ej: AV. REFORMA 123"></div>
+                                <div class="col-md-4 mb-2"><label class="form-label">Núm. Exterior *</label><input type="text" class="form-control" id="db_dom_numero_exterior" maxlength="56" placeholder="Ej: 123"></div>
+                                <div class="col-md-4 mb-2"><label class="form-label">Núm. Interior</label><input type="text" class="form-control" id="db_dom_numero_interior" maxlength="40" placeholder="Ej: 4 (opcional)"></div>
+                                <div class="col-md-4 mb-2"><label class="form-label">C.P. *</label><input type="text" class="form-control" id="db_dom_codigo_postal" maxlength="5" pattern="\d{5}" placeholder="Ej: 06000"></div>
                             </div>
                         </div>
                         <div id="db_domicilio_extranjero" class="db-domicilio-section" style="display:none;">
                             <div class="row g-3">
                                 <div class="col-md-6 mb-2"><label class="form-label">País *</label><select class="form-select" id="db_dom_pais"><?= $paisOptions ?></select></div>
-                                <div class="col-md-6 mb-2"><label class="form-label">Estado/Provincia *</label><input type="text" class="form-control" id="db_dom_estado" maxlength="100"></div>
-                                <div class="col-md-6 mb-2"><label class="form-label">Ciudad *</label><input type="text" class="form-control" id="db_dom_ciudad" maxlength="100"></div>
-                                <div class="col-md-6 mb-2"><label class="form-label">Colonia *</label><input type="text" class="form-control text-uppercase" id="db_dom_ext_colonia" maxlength="50"></div>
-                                <div class="col-md-6 mb-2"><label class="form-label">Calle *</label><input type="text" class="form-control text-uppercase" id="db_dom_ext_calle" maxlength="100"></div>
-                                <div class="col-md-6 mb-2"><label class="form-label">Núm. Exterior *</label><input type="text" class="form-control" id="db_dom_ext_numero" maxlength="56"></div>
-                                <div class="col-md-6 mb-2"><label class="form-label">Núm. Interior</label><input type="text" class="form-control" id="db_dom_ext_numero_int" maxlength="40"></div>
-                                <div class="col-md-6 mb-2"><label class="form-label">C.P. *</label><input type="text" class="form-control" id="db_dom_ext_cp" maxlength="12"></div>
+                                <div class="col-md-6 mb-2"><label class="form-label">Estado/Provincia *</label><input type="text" class="form-control" id="db_dom_estado" maxlength="100" placeholder="Ej: CALIFORNIA"></div>
+                                <div class="col-md-6 mb-2"><label class="form-label">Ciudad *</label><input type="text" class="form-control" id="db_dom_ciudad" maxlength="100" placeholder="Ej: LOS ANGELES"></div>
+                                <div class="col-md-6 mb-2"><label class="form-label">Colonia *</label><input type="text" class="form-control text-uppercase" id="db_dom_ext_colonia" maxlength="50" placeholder="Ej: DOWNTOWN"></div>
+                                <div class="col-md-6 mb-2"><label class="form-label">Calle *</label><input type="text" class="form-control text-uppercase" id="db_dom_ext_calle" maxlength="100" placeholder="Ej: MAIN STREET 456"></div>
+                                <div class="col-md-6 mb-2"><label class="form-label">Núm. Exterior *</label><input type="text" class="form-control" id="db_dom_ext_numero" maxlength="56" placeholder="Ej: 456"></div>
+                                <div class="col-md-6 mb-2"><label class="form-label">Núm. Interior</label><input type="text" class="form-control" id="db_dom_ext_numero_int" maxlength="40" placeholder="Ej: 2 (opcional)"></div>
+                                <div class="col-md-6 mb-2"><label class="form-label">C.P. *</label><input type="text" class="form-control" id="db_dom_ext_cp" maxlength="12" placeholder="Ej: 90001"></div>
                             </div>
                         </div>
                         <hr class="my-3">
                         <h6 class="fw-bold mb-2"><i class="fa-solid fa-phone me-1"></i>Teléfono Dueño Beneficiario</h6>
                         <div class="row g-3">
                             <div class="col-md-4 mb-2"><label class="form-label">País Tel. *</label><select class="form-select" id="db_tel_clave_pais"><?= $paisOptions ?></select></div>
-                            <div class="col-md-4 mb-2"><label class="form-label">Número *</label><input type="text" class="form-control" id="db_tel_numero" maxlength="12" pattern="\d{10,12}"></div>
-                            <div class="col-md-4 mb-2"><label class="form-label">Correo Electrónico</label><input type="email" class="form-control" id="db_tel_correo" maxlength="60"></div>
+                            <div class="col-md-4 mb-2"><label class="form-label">Número *</label><input type="text" class="form-control" id="db_tel_numero" maxlength="12" pattern="\d{10,12}" placeholder="Ej: 5512345678"></div>
+                            <div class="col-md-4 mb-2"><label class="form-label">Correo Electrónico</label><input type="email" class="form-control" id="db_tel_correo" maxlength="60" placeholder="Ej: correo@ejemplo.com"></div>
                         </div>
                         <div class="mt-2">
                             <button type="button" class="btn btn-outline-primary btn-sm" onclick="prefillDuenoBeneficiarioFromKyc()" title="Prellenar con datos del expediente del cliente">
@@ -533,7 +533,7 @@ $paisOptions = tscCatalogoOptions('pais', 'MX');
                     </div>
                     <div class="col-md-6 mb-2">
                         <label class="form-label">Monto Total gasto acumulado (periodo) * <span class="badge bg-danger badge-xsd">Obl.</span></label>
-                        <input type="number" class="form-control" id="monto_gasto" step="0.01" min="0" required placeholder="0.00">
+                        <input type="number" class="form-control" id="monto_gasto" step="0.01" min="0" required placeholder="Ej: 15000.50 (monto en MXN)">
                         <div class="section-help">4-17 dígitos, formato decimal</div>
                     </div>
                 </div>
@@ -546,7 +546,7 @@ $paisOptions = tscCatalogoOptions('pais', 'MX');
             </button>
             <a href="operaciones_pld.php" class="btn btn-outline-secondary">Cancelar</a>
             <span class="text-muted ms-auto d-none d-md-inline" style="font-size:.82rem;">
-                <i class="fa-solid fa-info-circle me-1"></i>Se generará el XML según instructivo TSC
+                <i class="fa-solid fa-info-circle me-1"></i>Se generará el XML según instructivo Tarjetas de Servicio y de Crédito
             </span>
         </div>
     </form>

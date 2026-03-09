@@ -51,27 +51,40 @@ if ($lastMax > 100) {
 }
 // --- END VALIDATION ---
 
+require_once '../config/ebr_usuario_helper.php';
+
 try {
     $pdo->beginTransaction();
-    
-    // 1. Fetch OLD data for logging before deletion
-    $stmtOld = $pdo->query("SELECT * FROM config_riesgo_rangos ORDER BY min_valor ASC");
-    $oldRanges = $stmtOld->fetchAll(PDO::FETCH_ASSOC);
 
-    // 2. Clear existing ranges
-    $pdo->query("DELETE FROM config_riesgo_rangos");
+    // Tabla por usuario (si existe); si no, usa global
+    $usaUsuario = ebrTablaUsuarioExiste($pdo, 'config_riesgo_rangos_usuario');
 
-    // 3. Insert NEW ranges
-    $stmt = $pdo->prepare("INSERT INTO config_riesgo_rangos (nivel, min_valor, max_valor, color_hex) VALUES (?, ?, ?, ?)");
+    if ($usaUsuario) {
+        // 1. Fetch OLD data for logging
+        $stmtOld = $pdo->prepare("SELECT * FROM config_riesgo_rangos_usuario WHERE id_usuario = ? ORDER BY min_valor ASC");
+        $stmtOld->execute([$id_usuario_actual]);
+        $oldRanges = $stmtOld->fetchAll(PDO::FETCH_ASSOC);
 
-    foreach ($ranges as $r) {
-        $stmt->execute([$r['nivel'], $r['min'], $r['max'], $r['color']]);
+        // 2. Clear user's ranges
+        $pdo->prepare("DELETE FROM config_riesgo_rangos_usuario WHERE id_usuario = ?")->execute([$id_usuario_actual]);
+
+        // 3. Insert NEW ranges
+        $stmt = $pdo->prepare("INSERT INTO config_riesgo_rangos_usuario (id_usuario, nivel, min_valor, max_valor, color_hex) VALUES (?, ?, ?, ?, ?)");
+        foreach ($ranges as $r) {
+            $stmt->execute([$id_usuario_actual, $r['nivel'], $r['min'], $r['max'], $r['color']]);
+        }
+        logChange($pdo, $id_usuario_actual, "ACTUALIZAR_CONFIG", "config_riesgo_rangos_usuario", $id_usuario_actual, $oldRanges, $ranges);
+    } else {
+        // Fallback: global
+        $stmtOld = $pdo->query("SELECT * FROM config_riesgo_rangos ORDER BY min_valor ASC");
+        $oldRanges = $stmtOld ? $stmtOld->fetchAll(PDO::FETCH_ASSOC) : [];
+        $pdo->query("DELETE FROM config_riesgo_rangos");
+        $stmt = $pdo->prepare("INSERT INTO config_riesgo_rangos (nivel, min_valor, max_valor, color_hex) VALUES (?, ?, ?, ?)");
+        foreach ($ranges as $r) {
+            $stmt->execute([$r['nivel'], $r['min'], $r['max'], $r['color']]);
+        }
+        logChange($pdo, $id_usuario_actual, "ACTUALIZAR_CONFIG", "config_riesgo_rangos", 0, $oldRanges, $ranges);
     }
-
-    // 4. Log Change to Bitacora
-    // We log the entire set of ranges as one "update" action on the configuration table
-    // Since there isn't a single ID for the whole configuration, we can use 0 or a reserved ID
-    logChange($pdo, $id_usuario_actual, "ACTUALIZAR_CONFIG", "config_riesgo_rangos", 0, $oldRanges, $ranges);
 
     $pdo->commit();
     echo json_encode(['status' => 'success']);

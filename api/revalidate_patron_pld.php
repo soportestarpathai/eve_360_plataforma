@@ -12,26 +12,32 @@ require_once __DIR__ . '/../config/logger.php';
 
 header('Content-Type: application/json');
 
-// Verificar sesión
-if (!isset($_SESSION['user_id'])) {
-    http_response_code(401);
-    echo json_encode(['status' => 'error', 'message' => 'No autorizado']);
-    exit;
+// Verificar sesión: permite admin del panel O usuario con permiso administración
+$es_admin_panel = !empty($_SESSION['is_admin']) && $_SESSION['is_admin'] === true;
+$tiene_permiso = false;
+
+if ($es_admin_panel) {
+    $tiene_permiso = true;
+} elseif (isset($_SESSION['user_id']) && $_SESSION['user_id'] > 0) {
+    try {
+        $stmt = $pdo->prepare("SELECT administracion FROM usuarios_permisos WHERE id_usuario = ?");
+        $stmt->execute([$_SESSION['user_id']]);
+        $perm = $stmt->fetchColumn();
+        $tiene_permiso = !empty($perm) && $perm != 0;
+    } catch (Exception $e) {
+        // Si no hay tabla de permisos, denegar
+    }
 }
 
-// Verificar permisos de administración (opcional, pero recomendado)
-try {
-    $stmt = $pdo->prepare("SELECT administracion FROM usuarios_permisos WHERE id_usuario = ?");
-    $stmt->execute([$_SESSION['user_id']]);
-    $perm = $stmt->fetchColumn();
-    
-    if (empty($perm) || $perm == 0) {
+if (!$tiene_permiso) {
+    if (!$es_admin_panel && !isset($_SESSION['user_id'])) {
+        http_response_code(401);
+        echo json_encode(['status' => 'error', 'message' => 'No autorizado']);
+    } else {
         http_response_code(403);
         echo json_encode(['status' => 'error', 'message' => 'No tienes permisos para revalidar el padrón']);
-        exit;
     }
-} catch (Exception $e) {
-    // Si no hay tabla de permisos, continuar (fallback)
+    exit;
 }
 
 $logger = Logger::getInstance();
@@ -63,15 +69,18 @@ try {
         $nuevosDatos = [
             'folio' => $data['folio'] ?? null,
             'estatus' => $data['estatus'] ?? null,
-            'fracciones' => $data['fracciones'] ?? null
+            'fracciones' => $data['fracciones'] ?? null,
+            'subfracciones_xi' => isset($data['subfracciones_xi']) ? $data['subfracciones_xi'] : null
         ];
         $confirmarCambios = isset($data['confirmar']) && $data['confirmar'] === true;
         $id_usuario = isset($data['id_usuario']) ? (int)$data['id_usuario'] : 0;
         
         $result = processRevalidation($pdo, $nuevosDatos, $confirmarCambios, $id_usuario);
-        
+        // Compatibilidad: el frontend usa data.message, la lógica devuelve mensaje
+        if (isset($result['mensaje']) && !isset($result['message'])) {
+            $result['message'] = $result['mensaje'];
+        }
         if ($result['status'] === 'pending_confirmation') {
-            // Requiere confirmación del usuario
             http_response_code(200);
             echo json_encode($result);
         } elseif ($result['status'] === 'success') {

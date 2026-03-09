@@ -45,7 +45,6 @@ if (!function_exists('checkRevalidationDue')) {
             
             $fechaRevalidacion = new DateTime($config['fecha_revalidacion_patron']);
             $fechaActual = new DateTime();
-            $diferencia = $fechaActual->diff($fechaRevalidacion);
             $diasTranscurridos = (int)$fechaActual->diff($fechaRevalidacion)->format('%a');
             
             // Si la fecha de revalidación es futura, calcular días restantes
@@ -95,13 +94,28 @@ if (!function_exists('checkRevalidationDue')) {
     function comparePatronData($pdo, $nuevosDatos, $id_usuario = 0) {
         try {
             $datosActuales = null;
+            $tieneColSubf = false;
+            $tabla = ($id_usuario > 0) ? 'config_empresa_usuario' : 'config_empresa';
+            try {
+                $chk = $pdo->query("SELECT COUNT(*) FROM INFORMATION_SCHEMA.COLUMNS WHERE TABLE_SCHEMA = DATABASE() AND TABLE_NAME = '{$tabla}' AND COLUMN_NAME = 'subfracciones_xi'");
+                $tieneColSubf = $chk && $chk->fetchColumn() > 0;
+            } catch (Exception $e) { }
+            $cols = 'folio_patron_pld, estatus_patron_pld, fracciones_activas' . ($tieneColSubf ? ', subfracciones_xi' : '');
             if ($id_usuario > 0) {
-                $stmtU = $pdo->prepare("SELECT folio_patron_pld, estatus_patron_pld, fracciones_activas FROM config_empresa_usuario WHERE id_usuario = ?");
+                $stmtU = $pdo->prepare("SELECT {$cols} FROM config_empresa_usuario WHERE id_usuario = ?");
                 $stmtU->execute([$id_usuario]);
                 $datosActuales = $stmtU->fetch(PDO::FETCH_ASSOC);
+                if (!$datosActuales) {
+                    $tabla = 'config_empresa';
+                    try {
+                        $chk = $pdo->query("SELECT COUNT(*) FROM INFORMATION_SCHEMA.COLUMNS WHERE TABLE_SCHEMA = DATABASE() AND TABLE_NAME = 'config_empresa' AND COLUMN_NAME = 'subfracciones_xi'");
+                        $tieneColSubf = $chk && $chk->fetchColumn() > 0;
+                    } catch (Exception $e) { }
+                    $cols = 'folio_patron_pld, estatus_patron_pld, fracciones_activas' . ($tieneColSubf ? ', subfracciones_xi' : '');
+                }
             }
             if (!$datosActuales) {
-                $stmt = $pdo->query("SELECT folio_patron_pld, estatus_patron_pld, fracciones_activas FROM config_empresa WHERE id_config = 1");
+                $stmt = $pdo->query("SELECT {$cols} FROM config_empresa WHERE id_config = 1");
                 $datosActuales = $stmt->fetch(PDO::FETCH_ASSOC);
             }
             
@@ -158,6 +172,27 @@ if (!function_exists('checkRevalidationDue')) {
                         'campo' => 'fracciones',
                         'anterior' => $fraccionesAnteriores,
                         'nuevo' => $fraccionesNuevas,
+                        'tipo' => 'MODIFICACION'
+                    ];
+                    $hayCambios = true;
+                }
+            }
+
+            // Comparar subfracciones XI (solo si existe la columna)
+            if ($tieneColSubf && isset($nuevosDatos['subfracciones_xi'])) {
+                $subfAnteriores = json_decode($datosActuales['subfracciones_xi'] ?? '[]', true);
+                $subfNuevas = is_array($nuevosDatos['subfracciones_xi'])
+                    ? $nuevosDatos['subfracciones_xi']
+                    : json_decode($nuevosDatos['subfracciones_xi'] ?? '[]', true);
+                $subfAnteriores = is_array($subfAnteriores) ? $subfAnteriores : [];
+                $subfNuevas = is_array($subfNuevas) ? $subfNuevas : [];
+                sort($subfAnteriores);
+                sort($subfNuevas);
+                if ($subfAnteriores !== $subfNuevas) {
+                    $cambios[] = [
+                        'campo' => 'subfracciones_xi',
+                        'anterior' => $subfAnteriores,
+                        'nuevo' => $subfNuevas,
                         'tipo' => 'MODIFICACION'
                     ];
                     $hayCambios = true;
@@ -250,12 +285,44 @@ if (!function_exists('checkRevalidationDue')) {
                     $params[] = $fracciones;
                 }
                 
+                $subfracciones = $nuevosDatos['subfracciones_xi'] ?? null;
+                try {
+                    $chk = $pdo->query("SELECT COUNT(*) FROM INFORMATION_SCHEMA.COLUMNS WHERE TABLE_SCHEMA = DATABASE() AND TABLE_NAME = 'config_empresa' AND COLUMN_NAME = 'subfracciones_xi'");
+                    if ($chk && $chk->fetchColumn() > 0) {
+                        $updates[] = "subfracciones_xi = ?";
+                        $params[] = ($subfracciones === null || $subfracciones === '') ? null : (is_string($subfracciones) ? $subfracciones : json_encode($subfracciones));
+                    }
+                } catch (Exception $e) { /* ignorar */ }
+                
                 $updates[] = "fecha_revalidacion_patron = CURDATE()";
                 
                 if (!empty($updates)) {
                     if ($id_usuario > 0) {
-                        $stmt = $pdo->prepare("INSERT INTO config_empresa_usuario (id_usuario, folio_patron_pld, estatus_patron_pld, fracciones_activas, fecha_revalidacion_patron) VALUES (?, ?, ?, ?, CURDATE()) ON DUPLICATE KEY UPDATE folio_patron_pld = VALUES(folio_patron_pld), estatus_patron_pld = VALUES(estatus_patron_pld), fracciones_activas = VALUES(fracciones_activas), fecha_revalidacion_patron = VALUES(fecha_revalidacion_patron)");
-                        $stmt->execute([$id_usuario, $folio ?? null, $estatus ?? null, $fracciones ?? null]);
+                        // Cargar datos existentes para no sobrescribir con null
+                        $existentes = null;
+                        $stmtEx = $pdo->prepare("SELECT folio_patron_pld, estatus_patron_pld, fracciones_activas FROM config_empresa_usuario WHERE id_usuario = ?");
+                        $stmtEx->execute([$id_usuario]);
+                        $existentes = $stmtEx->fetch(PDO::FETCH_ASSOC);
+                        if (!$existentes) {
+                            $stmtG = $pdo->query("SELECT folio_patron_pld, estatus_patron_pld, fracciones_activas FROM config_empresa WHERE id_config = 1");
+                            $existentes = $stmtG ? $stmtG->fetch(PDO::FETCH_ASSOC) : null;
+                        }
+                        $folioFin = $folio !== null && $folio !== '' ? $folio : ($existentes['folio_patron_pld'] ?? null);
+                        $estatusFin = $estatus !== null && $estatus !== '' ? $estatus : ($existentes['estatus_patron_pld'] ?? null);
+                        $fraccionesFin = $fracciones !== null && $fracciones !== '' ? $fracciones : ($existentes['fracciones_activas'] ?? null);
+                        $subfVal = ($subfracciones === null || $subfracciones === '') ? null : (is_array($subfracciones) ? json_encode($subfracciones) : $subfracciones);
+                        $hasSubf = false;
+                        try {
+                            $chkU = $pdo->query("SELECT COUNT(*) FROM INFORMATION_SCHEMA.COLUMNS WHERE TABLE_SCHEMA = DATABASE() AND TABLE_NAME = 'config_empresa_usuario' AND COLUMN_NAME = 'subfracciones_xi'");
+                            $hasSubf = $chkU && $chkU->fetchColumn() > 0;
+                        } catch (Exception $e) { }
+                        if ($hasSubf) {
+                            $stmt = $pdo->prepare("INSERT INTO config_empresa_usuario (id_usuario, folio_patron_pld, estatus_patron_pld, fracciones_activas, subfracciones_xi, fecha_revalidacion_patron) VALUES (?, ?, ?, ?, ?, CURDATE()) ON DUPLICATE KEY UPDATE folio_patron_pld = VALUES(folio_patron_pld), estatus_patron_pld = VALUES(estatus_patron_pld), fracciones_activas = VALUES(fracciones_activas), subfracciones_xi = VALUES(subfracciones_xi), fecha_revalidacion_patron = VALUES(fecha_revalidacion_patron)");
+                            $stmt->execute([$id_usuario, $folioFin, $estatusFin, $fraccionesFin, $subfVal]);
+                        } else {
+                            $stmt = $pdo->prepare("INSERT INTO config_empresa_usuario (id_usuario, folio_patron_pld, estatus_patron_pld, fracciones_activas, fecha_revalidacion_patron) VALUES (?, ?, ?, ?, CURDATE()) ON DUPLICATE KEY UPDATE folio_patron_pld = VALUES(folio_patron_pld), estatus_patron_pld = VALUES(estatus_patron_pld), fracciones_activas = VALUES(fracciones_activas), fecha_revalidacion_patron = VALUES(fecha_revalidacion_patron)");
+                            $stmt->execute([$id_usuario, $folioFin, $estatusFin, $fraccionesFin]);
+                        }
                     } else {
                         $sql = "UPDATE config_empresa SET " . implode(", ", $updates) . " WHERE id_config = 1";
                         $stmt = $pdo->prepare($sql);
