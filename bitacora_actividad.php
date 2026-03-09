@@ -1,6 +1,8 @@
 <?php
 if (session_status() === PHP_SESSION_NONE) session_start();
 require_once __DIR__ . '/config/db.php';
+
+// KEEPING: New security and helper requirements from server
 require_once __DIR__ . '/config/modules_helper.php';
 require_once __DIR__ . '/config/pld_middleware.php';
 
@@ -8,6 +10,8 @@ if (!isset($_SESSION['user_id'])) {
     header('Location: login.php');
     exit;
 }
+
+// KEEPING: Module and PLD authorization checks
 requireModuleActive($pdo, 'reports');
 requireReporteActivo($pdo, 'bitacora_actividad.php');
 
@@ -26,6 +30,7 @@ $aviso_filter = $_GET['aviso'] ?? '';
 $search = $_GET['search'] ?? '';
 
 // 2. CONSTRUIR CONSULTA SQL DINÁMICA
+// KEEPING: COALESCE logic to handle both types of dates
 $where_clauses = ["DATE(COALESCE(fecha_registro, fecha_operacion)) BETWEEN ? AND ?"];
 $params = [$fecha_inicio, $fecha_fin];
 
@@ -35,7 +40,6 @@ if ($aviso_filter !== '') {
 }
 
 if ($search !== '') {
-    // Buscamos dentro del JSON del cliente, el nombre del XML o el tipo de aviso
     $searchLike = "%$search%";
     $where_clauses[] = "(COALESCE(kyc_snapshot_json,'') LIKE ? OR COALESCE(xml_nombre_archivo,'') LIKE ? OR COALESCE(tipo_aviso,'') LIKE ?)";
     $params[] = $searchLike;
@@ -45,7 +49,7 @@ if ($search !== '') {
 
 $where_sql = implode(' AND ', $where_clauses);
 
-// 3. EJECUTAR CONSULTA (columnas opcionales: kyc_snapshot_json, xml_contenido, xml_nombre_archivo)
+// 3. EJECUTAR CONSULTA
 $resultados_db = [];
 $error_msj = "";
 
@@ -58,7 +62,7 @@ try {
     $error_msj = "Error SQL: " . $e->getMessage();
 }
 
-// 4. PREPARAR DATOS (Limpieza y extracción)
+// 4. PREPARAR DATOS
 $reporte = [];
 $countAcumulacion = 0; $countSospechosa = 0; $countXMLs = 0;
 
@@ -66,20 +70,19 @@ foreach ($resultados_db as $r) {
     $tipo_aviso = strtolower(trim($r['tipo_aviso'] ?? ''));
     $nombre_xml = $r['xml_nombre_archivo'] ?? '';
     
-    // Contadores
     if (strpos($tipo_aviso, 'acumulacion') !== false) $countAcumulacion++;
+    // KEEPING: Null-safe check for es_sospechosa
     if (($r['es_sospechosa'] ?? 0) == 1 || strpos($tipo_aviso, 'sospechosa') !== false) $countSospechosa++;
     if ($nombre_xml !== '') $countXMLs++;
 
-    // Mapeo de colores
     $badgeClase = 'bg-secondary';
     if (strpos($tipo_aviso, 'acumulacion') !== false) $badgeClase = 'bg-warning text-dark';
     if (($r['es_sospechosa'] ?? 0) == 1 || strpos($tipo_aviso, 'sospechosa') !== false) $badgeClase = 'bg-danger';
 
-    // Extraer nombre del cliente desde el JSON (si existe)
     $cliente_nombre = "Cliente ID: " . ($r['id_cliente'] ?? 'N/A');
     if (!empty($r['kyc_snapshot_json'])) {
         $kyc = json_decode($r['kyc_snapshot_json'], true);
+        // KEEPING: More robust JSON name extraction
         if (is_array($kyc)) {
             if (!empty($kyc['alias'])) {
                 $cliente_nombre = $kyc['alias'];
@@ -125,6 +128,7 @@ foreach ($resultados_db as $r) {
     --ba-radius: 16px;
     --ba-radius-sm: 10px;
     --ba-transition: .25s cubic-bezier(.4,0,.2,1);
+}
 }
 .ba-wrapper { max-width: 1400px; margin: 0 auto; }
 .ba-page-header {
@@ -306,6 +310,73 @@ foreach ($resultados_db as $r) {
                 </div>
                 <div class="col-12 col-sm-6 col-md-4 col-lg-2">
                     <label class="form-label">Tipo de Registro</label>
+=======
+    :root { --rr-primary: #4361ee; --rr-primary-dark: #3a0ca3; --rr-radius: 16px; }
+    .rr-wrapper { max-width: 1500px; margin: 0 auto; }
+    .rr-page-header { background: linear-gradient(135deg, var(--rr-primary), var(--rr-primary-dark)); color: #fff; border-radius: var(--rr-radius); padding: 1.5rem 2rem; margin-bottom: 1.5rem; }
+    .rr-kpi-card { border: none; border-radius: var(--rr-radius); padding: 1.25rem; box-shadow: 0 4px 20px rgba(0,0,0,.08); color: #fff; position: relative; overflow: hidden;}
+    .rr-kpi-card.orange { background: linear-gradient(135deg, #f77f00, #e85d04); }
+    .rr-kpi-card.red { background: linear-gradient(135deg, #d62828, #9d0208); }
+    .rr-kpi-card.blue { background: linear-gradient(135deg, #4cc9f0, #0077b6); }
+    
+    .tabla-header-blue th { background: #00458B !important; color: #fff !important; text-transform: uppercase; font-size: .75rem; border: none; padding: 0 !important; }
+    .sort-btn { background: transparent; border: none; color: #fff !important; font-weight: 600; padding: 14px 10px; width: 100%; text-align: center; }
+    .xml-badge { font-family: monospace; background: #e9ecef; padding: 4px 8px; border-radius: 4px; border: 1px solid #ced4da; font-size: 0.8rem; color: #495057; display: inline-block;}
+</style>
+
+<body>
+<?php $is_sub_page = true; include 'templates/top_bar.php'; ?>
+
+<div class="container-fluid px-4 py-3 rr-wrapper">
+    <div class="rr-page-header d-flex justify-content-between align-items-center">
+        <div>
+            <h2 class="fw-bold mb-1"><i class="fa-solid fa-clock-rotate-left me-2"></i>Bitácora de actividad de usuarios (SAT)</h2>
+            <p class="mb-0">Registro de actividad ante el SAT — cumplimiento y trazabilidad</p>
+        </div>
+    </div>
+
+    <?php if ($error_msj !== ""): ?>
+        <div class="alert alert-danger shadow-sm border-0 border-start border-danger border-5 mb-4">
+            <h5 class="fw-bold mb-1"><i class="fa-solid fa-triangle-exclamation me-2"></i>Error SQL</h5>
+            <p class="mb-0 font-monospace small"><?= htmlspecialchars($error_msj) ?></p>
+        </div>
+    <?php endif; ?>
+
+    <div class="row g-3 mb-4">
+        <div class="col-md-4">
+            <div class="rr-kpi-card orange">
+                <div><small>Avisos por Acumulación</small><h2 class="fw-bold mb-0"><?= $countAcumulacion ?></h2></div>
+                <i class="fa-solid fa-layer-group fa-3x opacity-25" style="position:absolute; right:1.5rem; top:1.2rem;"></i>
+            </div>
+        </div>
+        <div class="col-md-4">
+            <div class="rr-kpi-card red">
+                <div><small>Operaciones Sospechosas</small><h2 class="fw-bold mb-0"><?= $countSospechosa ?></h2></div>
+                <i class="fa-solid fa-triangle-exclamation fa-3x opacity-25" style="position:absolute; right:1.5rem; top:1.2rem;"></i>
+            </div>
+        </div>
+        <div class="col-md-4">
+            <div class="rr-kpi-card blue">
+                <div><small>XMLs Generados (SAT)</small><h2 class="fw-bold mb-0"><?= $countXMLs ?></h2></div>
+                <i class="fa-solid fa-file-code fa-3x opacity-25" style="position:absolute; right:1.5rem; top:1.2rem;"></i>
+            </div>
+        </div>
+    </div>
+
+    <div class="card border-0 shadow-sm mb-4" style="border-radius: 12px;">
+        <div class="card-body p-3">
+            <form method="GET" class="row g-2 align-items-end">
+                <div class="col-md-2">
+                    <label class="small fw-bold text-muted mb-1">Desde</label>
+                    <input type="date" name="fecha_inicio" class="form-control" value="<?= htmlspecialchars($fecha_inicio) ?>">
+                </div>
+                <div class="col-md-2">
+                    <label class="small fw-bold text-muted mb-1">Hasta</label>
+                    <input type="date" name="fecha_fin" class="form-control" value="<?= htmlspecialchars($fecha_fin) ?>">
+                </div>
+                <div class="col-md-3">
+                    <label class="small fw-bold text-muted mb-1">Tipo de Registro</label>
+>>>>>>> Stashed changes
                     <select name="aviso" class="form-select">
                         <option value="">Todos</option>
                         <option value="acumulacion" <?= $aviso_filter == 'acumulacion' ? 'selected' : '' ?>>Acumulación</option>
@@ -313,20 +384,31 @@ foreach ($resultados_db as $r) {
                         <option value="sospechosa_24h" <?= $aviso_filter == 'sospechosa_24h' ? 'selected' : '' ?>>Sospechosa 24h</option>
                     </select>
                 </div>
+<<<<<<< Updated upstream
                 <div class="col-12 col-sm-6 col-md-8 col-lg-4">
                     <label class="form-label">Buscar (Cliente o Archivo)</label>
+=======
+                <div class="col-md-4">
+                    <label class="small fw-bold text-muted mb-1">Buscar (Cliente o Archivo)</label>
+>>>>>>> Stashed changes
                     <div class="input-group">
                         <span class="input-group-text bg-white"><i class="fa-solid fa-search text-muted"></i></span>
                         <input type="text" name="search" class="form-control" placeholder="Término de búsqueda..." value="<?= htmlspecialchars($search) ?>">
                     </div>
                 </div>
+<<<<<<< Updated upstream
                 <div class="col-12 col-md-4 col-lg-2">
                     <button type="submit" class="btn btn-primary w-100 fw-600"><i class="fa-solid fa-filter me-1"></i>Aplicar</button>
+=======
+                <div class="col-md-1">
+                    <button type="submit" class="btn btn-primary w-100"><i class="fa-solid fa-filter"></i></button>
+>>>>>>> Stashed changes
                 </div>
             </form>
         </div>
     </div>
 
+<<<<<<< Updated upstream
     <div class="card ba-table-card">
         <div class="table-responsive">
             <table class="table table-hover align-middle mb-0">
@@ -338,6 +420,19 @@ foreach ($resultados_db as $r) {
                         <th><button class="ba-sort-btn" data-sort="monto">Monto <i class="fa-solid fa-sort ms-1 opacity-50"></i></button></th>
                         <th><button class="ba-sort-btn" data-sort="nombre_xml">Archivo XML <i class="fa-solid fa-sort ms-1 opacity-50"></i></button></th>
                         <th><div class="ba-sort-btn center" style="cursor:default;">Descargar</div></th>
+=======
+    <div class="card border-0 shadow-sm" style="border-radius: 12px; overflow: hidden;">
+        <div class="table-responsive">
+            <table class="table table-hover align-middle mb-0">
+                <thead class="tabla-header-blue">
+                    <tr>
+                        <th style="width: 15%;"><button class="sort-btn" data-sort="fecha_raw">Fecha de Registro <i class="fa-solid fa-sort ms-1 opacity-50"></i></button></th>
+                        <th style="width: 20%;"><button class="sort-btn text-start" data-sort="cliente">Cliente Operación <i class="fa-solid fa-sort ms-1 opacity-50"></i></button></th>
+                        <th style="width: 15%;"><button class="sort-btn" data-sort="tipo_aviso">Tipo / Estatus <i class="fa-solid fa-sort ms-1 opacity-50"></i></button></th>
+                        <th style="width: 15%;"><button class="sort-btn" data-sort="monto">Monto UMA/MXN <i class="fa-solid fa-sort ms-1 opacity-50"></i></button></th>
+                        <th style="width: 20%;"><button class="sort-btn text-start" data-sort="nombre_xml">Archivo XML <i class="fa-solid fa-sort ms-1 opacity-50"></i></button></th>
+                        <th style="width: 15%;"><div class="sort-btn text-center" style="cursor:default;">Descargar</div></th>
+>>>>>>> Stashed changes
                     </tr>
                 </thead>
                 <tbody id="avisosTableBody">
@@ -347,7 +442,10 @@ foreach ($resultados_db as $r) {
         </div>
     </div>
 </div>
+<<<<<<< Updated upstream
 </div>
+=======
+>>>>>>> Stashed changes
 
 <script>
 document.addEventListener("DOMContentLoaded", function() {
@@ -380,7 +478,11 @@ document.addEventListener("DOMContentLoaded", function() {
 
     function renderTable() {
         if (!tableData || tableData.length === 0) {
+<<<<<<< Updated upstream
             tbody.innerHTML = `<tr class="ba-empty-row"><td colspan="6" class="text-center py-5 text-muted"><i class="fa-solid fa-folder-open fa-3x mb-3 text-light"></i><br>No hay actividad registrada ante el SAT en este periodo.</td></tr>`;
+=======
+            tbody.innerHTML = `<tr><td colspan="6" class="text-center py-5 text-muted"><i class="fa-solid fa-folder-open fa-3x mb-3 text-light"></i><br>No hay actividad registrada ante el SAT en este periodo.</td></tr>`;
+>>>>>>> Stashed changes
             return;
         }
         
@@ -388,6 +490,7 @@ document.addEventListener("DOMContentLoaded", function() {
         tableData.forEach((r, index) => {
             html += `
             <tr>
+<<<<<<< Updated upstream
                 <td data-label="Fecha" class="ps-3"><div><span class="d-block fw-bold text-dark">${esc(r.fecha_formateada)}</span><small class="text-muted"><i class="fa-regular fa-clock me-1"></i>Op #${r.id}</small></div></td>
                 <td data-label="Cliente"><div class="fw-bold text-dark text-uppercase">${esc(r.cliente)}</div></td>
                 <td data-label="Tipo"><span class="badge ${r.clase_badge} px-2 py-1">${esc(r.tipo_aviso)}</span></td>
@@ -401,6 +504,23 @@ document.addEventListener("DOMContentLoaded", function() {
                             <i class="fa-solid fa-download me-1"></i>XML
                         </button>
                     ` : `<span class="text-muted small"><i class="fa-solid fa-minus"></i></span>`}
+=======
+                <td class="ps-3 fw-bold text-secondary"><i class="fa-regular fa-clock me-1"></i>${r.fecha_formateada}</td>
+                <td><div class="fw-bold text-dark text-uppercase">${esc(r.cliente)}</div><small class="text-muted">Operación #${r.id}</small></td>
+                <td class="text-center"><span class="badge ${r.clase_badge} px-2 py-1 border">${esc(r.tipo_aviso)}</span></td>
+                <td class="text-center fw-bold text-success">${r.monto_formateado}</td>
+                <td>
+                    ${r.nombre_xml ? `<span class="xml-badge"><i class="fa-solid fa-file-code text-primary me-2"></i>${esc(r.nombre_xml)}</span>` : '<span class="text-muted fst-italic small">No requiere XML</span>'}
+                </td>
+                <td class="text-center">
+                    ${r.nombre_xml && r.xml_contenido ? `
+                        <button onclick="descargarXML(${index})" class="btn btn-sm btn-outline-primary shadow-sm fw-bold">
+                            <i class="fa-solid fa-download"></i> XML
+                        </button>
+                    ` : `
+                        <button class="btn btn-sm btn-light border text-muted disabled"><i class="fa-solid fa-ban"></i></button>
+                    `}
+>>>>>>> Stashed changes
                 </td>
             </tr>`;
         });
@@ -409,7 +529,11 @@ document.addEventListener("DOMContentLoaded", function() {
 
     setTimeout(renderTable, 200);
 
+<<<<<<< Updated upstream
     const sortButtons = document.querySelectorAll('.ba-sort-btn[data-sort]');
+=======
+    const sortButtons = document.querySelectorAll('.sort-btn[data-sort]');
+>>>>>>> Stashed changes
     sortButtons.forEach(btn => {
         btn.addEventListener('click', function() {
             const sortKey = this.getAttribute('data-sort');
@@ -439,4 +563,8 @@ document.addEventListener("DOMContentLoaded", function() {
     });
 });
 </script>
+<<<<<<< Updated upstream
 <?php include 'templates/footer.php'; ?>
+=======
+<?php include 'templates/footer.php'; ?>
+>>>>>>> Stashed changes
