@@ -4,7 +4,7 @@
 $host = 'localhost'; // Cambia 127.0.0.1 por localhost para mayor compatibilidad
 $db   = 'investor';
 $user = 'root';      
-$pass = 'Antoniomtz1022';          // IMPORTANTE: Deja esto vacío para XAMPP estándar
+$pass = '1234';          // IMPORTANTE: Deja esto vacío para XAMPP estándar
 $charset = 'utf8mb4';
 
 $dsn = "mysql:host=$host;dbname=$db;charset=$charset";

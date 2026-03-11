@@ -144,7 +144,6 @@ foreach ($resultados_db as $r) {
     --ba-radius-sm: 10px;
     --ba-transition: .25s cubic-bezier(.4,0,.2,1);
 }
-}
 .ba-wrapper { max-width: 1400px; margin: 0 auto; }
 .ba-page-header {
     background: linear-gradient(135deg, var(--ba-primary) 0%, var(--ba-primary-dark) 100%);
