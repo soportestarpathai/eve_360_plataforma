@@ -1,10 +1,10 @@
 <?php
 // config/db.php
 
-$host = '127.0.0.1'; // Or your IP: 70.35.200.34 if connecting remotely
+$host = 'localhost'; // Cambia 127.0.0.1 por localhost para mayor compatibilidad
 $db   = 'investor';
-$user = 'root';      // Replace with your actual database username
-$pass = '1234';          // Replace with your actual database password
+$user = 'root';      
+$pass = 'Antoniomtz1022';          // IMPORTANTE: Deja esto vacío para XAMPP estándar
 $charset = 'utf8mb4';
 
 $dsn = "mysql:host=$host;dbname=$db;charset=$charset";
@@ -17,7 +17,6 @@ $options = [
 try {
     $pdo = new PDO($dsn, $user, $pass, $options);
 } catch (\PDOException $e) {
-    // In production, log this to a file instead of echoing
-    throw new \PDOException($e->getMessage(), (int)$e->getCode());
+    // Esto te dará un mensaje más claro si vuelve a fallar
+    die("Error de conexión: " . $e->getMessage());
 }
-?>

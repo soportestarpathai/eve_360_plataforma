@@ -1,6 +1,8 @@
 <?php
 if (session_status() === PHP_SESSION_NONE) session_start();
 require_once __DIR__ . '/config/db.php';
+
+// KEEPING: New security and helper requirements from server
 require_once __DIR__ . '/config/modules_helper.php';
 require_once __DIR__ . '/config/pld_middleware.php';
 
@@ -8,6 +10,8 @@ if (!isset($_SESSION['user_id'])) {
     header('Location: login.php');
     exit;
 }
+
+// KEEPING: Module and PLD authorization checks
 requireModuleActive($pdo, 'reports');
 requireReporteActivo($pdo, 'bitacora_actividad.php');
 
@@ -26,6 +30,7 @@ $aviso_filter = $_GET['aviso'] ?? '';
 $search = $_GET['search'] ?? '';
 
 // 2. CONSTRUIR CONSULTA SQL DINÁMICA
+// KEEPING: COALESCE logic to handle both types of dates (op = operaciones_pld alias)
 $where_clauses = ["DATE(COALESCE(op.fecha_registro, op.fecha_operacion)) BETWEEN ? AND ?"];
 $params = [$fecha_inicio, $fecha_fin];
 
@@ -35,7 +40,6 @@ if ($aviso_filter !== '') {
 }
 
 if ($search !== '') {
-    // Buscamos dentro del JSON del cliente, el nombre del XML o el tipo de aviso
     $searchLike = "%$search%";
     $where_clauses[] = "(COALESCE(op.kyc_snapshot_json,'') LIKE ? OR COALESCE(op.xml_nombre_archivo,'') LIKE ? OR COALESCE(op.tipo_aviso,'') LIKE ?)";
     $params[] = $searchLike;
@@ -45,7 +49,7 @@ if ($search !== '') {
 
 $where_sql = implode(' AND ', $where_clauses);
 
-// 3. EJECUTAR CONSULTA (columnas opcionales: kyc_snapshot_json, xml_contenido, xml_nombre_archivo)
+// 3. EJECUTAR CONSULTA
 $resultados_db = [];
 $error_msj = "";
 
@@ -68,7 +72,7 @@ try {
     $error_msj = "Error SQL: " . $e->getMessage();
 }
 
-// 4. PREPARAR DATOS (Limpieza y extracción)
+// 4. PREPARAR DATOS
 $reporte = [];
 $countAcumulacion = 0; $countSospechosa = 0; $countXMLs = 0;
 
@@ -76,20 +80,19 @@ foreach ($resultados_db as $r) {
     $tipo_aviso = strtolower(trim($r['tipo_aviso'] ?? ''));
     $nombre_xml = $r['xml_nombre_archivo'] ?? '';
     
-    // Contadores
     if (strpos($tipo_aviso, 'acumulacion') !== false) $countAcumulacion++;
+    // KEEPING: Null-safe check for es_sospechosa
     if (($r['es_sospechosa'] ?? 0) == 1 || strpos($tipo_aviso, 'sospechosa') !== false) $countSospechosa++;
     if ($nombre_xml !== '') $countXMLs++;
 
-    // Mapeo de colores
     $badgeClase = 'bg-secondary';
     if (strpos($tipo_aviso, 'acumulacion') !== false) $badgeClase = 'bg-warning text-dark';
     if (($r['es_sospechosa'] ?? 0) == 1 || strpos($tipo_aviso, 'sospechosa') !== false) $badgeClase = 'bg-danger';
 
-    // Extraer nombre del cliente desde el JSON (si existe)
     $cliente_nombre = "Cliente ID: " . ($r['id_cliente'] ?? 'N/A');
     if (!empty($r['kyc_snapshot_json'])) {
         $kyc = json_decode($r['kyc_snapshot_json'], true);
+        // KEEPING: More robust JSON name extraction
         if (is_array($kyc)) {
             if (!empty($kyc['alias'])) {
                 $cliente_nombre = $kyc['alias'];
@@ -140,6 +143,7 @@ foreach ($resultados_db as $r) {
     --ba-radius: 16px;
     --ba-radius-sm: 10px;
     --ba-transition: .25s cubic-bezier(.4,0,.2,1);
+}
 }
 .ba-wrapper { max-width: 1400px; margin: 0 auto; }
 .ba-page-header {
