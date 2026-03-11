@@ -15,6 +15,33 @@ if (!function_exists('formatMontoDin')) {
     }
 }
 
+if (!function_exists('dinToUpper')) {
+    /** Convierte a mayúsculas para patrones XSD (nombre_type, direccion, correo, etc.) */
+    function dinToUpper($val): string {
+        $v = trim((string)$val);
+        if ($v === '') return '';
+        return mb_strtoupper($v, 'UTF-8');
+    }
+}
+
+/** clave_sujeto_obligado: formato RFC (clave_so_type) 12-13 chars, solo A-ZÑ0-9 */
+if (!function_exists('dinSanitizeClaveSO')) {
+    function dinSanitizeClaveSO($val): string {
+        $v = dinToUpper(trim((string)$val));
+        $v = preg_replace('/[^A-Z\x{00D1}0-9]/u', '', $v);
+        return substr($v, 0, 13);
+    }
+}
+
+/** Valida clave_sujeto_obligado con regex RFC: 3-4 letras + 6 dígitos + 3 caracteres */
+if (!function_exists('dinValidarClaveSO')) {
+    function dinValidarClaveSO($val): bool {
+        $v = trim((string)$val);
+        if ($v === '') return false;
+        return (bool) preg_match('/^[A-Z\x{00D1}&]{3,4}\d{6}[A-Z0-9]{3}$/u', dinToUpper($v));
+    }
+}
+
 if (!function_exists('generateDINXml')) {
     function generateDINXml(array $data, ?string $xsdPath = null): array {
         $NS  = 'http://www.uif.shcp.gob.mx/recepcion/din';
@@ -30,13 +57,32 @@ if (!function_exists('generateDINXml')) {
             'monto_solicitado','monto_recibido','valor_inmueble_preventa'
         ];
 
-        $addEl = function(DOMDocument $dom, DOMElement $parent, string $ns, string $name, $value) use (&$MONTO_FIELDS) {
+        $UPPER_FIELDS = [
+            'nombre','apellido_paterno','apellido_materno','denominacion_razon',
+            'colonia','calle','numero_exterior','numero_interior',
+            'estado_provincia','ciudad_poblacion','descripcion_alerta',
+            'descripcion_modificacion','descripcion_bien','descripcion_desarrollo',
+            'descripcion_tercero','nombre_institucion','institucion',
+            'objeto_aviso_anterior','modificacion','otras_empresas',
+            'tipo_desarrollo','instrumento_monetario','aportacion_fideicomiso'
+        ];
+
+        $addEl = function(DOMDocument $dom, DOMElement $parent, string $ns, string $name, $value) use (&$MONTO_FIELDS, $UPPER_FIELDS) {
             if ($value === null) return null;
-            if (is_numeric($value) && in_array($name, $MONTO_FIELDS)) {
-                $value = formatMontoDin($value);
-            }
             $value = trim((string)$value);
             if ($value === '') return null;
+            if (in_array($name, $MONTO_FIELDS)) {
+                $value = formatMontoDin($value);
+            } elseif ($name === 'clave_sujeto_obligado') {
+                $value = dinSanitizeClaveSO($value);
+            } elseif ($name === 'correo_electronico') {
+                $value = dinToUpper($value);
+            } elseif (in_array($name, ['fecha_nacimiento', 'fecha_constitucion', 'fecha_aportacion', 'fecha_emision'])) {
+                $value = preg_replace('/[^0-9]/', '', $value);
+                if (strlen($value) !== 8) return null;
+            } elseif (in_array($name, $UPPER_FIELDS)) {
+                $value = dinToUpper($value);
+            }
             $el = $dom->createElementNS($ns, $name);
             $el->appendChild($dom->createTextNode($value));
             $parent->appendChild($el);

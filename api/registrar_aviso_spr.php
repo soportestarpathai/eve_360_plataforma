@@ -102,6 +102,15 @@ $xmlNombre = '';
 $xmlErrors = [];
 if (file_exists(__DIR__ . '/../config/spr_xml_helper.php')) {
     require_once __DIR__ . '/../config/spr_xml_helper.php';
+    $claveSO = $data['informe'][0]['sujeto_obligado']['clave_sujeto_obligado'] ?? '';
+    if (!function_exists('sprValidarClaveSO') || !sprValidarClaveSO($claveSO)) {
+        http_response_code(400);
+        echo json_encode([
+            'status' => 'error',
+            'message' => 'Clave Sujeto Obligado debe tener formato RFC: 3-4 letras + 6 dígitos + 3 caracteres (ej: ABC010203AB1). No usar folio o texto libre.'
+        ]);
+        exit;
+    }
     $gen = generateSPRXml($data);
     $xml = $gen['xml'] ?? '';
     $xmlErrors = $gen['errors'] ?? [];

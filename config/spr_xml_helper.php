@@ -37,12 +37,21 @@ if (!function_exists('sprSanitizeDesc')) {
     }
 }
 
-/** Sanitiza clave_sujeto_obligado a formato RFC (clave_so_type): 12-13 chars, solo A-Z0-9 */
+/** Sanitiza clave_sujeto_obligado a formato RFC (clave_so_type): 12-13 chars, solo A-ZÑ0-9 */
 if (!function_exists('sprSanitizeClaveSO')) {
     function sprSanitizeClaveSO($val): string {
         $v = sprToUpper(trim((string)$val));
         $v = preg_replace('/[^A-Z\x{00D1}0-9]/u', '', $v);
         return substr($v, 0, 13);
+    }
+}
+
+/** Valida clave_sujeto_obligado con regex RFC: 3-4 letras + 6 dígitos + 3 caracteres */
+if (!function_exists('sprValidarClaveSO')) {
+    function sprValidarClaveSO($val): bool {
+        $v = trim((string)$val);
+        if ($v === '') return false;
+        return (bool) preg_match('/^[A-Z\x{00D1}&]{3,4}\d{6}[A-Z0-9]{3}$/u', sprToUpper($v));
     }
 }
 

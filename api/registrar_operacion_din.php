@@ -105,6 +105,16 @@ if (!($result['success'] ?? false)) {
 
 $id_operacion = $result['id_operacion'];
 
+$claveSO = $data['informe'][0]['sujeto_obligado']['clave_sujeto_obligado'] ?? '';
+if (!function_exists('dinValidarClaveSO') || !dinValidarClaveSO($claveSO)) {
+    http_response_code(400);
+    echo json_encode([
+        'status' => 'error',
+        'message' => 'Clave Sujeto Obligado debe tener formato RFC: 3-4 letras + 6 dígitos + 3 caracteres (ej: ABC010203AB1). No usar folio o texto libre.'
+    ]);
+    exit;
+}
+
 $xsdPath = __DIR__ . '/../din.xsd';
 $gen = generateDINXml($data, $xsdPath);
 
