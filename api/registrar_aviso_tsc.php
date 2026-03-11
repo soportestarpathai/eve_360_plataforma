@@ -3,13 +3,32 @@
  * API: Registrar Aviso TSC (Tarjetas de Servicio y de Crédito) - Fracción II
  * Genera XML según instructivo TSC, almacena en operaciones_pld
  */
-session_start();
-require_once __DIR__ . '/../config/db.php';
-require_once __DIR__ . '/../config/pld_avisos.php';
-require_once __DIR__ . '/../config/bitacora.php';
-require_once __DIR__ . '/../config/pld_middleware.php';
-require_once __DIR__ . '/../config/pld_fraccion_ii.php';
-header('Content-Type: application/json');
+ob_start();
+error_reporting(E_ALL);
+ini_set('display_errors', 0);
+ini_set('log_errors', 1);
+
+function _tscJsonError($msg, $code = 500) {
+    if (ob_get_level()) ob_end_clean();
+    http_response_code($code);
+    header('Content-Type: application/json; charset=utf-8');
+    echo json_encode(['status' => 'error', 'message' => $msg]);
+    exit;
+}
+
+try {
+    session_start();
+    require_once __DIR__ . '/../config/db.php';
+    require_once __DIR__ . '/../config/pld_avisos.php';
+    require_once __DIR__ . '/../config/bitacora.php';
+    require_once __DIR__ . '/../config/pld_middleware.php';
+    require_once __DIR__ . '/../config/pld_fraccion_ii.php';
+} catch (Throwable $e) {
+    error_log('registrar_aviso_tsc init: ' . $e->getMessage() . ' in ' . $e->getFile() . ':' . $e->getLine());
+    _tscJsonError('Error al inicializar: ' . $e->getMessage(), 500);
+}
+ob_end_clean();
+header('Content-Type: application/json; charset=utf-8');
 
 if (!isset($_SESSION['user_id'])) {
     http_response_code(401);
@@ -35,6 +54,8 @@ if (empty($data['informe']) || !is_array($data['informe'])) {
 }
 
 $id_cliente = (int)($data['id_cliente'] ?? 0);
+
+try {
 
 // Obtener monto desde detalle_operaciones TSC (monto_gasto)
 $monto = 0;
@@ -91,6 +112,15 @@ $xmlNombre = '';
 $xmlErrors = [];
 if (file_exists(__DIR__ . '/../config/tsc_xml_helper.php')) {
     require_once __DIR__ . '/../config/tsc_xml_helper.php';
+    $claveSO = $data['informe'][0]['sujeto_obligado']['clave_sujeto_obligado'] ?? '';
+    if (!function_exists('tscValidarClaveSO') || !tscValidarClaveSO($claveSO)) {
+        http_response_code(400);
+        echo json_encode([
+            'status' => 'error',
+            'message' => 'Clave Sujeto Obligado debe tener formato RFC: 3-4 letras + 6 dígitos + 3 caracteres (ej: ABC010203AB1). No usar folio o texto libre.'
+        ]);
+        exit;
+    }
     $gen = generateTSCXml($data);
     $xml = $gen['xml'] ?? '';
     $xmlErrors = $gen['errors'] ?? [];
@@ -129,3 +159,12 @@ if (!empty($xmlErrors)) {
     $resp['xml_advertencia'] = implode('; ', $xmlErrors);
 }
 echo json_encode($resp);
+
+} catch (Throwable $e) {
+    error_log('registrar_aviso_tsc: ' . $e->getMessage() . ' in ' . $e->getFile() . ':' . $e->getLine());
+    $msg = $e->getMessage();
+    if (strpos($msg, 'syntax error') !== false || $e instanceof \ParseError || $e instanceof \Error) {
+        $msg .= ' [' . basename($e->getFile()) . ':' . $e->getLine() . ']';
+    }
+    _tscJsonError('Error al registrar: ' . $msg, 500);
+}

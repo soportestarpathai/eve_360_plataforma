@@ -21,12 +21,17 @@ function isTaxIdUSA(value) {
     const digits = (String(value || '')).replace(/\D/g, '');
     return digits.length === 9 && /^\d{9}$/.test(digits);
 }
-function hasNacionalidadUSA() {
+// Solo exige EIN/SSN cuando tiene USA y NO tiene México. Con México → RFC.
+function requiresTaxIdUSA() {
     if (!catalogs.paises || !catalogs.paises.length) return false;
     const usaPais = catalogs.paises.find(p => (p.clave || '').toUpperCase() === 'US' || (p.nombre || '').toLowerCase().includes('estados unidos'));
+    const mexPais = catalogs.paises.find(p => (p.clave || '').toUpperCase() === 'MX' || (p.nombre || '').toLowerCase().includes('méxico') || (p.nombre || '').toLowerCase().includes('mexico'));
     if (!usaPais) return false;
     const selects = document.querySelectorAll('#nacionalidades-list select[name="nacionalidad_id[]"]');
-    return Array.from(selects).some(s => (s.value || '').toString().trim() !== '' && s.value === String(usaPais.id_pais));
+    const selectedIds = Array.from(selects).filter(s => (s.value || '').toString().trim() !== '').map(s => s.value);
+    const hasUSA = selectedIds.includes(String(usaPais.id_pais));
+    const hasMexico = mexPais && selectedIds.includes(String(mexPais.id_pais));
+    return hasUSA && !hasMexico;
 }
 let dynamicRowCounter = 0;
 
@@ -129,9 +134,9 @@ function getPldSearchPayload(isAutomatic = false) {
     };
 
     if (isFisica) {
-        data.nombre = document.getElementById('fisica_nombre')?.value.trim() || '';
-        data.paterno = document.getElementById('fisica_ap_paterno')?.value.trim() || '';
-        data.materno = document.getElementById('fisica_ap_materno')?.value.trim() || '';
+        data.nombre = (document.getElementById('fisica_nombre')?.value || '').trim() || '';
+        data.paterno = (document.getElementById('fisica_ap_paterno')?.value || '').trim() || '';
+        data.materno = (document.getElementById('fisica_ap_materno')?.value || '').trim() || '';
         data.tipo_persona = 'fisica';
         if (!data.nombre || !data.paterno) {
             return {
@@ -142,7 +147,7 @@ function getPldSearchPayload(isAutomatic = false) {
             };
         }
     } else if (isMoral) {
-        data.nombre = document.getElementById('moral_razon_social')?.value.trim() || '';
+        data.nombre = (document.getElementById('moral_razon_social')?.value || '').trim() || '';
         data.tipo_persona = 'moral';
         if (data.nombre.length < 3) {
             return {
@@ -720,7 +725,7 @@ function validateStep2IdentityFields() {
         if (!rfc) {
             return invalidateField('fisica_tax_id', 'El RFC / Tax ID es obligatorio.');
         }
-        if (hasNacionalidadUSA()) {
+        if (requiresTaxIdUSA()) {
             if (!isTaxIdUSA(rfc)) {
                 return invalidateField('fisica_tax_id', 'Tax ID inválido. Use EIN (9 dígitos) o SSN (XXX-XX-XXXX).');
             }
@@ -757,7 +762,7 @@ function validateStep2IdentityFields() {
         if (!rfcMoral) {
             return invalidateField('moral_tax_id', 'El RFC / Tax ID es obligatorio.');
         }
-        if (hasNacionalidadUSA()) {
+        if (requiresTaxIdUSA()) {
             if (!isTaxIdUSA(rfcMoral)) {
                 return invalidateField('moral_tax_id', 'Tax ID inválido. Use EIN (9 dígitos) o formato XX-XXXXXXX.');
             }
@@ -1011,6 +1016,26 @@ function populateKycCatalogs() {
     populateSelectFromCatalog('kyc_id_ocupacion', catalogs.ocupaciones, 'id_ocupacion', 'nombre', '-- Seleccione ocupación --');
     populateSelectFromCatalog('kyc_id_profesion', catalogs.profesiones, 'id_profesion', 'nombre', '-- Seleccione profesión --');
     populateSelectFromCatalog('kyc_id_origen_recursos', catalogs.origenes_recursos, 'id_origen_recursos', 'nombre', '-- Seleccione origen --');
+    if (catalogs.tipos_residencia && catalogs.tipos_residencia.length) {
+        populateSelectFromCatalog('id_tipo_residencia', catalogs.tipos_residencia, 'id_tipo_residencia', 'nombre', '-- Seleccione --');
+    }
+    if (catalogs.paises && catalogs.paises.length) {
+        populateSelectFromCatalog('fisica_id_pais_nacimiento', catalogs.paises, 'id_pais', 'nombre', '-- Seleccione --');
+        populateSelectFromCatalog('moral_id_pais_nacionalidad', catalogs.paises, 'id_pais', 'nombre', '-- Seleccione --');
+    }
+    if (catalogs.anexo_7a && catalogs.anexo_7a.length) {
+        populateSelectFromCatalog('moral_id_anexo_7a', catalogs.anexo_7a, 'id_anexo_7a', 'nombre', '-- No aplica --');
+    }
+    if (catalogs.anexo_7_bis_a && catalogs.anexo_7_bis_a.length) {
+        populateSelectFromCatalog('moral_id_anexo_7_bis_a', catalogs.anexo_7_bis_a, 'id_anexo_7_bis_a', 'nombre', '-- No aplica --');
+    }
+    if (catalogs.manual_politicas && catalogs.manual_politicas.length) {
+        const sel = document.getElementById('id_manual_politicas_clasificacion');
+        if (sel) {
+            sel.innerHTML = '<option value="">-- Seleccione versión --</option>' +
+                catalogs.manual_politicas.map(m => `<option value="${m.id_manual}">${m.version || ''} ${m.fecha_vigencia ? '(' + m.fecha_vigencia + ')' : ''}</option>`).join('');
+        }
+    }
 }
 
 function togglePepExtraFields(forceReset = false) {
@@ -1368,6 +1393,10 @@ function captureLocationForRow(buttonEl) {
                 if (calleInput && address.street && !calleInput.value.trim()) {
                     calleInput.value = address.street;
                 }
+                // Si no hay calle pero sí display_name (fallback de zonas remotas), usarlo
+                if (calleInput && !calleInput.value.trim() && address.display_name) {
+                    calleInput.value = address.display_name;
+                }
 
                 await updateAddressCatalogForRow(row);
                 if (cpInput && /^\d{5}$/.test(cpInput.value.trim())) {
@@ -1376,7 +1405,7 @@ function captureLocationForRow(buttonEl) {
 
                 statusEl.textContent = `Ubicación y dirección capturadas (${lat.toFixed(5)}, ${lng.toFixed(5)}).`;
             } catch (error) {
-                statusEl.textContent = `Ubicación capturada (${lat.toFixed(5)}, ${lng.toFixed(5)}), pero no se pudo autocompletar la dirección.`;
+                statusEl.textContent = `Ubicación capturada (${lat.toFixed(5)}, ${lng.toFixed(5)}). No se pudo autocompletar — ingrese la dirección manualmente.`;
                 console.warn('reverse_geocode error', error);
             }
         },
@@ -1447,7 +1476,7 @@ function addDynamicItem(listId, name, catalogData, catValue, catLabel) {
                 </select>
             </div>
             <div class="col-md-6">
-                <label class="form-label small">Documento soporte (opcional)</label>
+                <label class="form-label small">Documento soporte (KYC)</label>
                 <input type="file" class="form-control" name="nac_doc_file[]" accept=".pdf,.jpg,.jpeg,.png,.doc,.docx">
             </div>
         `;
@@ -1469,7 +1498,7 @@ function addDynamicItem(listId, name, catalogData, catValue, catLabel) {
                 <input type="date" class="form-control" name="ident_vencimiento[]" placeholder="Vencimiento">
             </div>
             <div class="col-md-6">
-                <label class="form-label small">Documento soporte (opcional)</label>
+                <label class="form-label small">Documento soporte (KYC)</label>
                 <input type="file" class="form-control" name="ident_doc_file[]" accept=".pdf,.jpg,.jpeg,.png,.doc,.docx">
             </div>
             <div class="extraer-ine-block col-12 mt-2" style="display:none;">
@@ -1519,7 +1548,7 @@ function addDynamicItem(listId, name, catalogData, catValue, catLabel) {
                 <datalist id="${coloniaListId}" data-role="colonias"></datalist>
             </div>
             <div class="col-md-4">
-                <label class="form-label small">Documento soporte (opcional)</label>
+                <label class="form-label small">Documento soporte (KYC)</label>
                 <input type="file" class="form-control" name="dir_doc_file[]" accept=".pdf,.jpg,.jpeg,.png,.doc,.docx">
             </div>
             <div class="col-md-12 d-flex align-items-center gap-2">
@@ -1744,6 +1773,10 @@ document.addEventListener('DOMContentLoaded', function() {
                 populateKycCatalogs();
                 toggleGeneralPersonaFields(null);
                 toggleKycSectionsByPersona(null);
+                setTimeout(() => {
+                    const ev = new Event('change');
+                    document.getElementById('tipoPersona')?.dispatchEvent(ev);
+                }, 0);
                 ensureSepomexStatesLoaded().catch((error) => {
                     console.warn('No fue posible precargar SEPOMEX.', error);
                 });
@@ -1754,6 +1787,25 @@ document.addEventListener('DOMContentLoaded', function() {
         .catch(err => {
             console.error('Error de conexión al cargar catálogos:', err);
         });
+
+    function updateDocumentosRequeridosHint() {
+        const hint = document.getElementById('documentos-requeridos-hint');
+        const list = document.getElementById('documentos-requeridos-list');
+        if (!hint || !list) return;
+        const persona = getSelectedPersonaConfig();
+        let items = [];
+        if (persona && catalogs) {
+            if (persona.es_fisica > 0) items = catalogs.documentos_template_fisica || [];
+            else if (persona.es_moral > 0) items = catalogs.documentos_template_moral || [];
+            else if (persona.es_fideicomiso > 0) items = catalogs.documentos_template_fideicomiso || [];
+        }
+        if (items.length === 0) {
+            hint.style.display = 'none';
+            return;
+        }
+        list.innerHTML = items.map(d => '<li>' + (d.label || d.desc) + (d.required ? ' <span class="badge bg-primary">Requerido</span>' : '') + '</li>').join('');
+        hint.style.display = 'block';
+    }
 
     // Tipo Persona Change Handler
     const tipoPersonaSelect = document.getElementById('tipoPersona');
@@ -1790,11 +1842,13 @@ document.addEventListener('DOMContentLoaded', function() {
                     const apoderadosEl = document.getElementById('apoderados-section');
                     if (apoderadosEl) apoderadosEl.style.display = 'none';
                 }
+                updateDocumentosRequeridosHint();
             } else {
                 toggleGeneralPersonaFields(null);
                 toggleKycSectionsByPersona(null);
                 const apoderadosEl = document.getElementById('apoderados-section');
                 if (apoderadosEl) apoderadosEl.style.display = 'none';
+                updateDocumentosRequeridosHint();
             }
         });
     }
@@ -1802,6 +1856,24 @@ document.addEventListener('DOMContentLoaded', function() {
     const kycPepSelect = document.getElementById('kyc_tiene_familiar_pep');
     if (kycPepSelect) {
         kycPepSelect.addEventListener('change', () => togglePepExtraFields(false));
+    }
+
+    const tipoResidenciaSelect = document.getElementById('id_tipo_residencia');
+    const fechaIngresoContainer = document.getElementById('fisica_fecha_ingreso_container');
+    if (tipoResidenciaSelect && fechaIngresoContainer) {
+        tipoResidenciaSelect.addEventListener('change', function() {
+            const val = (this.value || '').toString();
+            const esVisitante = val === '4';
+            fechaIngresoContainer.style.display = esVisitante ? 'block' : 'none';
+        });
+    }
+
+    const clasificacionBajoRiesgo = document.getElementById('clasificacion_bajo_riesgo');
+    const manualPoliticasContainer = document.getElementById('manual_politicas_container');
+    if (clasificacionBajoRiesgo && manualPoliticasContainer) {
+        clasificacionBajoRiesgo.addEventListener('change', function() {
+            manualPoliticasContainer.style.display = this.checked ? 'block' : 'none';
+        });
     }
     
     // Status Change Handler

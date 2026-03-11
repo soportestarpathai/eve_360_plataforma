@@ -18,6 +18,17 @@ if (!function_exists('ensureFraccionesPLDColumn')) {
         }
     }
 
+    function ensurePermisoPldModificacionColumn($pdo) {
+        try {
+            $chk = $pdo->query("SELECT COUNT(*) FROM INFORMATION_SCHEMA.COLUMNS WHERE TABLE_SCHEMA = DATABASE() AND TABLE_NAME = 'usuarios_permisos' AND COLUMN_NAME = 'permiso_pld_modificacion'");
+            if ($chk && $chk->fetchColumn() == 0) {
+                $pdo->exec("ALTER TABLE usuarios_permisos ADD COLUMN permiso_pld_modificacion TINYINT(1) DEFAULT 0 COMMENT '1=Puede modificar/eliminar avisos y operaciones PLD' AFTER administracion");
+            }
+        } catch (Exception $e) {
+            error_log("ensurePermisoPldModificacionColumn error: " . $e->getMessage());
+        }
+    }
+
     /**
      * Retorna las fracciones PLD que un usuario tiene permitidas,
      * intersectadas con las fracciones activas de la empresa.

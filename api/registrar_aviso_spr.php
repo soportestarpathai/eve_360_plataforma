@@ -64,12 +64,23 @@ if (function_exists('getIdVulnerableFraccionXI')) {
     $id_fraccion = getIdVulnerableFraccionXI($pdo);
 }
 
+// Extraer subfracción XI (tipo_actividad) del informe
+$subfraccion_xi = null;
+$datosOps = $detalle['datos_operacion'] ?? [];
+if (is_array($datosOps) && isset($datosOps[0]['tipo_actividad']) && is_array($datosOps[0]['tipo_actividad'])) {
+    $keys = array_keys($datosOps[0]['tipo_actividad']);
+    if (!empty($keys)) {
+        $subfraccion_xi = $keys[0]; // compra_venta_inmuebles, administracion_recursos, etc.
+    }
+}
+
 $operacionData = [
     'id_cliente' => $id_cliente,
     'monto' => $monto,
     'fecha_operacion' => $fecha_operacion,
     'id_fraccion' => $id_fraccion,
-    'tipo_operacion' => 'SPR',
+    'tipo_operacion' => $subfraccion_xi ? "SPR:{$subfraccion_xi}" : 'SPR',
+    'subfraccion_xi' => $subfraccion_xi,
     'es_sospechosa' => $data['es_sospechosa'] ?? 0,
     'fecha_conocimiento_sospecha' => $data['fecha_conocimiento_sospecha'] ?? null,
     'match_listas_restringidas' => $data['match_listas_restringidas'] ?? 0,

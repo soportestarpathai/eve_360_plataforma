@@ -48,16 +48,18 @@ if (!function_exists('getRangosRiesgoUsuario')) {
         return _tablaExiste($pdo, $nombre);
     }
 
-    function _tablaExiste($pdo, $nombre) {
-        static $cache = [];
-        if (!isset($cache[$nombre])) {
-            try {
-                $stmt = $pdo->query("SELECT 1 FROM information_schema.tables WHERE table_schema = DATABASE() AND table_name = " . $pdo->quote($nombre) . " LIMIT 1");
-                $cache[$nombre] = $stmt && $stmt->fetch();
-            } catch (Throwable $e) {
-                $cache[$nombre] = false;
+    if (!function_exists('_tablaExiste')) {
+        function _tablaExiste($pdo, $nombre) {
+            static $cache = [];
+            if (!isset($cache[$nombre])) {
+                try {
+                    $stmt = $pdo->query("SELECT 1 FROM information_schema.tables WHERE table_schema = DATABASE() AND table_name = " . $pdo->quote($nombre) . " LIMIT 1");
+                    $cache[$nombre] = $stmt && $stmt->fetch();
+                } catch (Throwable $e) {
+                    $cache[$nombre] = false;
+                }
             }
+            return $cache[$nombre];
         }
-        return $cache[$nombre];
     }
 }

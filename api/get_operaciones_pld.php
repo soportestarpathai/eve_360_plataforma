@@ -41,13 +41,20 @@ try {
         $isAdmin = $perm && (int)($perm['administracion'] ?? 0) > 0;
     }
 
-    $sql = "SELECT o.id_operacion, o.id_cliente, o.id_fraccion, o.id_status, o.tipo_operacion, o.monto, o.monto_uma,
+    $selSubf = "NULL as subfraccion_xi,";
+    try {
+        $chkSubf = $pdo->query("SELECT COUNT(*) FROM INFORMATION_SCHEMA.COLUMNS WHERE TABLE_SCHEMA = DATABASE() AND TABLE_NAME = 'operaciones_pld' AND COLUMN_NAME = 'subfraccion_xi'");
+        if ($chkSubf && $chkSubf->fetchColumn() > 0) {
+            $selSubf = "o.subfraccion_xi,";
+        }
+    } catch (Exception $e) { }
+    $sql = "SELECT o.id_operacion, o.id_cliente, o.id_fraccion, o.id_status, o.tipo_operacion, $selSubf o.monto, o.monto_uma,
                    o.fecha_operacion, o.fecha_registro, o.es_sospechosa, o.match_listas_restringidas,
                    o.requiere_aviso, o.tipo_aviso, o.fecha_deadline_aviso, o.id_aviso_generado,
                    $selXml
                    c.alias as cliente_alias,
                    COALESCE(cf.nombre, cm.razon_social, 'Sin nombre') as cliente_nombre,
-                   cv.nombre as fraccion_nombre,
+                   cv.fraccion as fraccion_codigo, cv.nombre as fraccion_nombre,
                    a.folio_sppld, a.fecha_presentacion
             FROM operaciones_pld o
             LEFT JOIN clientes c ON o.id_cliente = c.id_cliente

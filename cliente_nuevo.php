@@ -234,6 +234,24 @@ if (!$isPLDHabilitado) {
                             <input type="file" class="form-control form-control-sm mt-1" name="fisica_curp_doc_file" accept=".pdf,.jpg,.jpeg,.png,.doc,.docx" title="Documento CURP">
                             <div class="form-text"><i class="fa-solid fa-paperclip me-1"></i>Adjuntar documento CURP</div>
                         </div>
+                        <div class="col-md-4 mb-3">
+                            <label class="form-label"><i class="fa-solid fa-passport me-1"></i>Tipo de residencia</label>
+                            <select class="form-select" id="id_tipo_residencia" name="id_tipo_residencia">
+                                <option value="">-- Seleccione --</option>
+                            </select>
+                            <div class="form-text small">Mexicana, residente o visitante (KYC)</div>
+                        </div>
+                        <div class="col-md-4 mb-3">
+                            <label class="form-label"><i class="fa-solid fa-globe me-1"></i>País de nacimiento</label>
+                            <select class="form-select" id="fisica_id_pais_nacimiento" name="fisica_id_pais_nacimiento">
+                                <option value="">-- Seleccione --</option>
+                            </select>
+                        </div>
+                        <div class="col-md-4 mb-3" id="fisica_fecha_ingreso_container" style="display:none;">
+                            <label class="form-label"><i class="fa-solid fa-plane-arrival me-1"></i>Fecha ingreso a México</label>
+                            <input type="date" class="form-control" id="fisica_fecha_ingreso_pais" name="fisica_fecha_ingreso_pais">
+                            <div class="form-text small">Requerido para extranjeros visitantes (Anexo 5)</div>
+                        </div>
                     </div>
                 </div>
                 <!-- SECCIÓN MORAL -->
@@ -263,6 +281,39 @@ if (!$isPLDHabilitado) {
                             <input type="file" class="form-control form-control-sm mt-1" name="moral_rfc_doc_file" accept=".pdf,.jpg,.jpeg,.png,.doc,.docx" title="Constancia de Situación Fiscal / RFC / Tax ID">
                             <div class="form-text"><i class="fa-solid fa-paperclip me-1"></i>Adjuntar constancia RFC / Tax ID</div>
                         </div>
+                        <div class="col-md-6 mb-3">
+                            <label class="form-label"><i class="fa-solid fa-globe me-1"></i>País de nacionalidad (PM)</label>
+                            <select class="form-select" id="moral_id_pais_nacionalidad" name="moral_id_pais_nacionalidad">
+                                <option value="">-- Seleccione --</option>
+                            </select>
+                        </div>
+                        <div class="col-md-6 mb-3">
+                            <label class="form-label"><i class="fa-solid fa-building me-1"></i>Incluido en Anexo 7-A</label>
+                            <select class="form-select" id="moral_id_anexo_7a" name="moral_id_anexo_7a">
+                                <option value="">-- No aplica --</option>
+                            </select>
+                            <div class="form-text small">Si la PM está en el listado (régimen simplificado)</div>
+                        </div>
+                        <div class="col-md-6 mb-3">
+                            <label class="form-label"><i class="fa-solid fa-landmark me-1"></i>Incluido en Anexo 7 Bis-A</label>
+                            <select class="form-select" id="moral_id_anexo_7_bis_a" name="moral_id_anexo_7_bis_a">
+                                <option value="">-- No aplica --</option>
+                            </select>
+                            <div class="form-text small">Entes de derecho público (SAT, SRE, etc.)</div>
+                        </div>
+                        <div class="col-12 mt-3">
+                            <div class="small text-primary fw-bold mb-2"><i class="fa-solid fa-file-signature me-1"></i>Documentos KYC (Persona Moral)</div>
+                            <div class="row">
+                                <div class="col-md-6 mb-2">
+                                    <label class="form-label small">Acta constitutiva (RPC)*</label>
+                                    <input type="file" class="form-control form-control-sm" name="moral_acta_constitutiva_file" accept=".pdf,.jpg,.jpeg,.png,.doc,.docx" title="Acta constitutiva">
+                                </div>
+                                <div class="col-md-6 mb-2">
+                                    <label class="form-label small">Poder notarial vigente*</label>
+                                    <input type="file" class="form-control form-control-sm" name="moral_poder_notarial_file" accept=".pdf,.jpg,.jpeg,.png,.doc,.docx" title="Poder notarial">
+                                </div>
+                            </div>
+                        </div>
                     </div>
                 </div>
                 <!-- SECCIÓN FIDEICOMISO -->
@@ -281,6 +332,27 @@ if (!$isPLDHabilitado) {
                                 Institución Fiduciaria*
                             </label>
                             <input type="text" class="form-control" name="fide_institucion" placeholder="Ej: Banco Fiduciario S.A.">
+                        </div>
+                        <div class="col-12 mt-3">
+                            <div class="small text-primary fw-bold mb-2"><i class="fa-solid fa-file-signature me-1"></i>Documentos KYC (Fideicomiso)</div>
+                            <div class="row">
+                                <div class="col-md-6 mb-2">
+                                    <label class="form-label small">Contrato de fideicomiso*</label>
+                                    <input type="file" class="form-control form-control-sm" name="fide_contrato_file" accept=".pdf,.jpg,.jpeg,.png,.doc,.docx" title="Contrato fideicomiso">
+                                </div>
+                                <div class="col-md-6 mb-2">
+                                    <label class="form-label small">Documento fiduciario*</label>
+                                    <input type="file" class="form-control form-control-sm" name="fide_doc_fiduciario_file" accept=".pdf,.jpg,.jpeg,.png,.doc,.docx" title="Existencia fiduciario">
+                                </div>
+                                <div class="col-md-6 mb-2">
+                                    <label class="form-label small">Facultades delegado fiduciario*</label>
+                                    <input type="file" class="form-control form-control-sm" name="fide_facultades_file" accept=".pdf,.jpg,.jpeg,.png,.doc,.docx" title="Facultades delegado">
+                                </div>
+                                <div class="col-md-6 mb-2">
+                                    <label class="form-label small">Identificación delegado fiduciario*</label>
+                                    <input type="file" class="form-control form-control-sm" name="fide_ident_delegado_file" accept=".pdf,.jpg,.jpeg,.png,.doc,.docx" title="Identificación delegado">
+                                </div>
+                            </div>
                         </div>
                     </div>
                 </div>
@@ -384,6 +456,26 @@ if (!$isPLDHabilitado) {
                 </div>
 
                 <div class="subsection-title">
+                    <i class="fa-solid fa-shield-halved me-1"></i>
+                    Clasificación de Riesgo (Art. 17 RCG)
+                </div>
+                <div class="row mb-3">
+                    <div class="col-md-6 mb-2">
+                        <div class="form-check">
+                            <input class="form-check-input" type="checkbox" id="clasificacion_bajo_riesgo" name="clasificacion_bajo_riesgo" value="1">
+                            <label class="form-check-label" for="clasificacion_bajo_riesgo">Cliente clasificado como de bajo riesgo</label>
+                        </div>
+                        <div class="form-text small">Requiere criterios documentados en Manual de Políticas (Art. 37)</div>
+                    </div>
+                    <div class="col-md-6 mb-2" id="manual_politicas_container" style="display:none;">
+                        <label class="form-label"><i class="fa-solid fa-book me-1"></i>Manual de Políticas (versión)</label>
+                        <select class="form-select" id="id_manual_politicas_clasificacion" name="id_manual_politicas_clasificacion">
+                            <option value="">-- Seleccione versión --</option>
+                        </select>
+                    </div>
+                </div>
+
+                <div class="subsection-title">
                     <i class="fa-solid fa-user-check"></i>
                     Perfil KYC / Cumplimiento
                 </div>
@@ -482,10 +574,16 @@ if (!$isPLDHabilitado) {
                 </div>
 
                 <hr class="my-4">
+                <div id="documentos-requeridos-hint" class="alert alert-info mb-3" style="display:none;">
+                    <i class="fa-solid fa-info-circle me-2"></i>
+                    <strong>Documentos requeridos según tu perfil (KYC - Art. 12 RCG):</strong>
+                    <ul id="documentos-requeridos-list" class="mb-0 mt-2 small"></ul>
+                </div>
                 <div class="subsection-title">
                     <i class="fa-solid fa-folder-open"></i>
-                    Documentos adicionales (opcionales)
+                    Documentos requeridos (KYC)
                 </div>
+                <p class="small text-muted">Complete los documentos solicitados en nacionalidades, identificaciones y direcciones arriba. Los documentos adicionales se agregan abajo.</p>
                 <div id="documentos-list"></div>
                 <button type="button" class="btn btn-sm btn-outline-success" id="addDocumento">
                     <i class="fa-solid fa-plus me-2"></i>Agregar Documento

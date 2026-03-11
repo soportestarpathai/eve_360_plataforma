@@ -1,4 +1,8 @@
 <?php
+ob_start();
+error_reporting(E_ALL);
+ini_set('display_errors', 0);
+ini_set('log_errors', 1);
 session_start();
 require_once '../config/db.php'; // Change 1: Removed require bitacora/risk to check path
 require_once '../config/bitacora.php'; 
@@ -6,7 +10,8 @@ require_once '../config/risk_engine.php';
 require_once '../config/pld_middleware.php'; // VAL-PLD-001: Bloqueo de operaciones PLD
 require_once '../config/pld_expediente.php'; // VAL-PLD-005, VAL-PLD-006: Validación de expediente
 require_once '../config/pld_beneficiario_controlador.php'; // VAL-PLD-007: Beneficiario Controlador
-header('Content-Type: application/json');
+ob_end_clean();
+header('Content-Type: application/json; charset=utf-8');
 
 if (!isset($_SESSION['user_id'])) {
     http_response_code(401);
@@ -67,22 +72,31 @@ try {
     // Count: 5 placeholders
     // Where: id_cliente (1 placeholder)
     // Total: 6 placeholders
-    $stmt = $pdo->prepare(
-        "UPDATE clientes SET no_contrato = ?, alias = ?, fecha_apertura = ?, id_status = ?, fecha_baja = ?
-         WHERE id_cliente = ?"
-    );
-    
-    $fecha_baja = ($data['id_status'] == '3') ? $data['fecha_baja'] : null;
-    
-    // FIXED PARAMS: Ensure 6 values are passed
-    $stmt->execute([
-        $data['no_contrato'],
-        $data['alias'],
-        $data['fecha_apertura'],
-        $data['id_status'],
-        $fecha_baja,
-        $id_cliente
-    ]);
+    $updCols = ['no_contrato', 'alias', 'fecha_apertura', 'id_status', 'fecha_baja'];
+    $updVals = [$data['no_contrato'], $data['alias'], $data['fecha_apertura'], $data['id_status'], ($data['id_status'] == '3') ? $data['fecha_baja'] : null];
+    $chk = function($t, $c) use ($pdo) {
+        $st = $pdo->query("SELECT COUNT(*) FROM INFORMATION_SCHEMA.COLUMNS WHERE TABLE_SCHEMA = DATABASE() AND TABLE_NAME = '$t' AND COLUMN_NAME = '$c'");
+        return $st && $st->fetchColumn() > 0;
+    };
+    if ($chk('clientes', 'id_tipo_residencia')) {
+        $updCols[] = 'id_tipo_residencia';
+        $updVals[] = !empty($data['id_tipo_residencia']) ? $data['id_tipo_residencia'] : null;
+    }
+    if ($chk('clientes', 'clasificacion_bajo_riesgo')) {
+        $updCols[] = 'clasificacion_bajo_riesgo';
+        $updVals[] = !empty($data['clasificacion_bajo_riesgo']) ? 1 : 0;
+    }
+    if ($chk('clientes', 'fecha_clasificacion_bajo_riesgo') && !empty($data['clasificacion_bajo_riesgo'])) {
+        $updCols[] = 'fecha_clasificacion_bajo_riesgo';
+        $updVals[] = date('Y-m-d');
+    }
+    if ($chk('clientes', 'id_manual_politicas_clasificacion')) {
+        $updCols[] = 'id_manual_politicas_clasificacion';
+        $updVals[] = !empty($data['id_manual_politicas_clasificacion']) ? $data['id_manual_politicas_clasificacion'] : null;
+    }
+    $updVals[] = $id_cliente;
+    $setClause = implode(' = ?, ', $updCols) . ' = ?';
+    $pdo->prepare("UPDATE clientes SET $setClause WHERE id_cliente = ?")->execute($updVals);
 
     // --- Log Change ---
     $newData = [
@@ -121,20 +135,26 @@ try {
     }
     $curpRegex = '/^[A-Z][AEIOUX][A-Z]{2}[0-9]{2}(0[1-9]|1[0-2])(0[1-9]|[12][0-9]|3[01])[HM](AS|BC|BS|CC|CL|CM|CS|CH|DF|DG|GT|GR|HG|JC|MC|MN|MS|NT|NL|OC|PL|QT|QR|SP|SL|SR|TC|TS|TL|VZ|YN|ZS|NE)[B-DF-HJ-NP-TV-Z]{3}[A-Z0-9][0-9]$/';
 
-    // Validación RFC / Tax ID (USA acepta EIN/SSN de 9 dígitos)
+    // Validación RFC México / Tax ID USA (EIN/SSN 9 dígitos). Prioridad: si tiene México → RFC.
     $isTaxIdUSA = function ($v) {
         $d = preg_replace('/\D/', '', (string)$v);
         return strlen($d) === 9 && ctype_digit($d);
     };
-    $hasUSA = false;
+    $requiresTaxIdUSA = false;
     if (!empty($data['nacionalidad_id']) && is_array($data['nacionalidad_id'])) {
-        $stUSA = $pdo->query("SELECT id_pais FROM cat_pais WHERE clave = 'US' OR nombre LIKE '%Estados Unidos%' LIMIT 1");
-        $usaRow = $stUSA ? $stUSA->fetch(PDO::FETCH_ASSOC) : null;
-        if ($usaRow) {
-            $usaId = (int)$usaRow['id_pais'];
-            $nacIds = array_map('strval', $data['nacionalidad_id']);
-            $hasUSA = in_array((string)$usaId, $nacIds, true);
+        $stP = $pdo->query("SELECT id_pais, clave FROM cat_pais WHERE clave IN ('US','MX') OR nombre LIKE '%Estados Unidos%' OR nombre LIKE '%México%' OR nombre LIKE '%Mexico%'");
+        $usaId = $mexId = null;
+        if ($stP) {
+            while ($r = $stP->fetch(PDO::FETCH_ASSOC)) {
+                $c = strtoupper(trim((string)($r['clave'] ?? '')));
+                if ($c === 'US') $usaId = (int)$r['id_pais'];
+                if ($c === 'MX') $mexId = (int)$r['id_pais'];
+            }
         }
+        $nacIds = array_map('strval', $data['nacionalidad_id']);
+        $hasUSA = $usaId && in_array((string)$usaId, $nacIds, true);
+        $hasMexico = $mexId && in_array((string)$mexId, $nacIds, true);
+        $requiresTaxIdUSA = $hasUSA && !$hasMexico;
     }
     if ($personaType['es_fisica'] > 0) {
         $rfc = strtoupper(trim((string)($data['fisica_tax_id'] ?? '')));
@@ -155,12 +175,12 @@ try {
             echo json_encode(['status' => 'error', 'message' => 'El RFC / Tax ID es obligatorio']);
             exit;
         }
-        if ($hasUSA && !$isTaxIdUSA($rfc)) {
+        if ($requiresTaxIdUSA && !$isTaxIdUSA($rfc)) {
             $pdo->rollBack();
             echo json_encode(['status' => 'error', 'message' => 'Tax ID inválido. Use EIN (9 dígitos) o SSN (XXX-XX-XXXX).']);
             exit;
         }
-        if (!$hasUSA && !preg_match('/^[A-ZÑ&]{4}[0-9]{6}[A-Z0-9]{3}$/u', $rfc)) {
+        if (!$requiresTaxIdUSA && !preg_match('/^[A-ZÑ&]{4}[0-9]{6}[A-Z0-9]{3}$/u', $rfc)) {
             $pdo->rollBack();
             echo json_encode(['status' => 'error', 'message' => 'RFC inválido para persona física']);
             exit;
@@ -183,12 +203,12 @@ try {
             echo json_encode(['status' => 'error', 'message' => 'El RFC / Tax ID es obligatorio']);
             exit;
         }
-        if ($hasUSA && !$isTaxIdUSA($rfcM)) {
+        if ($requiresTaxIdUSA && !$isTaxIdUSA($rfcM)) {
             $pdo->rollBack();
             echo json_encode(['status' => 'error', 'message' => 'Tax ID inválido. Use EIN (9 dígitos) o formato XX-XXXXXXX.']);
             exit;
         }
-        if (!$hasUSA && !preg_match('/^[A-ZÑ&]{3}[0-9]{6}[A-Z0-9]{3}$/u', $rfcM)) {
+        if (!$requiresTaxIdUSA && !preg_match('/^[A-ZÑ&]{3}[0-9]{6}[A-Z0-9]{3}$/u', $rfcM)) {
             $pdo->rollBack();
             echo json_encode(['status' => 'error', 'message' => 'RFC inválido para persona moral']);
             exit;
@@ -197,16 +217,13 @@ try {
 
     if ($personaType['es_fisica'] > 0) {
         $oldDataFisica = getOldData($pdo, 'clientes_fisicas', $id_cliente);
-        $stmt = $pdo->prepare(
-            "UPDATE clientes_fisicas SET nombre = ?, apellido_paterno = ?, apellido_materno = ?, 
-             fecha_nacimiento = ?, tax_id = ?, CURP = ?
-             WHERE id_cliente = ?"
-        );
-        $stmt->execute([
-            $data['fisica_nombre'], $data['fisica_ap_paterno'], $data['fisica_ap_materno'],
-            $data['fisica_fecha_nacimiento'], $rfc, $curpFis,
-            $id_cliente
-        ]);
+        $fisCols = ['nombre', 'apellido_paterno', 'apellido_materno', 'fecha_nacimiento', 'tax_id', 'CURP'];
+        $fisVals = [$data['fisica_nombre'], $data['fisica_ap_paterno'], $data['fisica_ap_materno'], $data['fisica_fecha_nacimiento'], $rfc, $curpFis];
+        if ($chk('clientes_fisicas', 'id_pais_nacimiento')) { $fisCols[] = 'id_pais_nacimiento'; $fisVals[] = !empty($data['fisica_id_pais_nacimiento']) ? $data['fisica_id_pais_nacimiento'] : null; }
+        if ($chk('clientes_fisicas', 'fecha_ingreso_pais')) { $fisCols[] = 'fecha_ingreso_pais'; $fisVals[] = !empty($data['fisica_fecha_ingreso_pais']) ? $data['fisica_fecha_ingreso_pais'] : null; }
+        $fisVals[] = $id_cliente;
+        $fisSet = implode(' = ?, ', $fisCols) . ' = ?';
+        $pdo->prepare("UPDATE clientes_fisicas SET $fisSet WHERE id_cliente = ?")->execute($fisVals);
         $newDataFisica = [
             'nombre' => $data['fisica_nombre'], 'apellido_paterno' => $data['fisica_ap_paterno'], 'apellido_materno' => $data['fisica_ap_materno'],
             'fecha_nacimiento' => $data['fisica_fecha_nacimiento'], 'tax_id' => $rfc, 'CURP' => $curpFis
@@ -215,14 +232,14 @@ try {
     } 
     elseif ($personaType['es_moral'] > 0) {
         $oldDataMoral = getOldData($pdo, 'clientes_morales', $id_cliente);
-        $stmt = $pdo->prepare(
-            "UPDATE clientes_morales SET razon_social = ?, fecha_constitucion = ?, tax_id = ?
-             WHERE id_cliente = ?"
-        );
-        $stmt->execute([
-            $data['moral_razon_social'], $data['moral_fecha_constitucion'], $rfcM,
-            $id_cliente
-        ]);
+        $morCols = ['razon_social', 'fecha_constitucion', 'tax_id'];
+        $morVals = [$data['moral_razon_social'], $data['moral_fecha_constitucion'], $rfcM];
+        if ($chk('clientes_morales', 'id_pais_nacionalidad')) { $morCols[] = 'id_pais_nacionalidad'; $morVals[] = !empty($data['moral_id_pais_nacionalidad']) ? $data['moral_id_pais_nacionalidad'] : null; }
+        if ($chk('clientes_morales', 'id_anexo_7a')) { $morCols[] = 'id_anexo_7a'; $morVals[] = !empty($data['moral_id_anexo_7a']) ? $data['moral_id_anexo_7a'] : null; }
+        if ($chk('clientes_morales', 'id_anexo_7_bis_a')) { $morCols[] = 'id_anexo_7_bis_a'; $morVals[] = !empty($data['moral_id_anexo_7_bis_a']) ? $data['moral_id_anexo_7_bis_a'] : null; }
+        $morVals[] = $id_cliente;
+        $morSet = implode(' = ?, ', $morCols) . ' = ?';
+        $pdo->prepare("UPDATE clientes_morales SET $morSet WHERE id_cliente = ?")->execute($morVals);
         $newDataMoral = [
             'razon_social' => $data['moral_razon_social'], 'fecha_constitucion' => $data['moral_fecha_constitucion'], 'tax_id' => $rfcM
         ];
@@ -330,7 +347,11 @@ try {
         mkdir($uploadDir, 0755, true);
     }
 
-    $rfcCurpDescs = ['Constancia RFC - Persona Física', 'Documento CURP - Persona Física', 'Constancia RFC - Persona Moral'];
+    $rfcCurpDescs = [
+        'Constancia RFC - Persona Física', 'Documento CURP - Persona Física', 'Constancia RFC - Persona Moral',
+        'Acta constitutiva - Persona Moral', 'Poder notarial - Persona Moral',
+        'Contrato de fideicomiso', 'Documento fiduciario', 'Facultades delegado fiduciario', 'Identificación delegado fiduciario'
+    ];
 
     if (isset($data['doc_tipo'])) {
         
@@ -404,6 +425,33 @@ try {
             $stmt_doc->execute([$id_cliente, 'Constancia RFC - Persona Moral', $existingPaths['Constancia RFC - Persona Moral'], null]);
             $newDocumentos[] = ['id_cliente' => $id_cliente, 'descripcion' => 'Constancia RFC - Persona Moral', 'ruta' => $existingPaths['Constancia RFC - Persona Moral'], 'fecha_vencimiento' => null, 'id_status' => 1];
         }
+        if (isset($_FILES['moral_acta_constitutiva_file']) && ($_FILES['moral_acta_constitutiva_file']['error'] ?? UPLOAD_ERR_NO_FILE) === UPLOAD_ERR_OK) {
+            $saveRfcCurpDoc($_FILES['moral_acta_constitutiva_file']['tmp_name'], $_FILES['moral_acta_constitutiva_file']['name'], 'Acta constitutiva - Persona Moral');
+        } elseif (isset($existingPaths['Acta constitutiva - Persona Moral'])) {
+            $stmt_doc->execute([$id_cliente, 'Acta constitutiva - Persona Moral', $existingPaths['Acta constitutiva - Persona Moral'], null]);
+            $newDocumentos[] = ['id_cliente' => $id_cliente, 'descripcion' => 'Acta constitutiva - Persona Moral', 'ruta' => $existingPaths['Acta constitutiva - Persona Moral'], 'fecha_vencimiento' => null, 'id_status' => 1];
+        }
+        if (isset($_FILES['moral_poder_notarial_file']) && ($_FILES['moral_poder_notarial_file']['error'] ?? UPLOAD_ERR_NO_FILE) === UPLOAD_ERR_OK) {
+            $saveRfcCurpDoc($_FILES['moral_poder_notarial_file']['tmp_name'], $_FILES['moral_poder_notarial_file']['name'], 'Poder notarial - Persona Moral');
+        } elseif (isset($existingPaths['Poder notarial - Persona Moral'])) {
+            $stmt_doc->execute([$id_cliente, 'Poder notarial - Persona Moral', $existingPaths['Poder notarial - Persona Moral'], null]);
+            $newDocumentos[] = ['id_cliente' => $id_cliente, 'descripcion' => 'Poder notarial - Persona Moral', 'ruta' => $existingPaths['Poder notarial - Persona Moral'], 'fecha_vencimiento' => null, 'id_status' => 1];
+        }
+    } elseif ($personaType['es_fideicomiso'] > 0) {
+        $fideDocs = [
+            'fide_contrato_file' => 'Contrato de fideicomiso',
+            'fide_doc_fiduciario_file' => 'Documento fiduciario',
+            'fide_facultades_file' => 'Facultades delegado fiduciario',
+            'fide_ident_delegado_file' => 'Identificación delegado fiduciario',
+        ];
+        foreach ($fideDocs as $field => $desc) {
+            if (isset($_FILES[$field]) && ($_FILES[$field]['error'] ?? UPLOAD_ERR_NO_FILE) === UPLOAD_ERR_OK) {
+                $saveRfcCurpDoc($_FILES[$field]['tmp_name'], $_FILES[$field]['name'], $desc);
+            } elseif (isset($existingPaths[$desc])) {
+                $stmt_doc->execute([$id_cliente, $desc, $existingPaths[$desc], null]);
+                $newDocumentos[] = ['id_cliente' => $id_cliente, 'descripcion' => $desc, 'ruta' => $existingPaths[$desc], 'fecha_vencimiento' => null, 'id_status' => 1];
+            }
+        }
     }
 
     logChange($pdo, $id_usuario_actual, "ACTUALIZAR_LISTA", "clientes_documentos", $id_cliente, $oldDocumentos, $newDocumentos);
@@ -456,15 +504,20 @@ try {
 
     // Recalculate Risk (still inside transaction)
     calculateClientRisk($pdo, $id_cliente);
+
+    // Calcular y guardar anexo aplicable (Art. 12 RCG)
+    if (function_exists('getAnexoApplicable')) {
+        getAnexoApplicable($pdo, $id_cliente, true);
+    }
     
     // --- VAL-PLD-005 y VAL-PLD-006: Validar expediente y actualizar fecha ---
     validateExpedienteCompleto($pdo, $id_cliente); // Actualiza flags
     actualizarFechaExpediente($pdo, $id_cliente); // Actualiza fecha de última actualización (VAL-PLD-006)
     // -------------------------------------------------------------------------
 
-    // --- VAL-PLD-005/006: Bloquear actualización si expediente incompleto o vencido ---
-    requireExpedienteCompleto($pdo, $id_cliente, false);
-    // ---------------------------------------------------------------------------------
+    // NO bloquear actualización por expediente incompleto: el usuario debe poder editar
+    // y completar datos (identificaciones, direcciones, documentos, confirmar vistos).
+    // El bloqueo aplica solo en operaciones PLD (pld_middleware).
 
     // --- VAL-PLD-007: Procesar Beneficiarios Controladores ---
     if (isset($data['beneficiario']) && is_array($data['beneficiario'])) {

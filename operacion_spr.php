@@ -148,7 +148,7 @@ $subfraccionesTexto = !empty($subfraccionesActivasLabels) ? implode(', ', $subfr
                     </div>
                     <div class="col-md-6 mb-2">
                         <label class="form-label">Clave Sujeto Obligado *</label>
-                        <input type="text" class="form-control" id="clave_sujeto_obligado" required maxlength="13" value="<?= htmlspecialchars($clave_sujeto_obligado) ?>" placeholder="Ej: RFC empresa 12-13 caracteres">
+                        <input type="text" class="form-control text-uppercase" id="clave_sujeto_obligado" required maxlength="13" value="<?= htmlspecialchars($clave_sujeto_obligado) ?>" placeholder="RFC 12-13 car. (ej: ABC010203AB1)" title="Formato RFC: 12-13 caracteres alfanuméricos">
                     </div>
                     <div class="col-md-6 mb-2">
                         <label class="form-label">Ocupación *</label>
@@ -787,6 +787,7 @@ document.addEventListener('DOMContentLoaded', function() {
     });
     document.getElementById('tipo_actividad').addEventListener('change', toggleTipoActividad);
     toggleTipoActividad();
+    toggleTipoDomicilio();
     document.getElementById('formSPR').addEventListener('submit', guardarAvisoSPR);
     document.getElementById('formSPR').addEventListener('change', function(e) {
         if (e.target.matches('.contraparte-tipo')) toggleContraparteTipo(e.target.closest('.contraparte-item, .cdi-contraparte'));
@@ -802,6 +803,16 @@ document.addEventListener('DOMContentLoaded', function() {
         if (e.target.matches('.datos-fin-activo-virt')) toggleActivoVirtual(e.target.closest('.datos-fin-item'));
     });
 });
+function toggleTipoDomicilio() {
+    const tipo = document.getElementById('tipo_domicilio').value;
+    document.querySelectorAll('.domicilio-section').forEach(s => s.classList.remove('active'));
+    document.getElementById('domicilio_nacional').classList.toggle('active', tipo === 'nacional');
+    document.getElementById('domicilio_extranjero').classList.toggle('active', tipo === 'extranjero');
+    const nat = document.querySelectorAll('#domicilio_nacional [required]');
+    const ext = document.querySelectorAll('#domicilio_extranjero [required]');
+    nat.forEach(el => { el.required = tipo === 'nacional'; });
+    ext.forEach(el => { el.required = tipo === 'extranjero'; });
+}
 function toggleTipoActividad() {
     const t = document.getElementById('tipo_actividad').value;
     document.getElementById('cesion_derechos_inmuebles_section').style.display = t === 'cesion_derechos_inmuebles' ? 'block' : 'none';
@@ -1162,7 +1173,7 @@ function leerAdministracionRecursos() {
         if (!desc) return;
         tipoActivo.push({ activo_otros: { descripcion_activo_administrado: desc } });
     });
-    return { tipo_activo };
+    return { tipo_activo: tipoActivo };
 }
 function leerInmueblesCesion() {
     const out = [];
@@ -1249,7 +1260,11 @@ function guardarAvisoSPR(e) {
     const tipoAct = v('tipo_actividad');
     if (!v('id_cliente')) { Swal.fire('Error', 'Seleccione un cliente', 'error'); return; }
     if (!/^\d{6}$/.test(v('mes_reportado'))) { Swal.fire('Error', 'Mes reportado: 6 dígitos AAAAMM', 'error'); return; }
+    const claveSO = v('clave_sujeto_obligado').replace(/[^A-Za-z0-9]/g, '').toUpperCase();
     if (!v('clave_sujeto_obligado')) { Swal.fire('Error', 'Clave Sujeto Obligado requerida', 'error'); return; }
+    if (claveSO.length < 12 || claveSO.length > 13 || !/^[A-Z0-9]{12,13}$/.test(claveSO)) {
+        Swal.fire('Error', 'Clave Sujeto Obligado debe ser RFC con 12-13 caracteres (solo letras y números). Ej: ABC010203AB1', 'error'); return;
+    }
     if (!v('referencia_aviso')) { Swal.fire('Error', 'Referencia del aviso requerida', 'error'); return; }
 
     if (tipoAct === 'compra_venta_inmuebles') {

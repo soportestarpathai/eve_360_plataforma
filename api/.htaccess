@@ -1,0 +1,5 @@
+# Desactivar salida HTML de errores en APIs (evita que Xdebug muestre HTML en lugar de JSON)
+<IfModule mod_php.c>
+    php_flag display_errors Off
+    php_value log_errors On
+</IfModule>

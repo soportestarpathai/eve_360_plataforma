@@ -257,6 +257,7 @@ include 'templates/top_bar.php';
                                 <tr>
                                     <th>Fecha</th>
                                     <th>Cliente</th>
+                                    <th>Fracción</th>
                                     <th>Monto</th>
                                     <th>Monto (UMA)</th>
                                     <th>Tipo</th>
@@ -268,7 +269,7 @@ include 'templates/top_bar.php';
                             </thead>
                             <tbody id="operaciones-tbody">
                                 <tr>
-                                    <td colspan="9" class="text-center">
+                                    <td colspan="10" class="text-center">
                                         <i class="fa-solid fa-spinner fa-spin me-2"></i>Cargando transacciones...
                                     </td>
                                 </tr>
@@ -878,13 +879,13 @@ function cargarOperaciones() {
                 renderOperaciones(data.operaciones || []);
             } else {
                 document.getElementById('operaciones-tbody').innerHTML = 
-                    '<tr><td colspan="9" class="text-center text-danger">Error al cargar transacciones</td></tr>';
+                    '<tr><td colspan="10" class="text-center text-danger">Error al cargar transacciones</td></tr>';
             }
         })
         .catch(err => {
             console.error('Error al cargar transacciones:', err);
             document.getElementById('operaciones-tbody').innerHTML = 
-                '<tr><td colspan="9" class="text-center text-danger">Error de conexión</td></tr>';
+                '<tr><td colspan="10" class="text-center text-danger">Error de conexión</td></tr>';
         });
 }
 
@@ -893,7 +894,7 @@ function renderOperaciones(operaciones) {
     if (operaciones.length === 0) {
         tbody.innerHTML = `
             <tr>
-                <td colspan="9" class="text-center text-muted py-5">
+                <td colspan="10" class="text-center text-muted py-5">
                     <i class="fa-solid fa-inbox fa-3x mb-3 d-block" style="opacity: 0.3;"></i>
                     <p class="mb-0">No hay transacciones registradas</p>
                     <small>Haz clic en "Registrar Transacción" para comenzar</small>
@@ -955,6 +956,9 @@ function renderOperaciones(operaciones) {
                         <i class="fa-solid fa-user me-2 text-primary"></i>
                         ${clienteNombre}
                     </div>
+                </td>
+                <td>
+                    ${(op.fraccion_codigo || op.fraccion_nombre) ? `<span class="badge bg-secondary">${escapeHtml(op.fraccion_codigo || op.fraccion_nombre)}</span>${op.subfraccion_xi ? `<br><small class="text-muted">${escapeHtml(op.subfraccion_xi)}</small>` : ''}` : '<span class="text-muted">-</span>'}
                 </td>
                 <td>
                     <strong class="text-primary">$${parseFloat(op.monto).toLocaleString('es-MX', {minimumFractionDigits: 2})}</strong>

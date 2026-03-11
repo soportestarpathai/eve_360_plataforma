@@ -109,6 +109,9 @@ include 'templates/header.php';
         <div class="section-title d-flex justify-content-between align-items-center">
             <span><i class="fa-solid fa-folder-open me-2"></i>Estado del Expediente PLD (VAL-PLD-005 / VAL-PLD-006)</span>
             <div>
+                <button class="btn btn-sm btn-success me-1" onclick="marcarDocumentosVistos()" id="btnDocumentosVistos" style="display:none;" title="Confirmar que el trabajador tuvo a la vista documentos originales o copia certificada (Reglas)">
+                    <i class="fa-solid fa-eye me-1"></i>Confirmar documentos vistos
+                </button>
                 <button class="btn btn-sm btn-outline-primary" onclick="validarExpedientePLD()" title="Validar Expediente">
                     <i class="fa-solid fa-check-circle me-1"></i>Validar
                 </button>
@@ -222,6 +225,7 @@ include 'templates/header.php';
     
     function loadExpedientePLD() {
         const statusDiv = document.getElementById('expediente-pld-status');
+        if (!statusDiv) return;
         statusDiv.innerHTML = '<div class="alert alert-info"><i class="fa-solid fa-spinner fa-spin me-2"></i>Cargando estado del expediente...</div>';
         
         fetch(`api/validate_expediente_pld.php?id_cliente=${clientId}`)
@@ -232,22 +236,7 @@ include 'templates/header.php';
                 return res.json();
             })
             .then(data => {
-                console.log('Datos recibidos del expediente:', data); // Debug
                 if (data.status === 'success') {
-                    // Debug completo
-                    console.log('=== DEBUG EXPEDIENTE PLD ===');
-                    console.log('Completo:', data.completitud?.completo);
-                    console.log('Faltantes:', data.completitud?.faltantes);
-                    console.log('Razón:', data.completitud?.razon);
-                    console.log('Actualizado:', data.actualizacion?.actualizado);
-                    console.log('Válido:', data.valido);
-                    
-                    // Mostrar faltantes en consola para debug
-                    if (data.completitud && data.completitud.faltantes && data.completitud.faltantes.length > 0) {
-                        console.log('Elementos faltantes detectados:', data.completitud.faltantes);
-                    } else if (!data.completitud?.completo) {
-                        console.warn('⚠️ Expediente marcado como incompleto pero NO hay faltantes en el array. Esto puede indicar que los datos existen pero están INACTIVOS (id_status = 0)');
-                    }
                     renderExpedienteStatus(data);
                 } else {
                     statusDiv.innerHTML = `<div class="alert alert-danger">
@@ -272,9 +261,15 @@ include 'templates/header.php';
         const completitud = data.completitud || {};
         const actualizacion = data.actualizacion || {};
         const valido = data.valido;
-        
-        console.log('Renderizando estado:', { completitud, actualizacion, valido }); // Debug
-        
+        const anexo = data.anexo || {};
+        const documentosVistos = data.documentos_vistos;
+        const fechaDocVistos = data.fecha_documentos_vistos;
+        const documentosRequeridos = data.documentos_requeridos || [];
+
+        // Mostrar/ocultar botón documentos vistos
+        const btnDoc = document.getElementById('btnDocumentosVistos');
+        if (btnDoc) btnDoc.style.display = (!documentosVistos ? 'inline-block' : 'none');
+
         let html = '';
         
         if (valido) {
@@ -303,6 +298,33 @@ include 'templates/header.php';
             `;
         }
         
+        // Anexo aplicable (si existe)
+        if (anexo.nombre) {
+            html += '<div class="alert alert-light border mb-3">';
+            html += '<small class="text-muted"><i class="fa-solid fa-file-lines me-1"></i><strong>Anexo aplicable:</strong> ' + (anexo.nombre || '-') + '</small>';
+            if (anexo.simplificado) html += ' <span class="badge bg-info ms-2">Simplificado</span>';
+            html += '</div>';
+        }
+
+        // Documentos requeridos según anexo (Reglas KYC EVE360)
+        if (documentosRequeridos.length > 0) {
+            html += '<div class="card border-info mb-3 shadow-sm">';
+            html += '<div class="card-header bg-info bg-opacity-10 d-flex align-items-center">';
+            html += '<i class="fa-solid fa-list-check me-2 text-info"></i>';
+            html += '<strong>Documentos requeridos según tu anexo (Reglas KYC)</strong>';
+            html += '</div>';
+            html += '<ul class="list-group list-group-flush">';
+            documentosRequeridos.forEach((doc, idx) => {
+                const nota = doc.nota ? ' <span class="badge bg-secondary">' + doc.nota + '</span>' : '';
+                html += '<li class="list-group-item d-flex align-items-start">';
+                html += '<span class="badge bg-light text-dark border me-2 mt-1">' + (idx + 1) + '</span>';
+                html += '<span class="flex-grow-1">' + (doc.desc || doc) + nota + '</span>';
+                html += '</li>';
+            });
+            html += '</ul>';
+            html += '</div>';
+        }
+
         html += '<div class="row mt-4">';
         
         // Completitud
@@ -315,8 +337,6 @@ include 'templates/header.php';
             
             // Mostrar faltantes SIEMPRE que existan
             const faltantes = completitud.faltantes || [];
-            console.log('Faltantes detectados:', faltantes); // Debug
-            
             if (faltantes.length > 0) {
                 html += '<div class="card border-danger mb-3 shadow-sm">';
                 html += '<div class="card-header bg-danger text-white d-flex align-items-center">';
@@ -324,21 +344,23 @@ include 'templates/header.php';
                 html += '<strong>Elementos Faltantes (' + faltantes.length + '):</strong>';
                 html += '</div>';
                 html += '<ul class="list-group list-group-flush">';
+                const textoDocVistos = 'Confirmación: trabajador tuvo a la vista documentos originales o copia certificada';
                 faltantes.forEach((f, index) => {
-                    html += `<li class="list-group-item d-flex align-items-start">
-                        <span class="badge bg-danger me-2 mt-1">${index + 1}</span>
-                        <span class="flex-grow-1">
-                            <i class="fa-solid fa-arrow-right me-2 text-danger"></i>
-                            <strong>${f}</strong>
-                        </span>
-                    </li>`;
+                    const esDocVistos = (typeof f === 'string' && f.indexOf('documentos originales') >= 0) || (typeof f === 'string' && f.indexOf('copia certificada') >= 0);
+                    html += '<li class="list-group-item d-flex align-items-center justify-content-between flex-wrap gap-2">';
+                    html += '<span class="d-flex align-items-start"><span class="badge bg-danger me-2 mt-1">' + (index + 1) + '</span>';
+                    html += '<span><i class="fa-solid fa-arrow-right me-2 text-danger"></i><strong>' + (typeof f === 'string' ? f : '') + '</strong></span></span>';
+                    if (esDocVistos && !documentosVistos) {
+                        html += '<button type="button" class="btn btn-sm btn-success" onclick="this.disabled=true;marcarDocumentosVistos();"><i class="fa-solid fa-eye me-1"></i>Confirmar ahora</button>';
+                    }
+                    html += '</li>';
                 });
                 html += '</ul>';
                 html += '</div>';
                 
                 html += '<div class="alert alert-info mb-0">';
                 html += '<i class="fa-solid fa-lightbulb me-2"></i>';
-                html += '<small><strong>¿Cómo completar?</strong> Haz clic en "Editar Cliente" y agrega la información faltante, luego guarda los cambios.</small>';
+                html += '<small><strong>¿Cómo completar?</strong> Para "Confirmación documentos vistos": use el botón verde <strong>Confirmar documentos vistos</strong> arriba o <strong>Confirmar ahora</strong> en la lista. Para el resto: edite el cliente y guarde los cambios.</small>';
                 html += '</div>';
             } else {
                 html += '<div class="alert alert-warning mb-0">';
@@ -376,8 +398,40 @@ include 'templates/header.php';
         html += '</div>';
         
         html += '</div>';
+
+        // Documentos vistos (original/copia certificada)
+        if (typeof documentosVistos !== 'undefined') {
+            html += '<div class="mt-3 p-2 rounded ' + (documentosVistos ? 'bg-success bg-opacity-10' : 'bg-warning bg-opacity-10') + '">';
+            html += '<small><i class="fa-solid fa-' + (documentosVistos ? 'check text-success' : 'exclamation-triangle text-warning') + ' me-1"></i>';
+            html += documentosVistos 
+                ? 'Documentos verificados: trabajador tuvo a la vista originales o copia certificada' + (fechaDocVistos ? ' (' + fechaDocVistos + ')' : '')
+                : 'Pendiente: Confirmar que el trabajador tuvo a la vista los documentos originales o copia certificada (Reglas KYC)';
+            html += '</small></div>';
+        }
         
-        statusDiv.innerHTML = html;
+        if (statusDiv) statusDiv.innerHTML = html;
+    }
+
+    function marcarDocumentosVistos() {
+        const btn = document.getElementById('btnDocumentosVistos');
+        if (btn) btn.disabled = true;
+        const formData = new FormData();
+        formData.append('id_cliente', clientId);
+        fetch('api/update_documentos_vistos.php', { method: 'POST', body: formData })
+            .then(res => res.json())
+            .then(data => {
+                if (data.status === 'success') {
+                    Swal.fire('Correcto', 'Documentos marcados como verificados', 'success');
+                    loadExpedientePLD();
+                } else {
+                    Swal.fire('Error', data.message || 'Error al marcar documentos', 'error');
+                    if (btn) btn.disabled = false;
+                }
+            })
+            .catch(err => {
+                Swal.fire('Error', 'Error de conexión', 'error');
+                if (btn) btn.disabled = false;
+            });
     }
     
     function validarExpedientePLD() {
@@ -452,25 +506,31 @@ include 'templates/header.php';
         // Helper to create data pairs
         const createPair = (label, value) => `<div class="col-md-4 data-pair"><div class="data-label">${label}</div><div class="data-value">${value || '-'}</div></div>`;
         
-        let name = data.persona.nombre ? `${data.persona.nombre} ${data.persona.apellido_paterno}` : data.persona.razon_social;
+        const persona = data.persona || {};
+        const name = persona.nombre ? `${persona.nombre} ${persona.apellido_paterno || ''}`.trim() : (persona.razon_social || data.general?.alias || '-');
         document.getElementById('clientName').textContent = name;
 
         // General Info
         const genInfo = document.getElementById('general-info');
-        genInfo.innerHTML = createPair('No. Contrato', data.general.no_contrato) + createPair('Alias', data.general.alias) + createPair('Fecha Apertura', data.general.fecha_apertura) + createPair('Tipo Persona', data.general.tipo_persona_nombre);
+        if (genInfo) genInfo.innerHTML = createPair('No. Contrato', data.general?.no_contrato) + createPair('Alias', data.general?.alias) + createPair('Fecha Apertura', data.general?.fecha_apertura) + createPair('Tipo Persona', data.general?.tipo_persona_nombre);
 
         // Render Risk
         renderRisk(data.risk_breakdown);
 
         // Persona Info
         const perInfo = document.getElementById('persona-info');
-        document.getElementById('persona-title').textContent = `Detalles (${data.general.tipo_persona_nombre})`;
-        if (data.general.tipo_persona_nombre === 'Física') {
-            perInfo.innerHTML = createPair('Nombre Completo', `${data.persona.nombre} ${data.persona.apellido_paterno} ${data.persona.apellido_materno}`) + createPair('Fecha Nacimiento', data.persona.fecha_nacimiento) + createPair('RFC', data.persona.tax_id) + createPair('CURP', data.persona.CURP);
-        } else if (data.general.tipo_persona_nombre === 'Moral') {
-            perInfo.innerHTML = createPair('Razón Social', data.persona.razon_social) + createPair('Fecha Constitución', data.persona.fecha_constitucion) + createPair('RFC', data.persona.tax_id);
-        } else if (data.general.tipo_persona_nombre === 'Fideicomiso') {
-            perInfo.innerHTML = createPair('Número', data.persona.numero_fideicomiso) + createPair('Institución', data.persona.institucion_fiduciaria);
+        const personaTitle = document.getElementById('persona-title');
+        if (personaTitle) personaTitle.textContent = `Detalles (${data.general?.tipo_persona_nombre || '-'})`;
+        if (perInfo) {
+            if (data.general?.tipo_persona_nombre === 'Física') {
+                perInfo.innerHTML = createPair('Nombre Completo', `${persona.nombre || ''} ${persona.apellido_paterno || ''} ${persona.apellido_materno || ''}`.trim()) + createPair('Fecha Nacimiento', persona.fecha_nacimiento) + createPair('RFC', persona.tax_id) + createPair('CURP', persona.CURP);
+            } else if (data.general?.tipo_persona_nombre === 'Moral') {
+                perInfo.innerHTML = createPair('Razón Social', persona.razon_social) + createPair('Fecha Constitución', persona.fecha_constitucion) + createPair('RFC', persona.tax_id);
+            } else if (data.general?.tipo_persona_nombre === 'Fideicomiso') {
+                perInfo.innerHTML = createPair('Número', persona.numero_fideicomiso) + createPair('Institución', persona.institucion_fiduciaria);
+            } else {
+                perInfo.innerHTML = '<div class="text-muted small">Sin datos de persona asociados</div>';
+            }
         }
         
         // Apoderados Logic
@@ -491,11 +551,11 @@ include 'templates/header.php';
         //populateList('documentos-list', data.documentos, d => `${d.descripcion} (Vence: ${d.fecha_vencimiento})`);
 
         // --- RENDER DOCUMENTOS ---
-        const docList = document.getElementById('documentos-list'); // Ensure your UL or DIV has this ID
-        docList.innerHTML = '';
-
-        if (data.documentos && data.documentos.length > 0) {
-            data.documentos.forEach(doc => {
+        const docList = document.getElementById('documentos-list');
+        if (docList) {
+            docList.innerHTML = '';
+            if (data.documentos && data.documentos.length > 0) {
+                data.documentos.forEach(doc => {
                 
                 // 1. Clean the path (remove '../' so it works from root)
                 let filePath = '#';
@@ -538,10 +598,11 @@ include 'templates/header.php';
                         </div>
                     </li>
                 `;
-                docList.innerHTML += docItem;
-            });
-        } else {
-            docList.innerHTML = '<li class="list-group-item text-muted text-center small">No hay documentos cargados.</li>';
+                    docList.innerHTML += docItem;
+                });
+            } else {
+                docList.innerHTML = '<li class="list-group-item text-muted text-center small">No hay documentos cargados.</li>';
+            }
         }
         
         // PLD History
@@ -550,18 +611,19 @@ include 'templates/header.php';
     
     function renderRisk(riskData) {
         const list = document.getElementById('risk-breakdown-list');
+        if (!list) return;
         list.innerHTML = '';
         
+        if (!riskData) return;
         // Update Header Badge using Dynamic Data
-        const total = parseFloat(riskData.total).toFixed(2);
+        const total = parseFloat(riskData.total || 0).toFixed(2);
         const label = riskData.label || 'Desconocido';
         const color = riskData.color || '#6c757d';
         
         const badgeSpan = document.getElementById('riskHeaderBadge');
-        // Use inline style for dynamic DB color
-        badgeSpan.innerHTML = `<span class="badge fs-6" style="background-color: ${color}; color: #fff;">Riesgo ${label}: ${total}%</span>`;
-        
-        document.getElementById('risk-total-score').textContent = total + '%';
+        if (badgeSpan) badgeSpan.innerHTML = `<span class="badge fs-6" style="background-color: ${color}; color: #fff;">Riesgo ${label}: ${total}%</span>`;
+        const totalScoreEl = document.getElementById('risk-total-score');
+        if (totalScoreEl) totalScoreEl.textContent = total + '%';
 
         if (!riskData || !riskData.details || riskData.details.length === 0) {
             list.innerHTML = '<tr><td colspan="5" class="text-center">No hay factores configurados.</td></tr>';
@@ -583,6 +645,7 @@ include 'templates/header.php';
 
     function renderPldHistory(history) {
         const list = document.getElementById('pld-history-list');
+        if (!list) return;
         list.innerHTML = '';
         if (!history || history.length === 0) {
             list.innerHTML = '<tr><td colspan="6" class="text-center text-muted small">Sin historial de búsquedas.</td></tr>';
@@ -625,6 +688,7 @@ include 'templates/header.php';
     
     function populateList(listId, items, formatter) {
         const list = document.getElementById(listId);
+        if (!list) return;
         list.innerHTML = '';
         if (!items || items.length === 0) { list.innerHTML = '<li class="list-group-item text-muted">No hay registros.</li>'; return; }
         items.forEach(item => { const li = document.createElement('li'); li.className = 'list-group-item'; li.innerHTML = formatter(item); list.appendChild(li); });
@@ -632,6 +696,7 @@ include 'templates/header.php';
     
     function populateApoderadosList(apoderados) {
         const list = document.getElementById('apoderados-list-display');
+        if (!list) return;
         list.innerHTML = '';
         if (!apoderados || apoderados.length === 0) { list.innerHTML = '<div class="text-muted text-center py-2">No hay apoderados registrados.</div>'; return; }
         apoderados.forEach(apo => {

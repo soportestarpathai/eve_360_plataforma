@@ -191,7 +191,7 @@ $paisOptions = tscCatalogoOptions('pais', 'MX');
                     </div>
                     <div class="col-md-6 mb-2">
                         <label class="form-label">Clave Sujeto Obligado * <span class="badge bg-danger badge-xsd">Obl.</span></label>
-                        <input type="text" class="form-control" id="clave_sujeto_obligado" required maxlength="13" value="<?= htmlspecialchars($clave_sujeto_obligado) ?>" placeholder="RFC empresa 12-13 car.">
+                        <input type="text" class="form-control text-uppercase" id="clave_sujeto_obligado" required maxlength="13" value="<?= htmlspecialchars($clave_sujeto_obligado) ?>" placeholder="Ej: ABC010203AB1 o ABCD010203AB1" pattern="[A-Za-zÑ&]{3,4}\d{6}[A-Za-z0-9]{3}" title="Formato RFC: 3-4 letras + 6 dígitos + 3 caracteres (ej: ABC010203AB1)">
                     </div>
                     <div class="col-md-4 mb-2">
                         <label class="form-label">Clave Actividad * <span class="badge bg-danger badge-xsd">Obl.</span></label>
@@ -380,7 +380,7 @@ $paisOptions = tscCatalogoOptions('pais', 'MX');
                 <div class="row g-3">
                     <div class="col-md-4 mb-2"><label class="form-label">País Tel. *</label><select class="form-select" id="tel_clave_pais" required><?= $paisOptions ?></select></div>
                     <div class="col-md-4 mb-2"><label class="form-label">Número *</label><input type="text" class="form-control" id="tel_numero" maxlength="12" pattern="\d{10,12}" required placeholder="Ej: 5512345678 (10-12 dígitos)"></div>
-                    <div class="col-md-4 mb-2"><label class="form-label">Correo Electrónico</label><input type="email" class="form-control" id="tel_correo" maxlength="60" placeholder="Ej: correo@ejemplo.com (opcional)"></div>
+                    <div class="col-md-4 mb-2"><label class="form-label">Correo Electrónico</label><input type="email" class="form-control" id="tel_correo" maxlength="60" placeholder="Ej: correo@ejemplo.com (opcional)"><div class="section-help">En el XML se enviará en mayúsculas (requisito XSD)</div></div>
                 </div>
 
                 <hr class="my-3">
@@ -707,8 +707,13 @@ function toggleTipoDomicilio() {
 
 function cargarClientes() {
     fetch('api/get_clients.php')
-        .then(r => r.json())
-        .then(data => {
+        .then(r => r.text())
+        .then(text => {
+            let data;
+            try { data = JSON.parse(text); } catch (e) {
+                console.error('get_clients: respuesta inválida', text.substring(0, 200));
+                data = [];
+            }
             const sel = document.getElementById('id_cliente');
             sel.innerHTML = '<option value="">-- Seleccione Cliente --</option>';
             (Array.isArray(data) ? data : []).forEach(c => {
@@ -726,8 +731,13 @@ function cargarKYC() {
     const preview = document.getElementById('kyc-preview');
     if (!id) { preview.style.display = 'none'; kycDataCache = null; return; }
     fetch('api/get_cliente_kyc_pld.php?id=' + id)
-        .then(r => r.json())
-        .then(res => {
+        .then(r => r.text())
+        .then(text => {
+            let res;
+            try { res = JSON.parse(text); } catch (e) {
+                console.error('get_cliente_kyc_pld: respuesta inválida', text.substring(0, 200));
+                preview.style.display = 'none'; kycDataCache = null; return;
+            }
             if (res.status !== 'success') { preview.style.display = 'none'; kycDataCache = null; return; }
             const k = res.kyc;
             kycDataCache = k;
@@ -919,7 +929,7 @@ function leerDuenoBeneficiario() {
         telefono: {
             clave_pais: v('db_tel_clave_pais'),
             numero_telefono: v('db_tel_numero'),
-            correo_electronico: v('db_tel_correo') || undefined
+            correo_electronico: (v('db_tel_correo') || '').trim() ? (v('db_tel_correo') || '').toUpperCase() : undefined
         }
     };
 }
@@ -955,7 +965,12 @@ function validarFormularioTSC() {
     if (!mesRep || !/^\d{6}$/.test(mesRep)) { Swal.fire('Error', 'Mes reportado debe ser 6 dígitos (AAAAMM)', 'error'); return false; }
     const mm = parseInt(mesRep.substring(4, 6), 10);
     if (mm < 1 || mm > 12) { Swal.fire('Error', 'Mes reportado: mes inválido (01-12)', 'error'); return false; }
-    if (!v('clave_sujeto_obligado')) { Swal.fire('Error', 'Clave Sujeto Obligado es obligatoria', 'error'); return false; }
+    const claveSO = (v('clave_sujeto_obligado') || '').replace(/[^A-Za-z0-9Ñ&]/g, '').toUpperCase();
+    if (!claveSO) { Swal.fire('Error', 'Clave Sujeto Obligado es obligatoria', 'error'); return false; }
+    if (!/^[A-ZÑ&]{3,4}\d{6}[A-Z0-9]{3}$/.test(claveSO)) {
+        Swal.fire('Error', 'Clave Sujeto Obligado debe ser RFC: 3-4 letras + 6 dígitos + 3 caracteres (ej: ABC010203AB1). No usar folio o texto libre.', 'error');
+        return false;
+    }
     const refAviso = v('referencia_aviso');
     if (!refAviso) { Swal.fire('Error', 'Referencia del aviso es obligatoria', 'error'); return false; }
     if (!/^[A-ZÑ0-9]{1,14}$/i.test(refAviso)) { Swal.fire('Error', 'Referencia: solo A-Z, Ñ, 0-9, máx 14 caracteres', 'error'); return false; }
@@ -1006,6 +1021,34 @@ function validarFormularioTSC() {
             return false;
         }
     }
+    // Validación de formato RFC, CURP, fechas YYYYMMDD
+    const rfc13 = /^[A-ZÑ&]{4}\d{6}[A-Z0-9]{3}$/i;
+    const rfc12 = /^[A-ZÑ&]{3}\d{6}[A-Z0-9]{3}$/i;
+    const curp18 = /^[A-Z]{4}\d{6}[HM][A-Z]{5}[0-9A]\d$/i;
+    const fecha8 = /^\d{8}$/;
+    const validarRfc = (val, len) => (len === 12 ? rfc12 : rfc13).test((val || '').replace(/\s/g, ''));
+    const validarCurp = (val) => curp18.test((val || '').replace(/\s/g, ''));
+    const validarFecha8 = (val) => fecha8.test((val || '').replace(/-/g, ''));
+    if (tipoPers === 'persona_fisica') {
+        if (!validarRfc(v('pf_rfc'), 13)) { Swal.fire('Error', 'RFC Persona Física: formato inválido (13 car. ej: LOPG900101ABC)', 'error'); return false; }
+        if (!validarCurp(v('pf_curp'))) { Swal.fire('Error', 'CURP: formato inválido (18 car. ej: LOPG900101HDFLRN01)', 'error'); return false; }
+        if (!validarFecha8(v('pf_fecha_nacimiento'))) { Swal.fire('Error', 'Fecha nacimiento: formato YYYYMMDD (ej: 19900101)', 'error'); return false; }
+    } else if (tipoPers === 'persona_moral') {
+        if (v('pm_rfc') && !validarRfc(v('pm_rfc'), 12)) { Swal.fire('Error', 'RFC Persona Moral: formato inválido (12 car.)', 'error'); return false; }
+        if (!validarFecha8(v('pm_fecha_constitucion'))) { Swal.fire('Error', 'Fecha constitución: formato YYYYMMDD', 'error'); return false; }
+        if (!validarRfc(v('pm_rep_rfc'), 13)) { Swal.fire('Error', 'RFC Representante: formato inválido (13 car.)', 'error'); return false; }
+        if (!validarCurp(v('pm_rep_curp'))) { Swal.fire('Error', 'CURP Representante: formato inválido (18 car.)', 'error'); return false; }
+        if (!validarFecha8(v('pm_rep_fecha_nacimiento'))) { Swal.fire('Error', 'Fecha nacimiento representante: formato YYYYMMDD', 'error'); return false; }
+    } else {
+        if (!validarRfc(v('fid_rfc'), 12)) { Swal.fire('Error', 'RFC Fideicomiso: formato inválido (12 car.)', 'error'); return false; }
+        if (!validarRfc(v('fid_apod_rfc'), 13)) { Swal.fire('Error', 'RFC Apoderado: formato inválido (13 car.)', 'error'); return false; }
+        if (!validarCurp(v('fid_apod_curp'))) { Swal.fire('Error', 'CURP Apoderado: formato inválido (18 car.)', 'error'); return false; }
+        if (!validarFecha8(v('fid_apod_fecha_nacimiento'))) { Swal.fire('Error', 'Fecha nacimiento apoderado: formato YYYYMMDD', 'error'); return false; }
+    }
+    const correoVal = (v('tel_correo') || '').trim();
+    if (correoVal && !/^[A-Za-z0-9._%+-]+@[A-Za-z0-9.-]+\.[A-Za-z]{2,}$/.test(correoVal)) {
+        Swal.fire('Error', 'Correo electrónico: formato inválido', 'error'); return false;
+    }
 
     const incluirDb = document.getElementById('incluir_dueno_beneficiario').checked;
     if (incluirDb) {
@@ -1031,6 +1074,24 @@ function validarFormularioTSC() {
         if (domTipo === 'nacional') {
             const dbCp = v('db_dom_codigo_postal');
             if (!/^\d{5}$/.test(dbCp)) { Swal.fire('Error', 'Código postal Dueño Beneficiario: 5 dígitos', 'error'); return false; }
+        }
+        if (tipo === 'persona_fisica') {
+            if (v('db_pf_rfc') && !validarRfc(v('db_pf_rfc'), 13)) { Swal.fire('Error', 'RFC Dueño Beneficiario PF: formato inválido', 'error'); return false; }
+            if (v('db_pf_curp') && !validarCurp(v('db_pf_curp'))) { Swal.fire('Error', 'CURP Dueño Beneficiario: formato inválido', 'error'); return false; }
+            if (v('db_pf_fecha_nacimiento') && !validarFecha8(v('db_pf_fecha_nacimiento'))) { Swal.fire('Error', 'Fecha nacimiento DB: formato YYYYMMDD', 'error'); return false; }
+        } else if (tipo === 'persona_moral') {
+            if (v('db_pm_rfc') && !validarRfc(v('db_pm_rfc'), 12)) { Swal.fire('Error', 'RFC DB Moral: formato inválido', 'error'); return false; }
+            if (v('db_pm_fecha_constitucion') && !validarFecha8(v('db_pm_fecha_constitucion'))) { Swal.fire('Error', 'Fecha constitución DB: formato YYYYMMDD', 'error'); return false; }
+            if (v('db_pm_rep_rfc') && !validarRfc(v('db_pm_rep_rfc'), 13)) { Swal.fire('Error', 'RFC Representante DB: formato inválido', 'error'); return false; }
+            if (v('db_pm_rep_curp') && !validarCurp(v('db_pm_rep_curp'))) { Swal.fire('Error', 'CURP Representante DB: formato inválido', 'error'); return false; }
+        } else {
+            if (v('db_fid_rfc') && !validarRfc(v('db_fid_rfc'), 12)) { Swal.fire('Error', 'RFC Fideicomiso DB: formato inválido', 'error'); return false; }
+            if (v('db_fid_apod_rfc') && !validarRfc(v('db_fid_apod_rfc'), 13)) { Swal.fire('Error', 'RFC Apoderado DB: formato inválido', 'error'); return false; }
+            if (v('db_fid_apod_curp') && !validarCurp(v('db_fid_apod_curp'))) { Swal.fire('Error', 'CURP Apoderado DB: formato inválido', 'error'); return false; }
+        }
+        const dbCorreo = (v('db_tel_correo') || '').trim();
+        if (dbCorreo && !/^[A-Za-z0-9._%+-]+@[A-Za-z0-9.-]+\.[A-Za-z]{2,}$/.test(dbCorreo)) {
+            Swal.fire('Error', 'Correo Dueño Beneficiario: formato inválido', 'error'); return false;
         }
     }
     return true;
@@ -1062,7 +1123,7 @@ function guardarAvisoTSC(e) {
                 telefono: {
                     clave_pais: v('tel_clave_pais'),
                     numero_telefono: v('tel_numero'),
-                    correo_electronico: v('tel_correo') || undefined
+                    correo_electronico: (v('tel_correo') || '').trim() ? (v('tel_correo') || '').toUpperCase() : undefined
                 }
             };
             if (document.getElementById('incluir_dueno_beneficiario').checked) {
@@ -1089,7 +1150,7 @@ function guardarAvisoTSC(e) {
     }
 
     const sujetoObligado = {
-        clave_sujeto_obligado: v('clave_sujeto_obligado'),
+        clave_sujeto_obligado: (v('clave_sujeto_obligado') || '').replace(/[^A-Za-z0-9Ñ&]/g, '').toUpperCase(),
         clave_actividad: v('clave_actividad'),
         exento: v('exento')
     };
@@ -1109,8 +1170,16 @@ function guardarAvisoTSC(e) {
         headers: {'Content-Type': 'application/json'},
         body: JSON.stringify(payload)
     })
-    .then(r => r.json())
-    .then(data => {
+    .then(r => r.text().then(t => ({ ok: r.ok, status: r.status, text: t })))
+    .then(({ ok, status, text }) => {
+        let data;
+        try { data = JSON.parse(text); } catch (e) {
+            console.error('registrar_aviso_tsc: respuesta inválida (HTTP ' + status + ')', text.substring(0, 300));
+            const hint = (text.trim().indexOf('<') === 0) 
+                ? ' El servidor devolvió HTML (posible Xdebug). Desactive Xdebug en php.ini (xdebug.mode=off) para APIs.' 
+                : '';
+            throw new Error(!ok ? 'Error del servidor (HTTP ' + status + ').' + hint : 'Respuesta inválida.');
+        }
         if (btn) {
             btn.disabled = false;
             btn.innerHTML = '<i class="fa-solid fa-paper-plane me-2"></i>Registrar y Generar XML';
@@ -1133,7 +1202,7 @@ function guardarAvisoTSC(e) {
             btn.innerHTML = '<i class="fa-solid fa-paper-plane me-2"></i>Registrar y Generar XML';
         }
         console.error(err);
-        Swal.fire('Error', 'Error de conexión', 'error');
+        Swal.fire('Error', err.message || 'Error de conexión', 'error');
     });
 }
 </script>

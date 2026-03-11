@@ -42,10 +42,12 @@ try {
 
     $ch = curl_init($url);
     curl_setopt($ch, CURLOPT_RETURNTRANSFER, true);
-    curl_setopt($ch, CURLOPT_TIMEOUT, 12);
-    curl_setopt($ch, CURLOPT_CONNECTTIMEOUT, 5);
-    curl_setopt($ch, CURLOPT_USERAGENT, 'EVE360-PLD/1.0 (reverse-geocode)');
+    curl_setopt($ch, CURLOPT_TIMEOUT, 15);
+    curl_setopt($ch, CURLOPT_CONNECTTIMEOUT, 8);
+    // Nominatim requiere User-Agent identificable (política de uso)
+    curl_setopt($ch, CURLOPT_USERAGENT, 'EVE360-PLD/1.0 (reverse-geocode; cumplimiento PLD)');
     curl_setopt($ch, CURLOPT_HTTPHEADER, ['Accept: application/json']);
+    curl_setopt($ch, CURLOPT_ENCODING, 'gzip, deflate');
 
     $response = curl_exec($ch);
     $httpCode = (int)curl_getinfo($ch, CURLINFO_HTTP_CODE);
@@ -55,6 +57,9 @@ try {
     if ($response === false || $httpCode < 200 || $httpCode >= 300) {
         http_response_code(502);
         $msg = $curlError !== '' ? $curlError : ('HTTP ' . $httpCode . ' al consultar geocodificación.');
+        if ($httpCode === 429) {
+            $msg = 'Límite de solicitudes excedido. Espere un momento e intente de nuevo, o ingrese la dirección manualmente.';
+        }
         echo json_encode(['status' => 'error', 'message' => 'No se pudo consultar geocodificación: ' . $msg]);
         exit;
     }
@@ -67,7 +72,9 @@ try {
     }
 
     $address = is_array($payload['address'] ?? null) ? $payload['address'] : [];
-    if (empty($address)) {
+    $displayName = trim((string)($payload['display_name'] ?? ''));
+
+    if (empty($address) && $displayName === '') {
         echo json_encode(['status' => 'success', 'data' => null]);
         exit;
     }
@@ -84,18 +91,46 @@ try {
     $streetNumber = pickAddressField($address, ['house_number']);
     $street = trim($streetName . ($streetNumber !== '' ? ' ' . $streetNumber : ''));
 
+    // Si address está vacío pero hay display_name, intentar extraer algo (zonas rurales/remotas)
+    if (empty($address) && $displayName !== '') {
+        $parts = array_map('trim', explode(',', $displayName));
+        $parts = array_values(array_filter($parts));
+        $n = count($parts);
+        if ($n >= 1 && $street === '') {
+            $street = $parts[0];
+        }
+        if ($n >= 2 && $colony === '') {
+            $colony = $parts[1];
+        }
+        foreach ($parts as $p) {
+            if (preg_match('/^\d{5}$/', $p) && $postalCode === '') {
+                $postalCode = $p;
+                break;
+            }
+        }
+        if ($n >= 4 && $municipality === '') {
+            $municipality = $parts[$n - 4] ?? $parts[$n - 3] ?? '';
+        }
+        if ($n >= 3 && $state === '') {
+            $state = $parts[$n - 3] ?? $parts[$n - 2] ?? '';
+        }
+    }
+
+    $result = [
+        'state' => $state,
+        'municipality' => $municipality,
+        'colony' => $colony,
+        'postal_code' => $postalCode,
+        'street' => $street,
+        'display_name' => $displayName,
+        'lat' => (string)($payload['lat'] ?? $lat),
+        'lng' => (string)($payload['lon'] ?? $lng)
+    ];
+    // Devolver null solo si no hay ningún dato útil
+    $hasAny = ($state !== '' || $municipality !== '' || $colony !== '' || $postalCode !== '' || $street !== '' || $displayName !== '');
     echo json_encode([
         'status' => 'success',
-        'data' => [
-            'state' => $state,
-            'municipality' => $municipality,
-            'colony' => $colony,
-            'postal_code' => $postalCode,
-            'street' => $street,
-            'display_name' => (string)($payload['display_name'] ?? ''),
-            'lat' => (string)($payload['lat'] ?? ''),
-            'lng' => (string)($payload['lon'] ?? '')
-        ]
+        'data' => $hasAny ? $result : null
     ]);
 } catch (Throwable $e) {
     http_response_code(500);

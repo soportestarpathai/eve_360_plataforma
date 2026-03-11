@@ -24,10 +24,10 @@ if (!function_exists('tscToUpper')) {
 
 if (!function_exists('tscSanitizeRef')) {
     /** referencia_aviso: [A-ZÑ0-9]{1,14} | numero_identificador: [A-Z0-9]{1,18} */
-    function tscSanitizeRef($val, $allowÑ = true): string {
+    function tscSanitizeRef($val, $allowEnie = true): string {
         $v = tscToUpper($val);
-        $v = preg_replace($allowÑ ? '/[^A-ZÑ0-9]/u' : '/[^A-Z0-9]/u', '', $v);
-        return substr($v, 0, $allowÑ ? 14 : 18);
+        $v = preg_replace($allowEnie ? '/[^A-Z\x{00D1}0-9]/u' : '/[^A-Z0-9]/u', '', $v);
+        return substr($v, 0, $allowEnie ? 14 : 18);
     }
 }
 
@@ -35,8 +35,26 @@ if (!function_exists('tscSanitizeDesc')) {
     /** descripcion_1-3000: [A-ZÑ\d \-\.,':/$]{1,3000} */
     function tscSanitizeDesc($val): string {
         $v = tscToUpper(trim((string)$val));
-        $v = preg_replace('/[^A-ZÑ0-9 \-\.,\':\/$]/u', '', $v);
+        $v = preg_replace('/[^A-Z\x{00D1}0-9 \-\.,\':\/$]/u', '', $v);
         return substr($v, 0, 3000);
+    }
+}
+
+/** clave_sujeto_obligado: formato RFC (3-4 letras, 6 dígitos, 3 caracteres). Solo A-ZÑ0-9, 12-13 chars */
+if (!function_exists('tscSanitizeClaveSO')) {
+    function tscSanitizeClaveSO($val): string {
+        $v = tscToUpper(trim((string)$val));
+        $v = preg_replace('/[^A-Z\x{00D1}0-9]/u', '', $v);
+        return substr($v, 0, 13);
+    }
+}
+
+/** Valida clave_sujeto_obligado con regex RFC: 3-4 letras + 6 dígitos + 3 caracteres */
+if (!function_exists('tscValidarClaveSO')) {
+    function tscValidarClaveSO($val): bool {
+        $v = trim((string)$val);
+        if ($v === '') return false;
+        return (bool) preg_match('/^[A-Z\x{00D1}&]{3,4}\d{6}[A-Z0-9]{3}$/u', tscToUpper($v));
     }
 }
 
@@ -56,12 +74,25 @@ if (!function_exists('generateTSCXml')) {
             if ($value === '') return null;
             if (in_array($name, ['monto_gasto'])) {
                 $value = formatMontoTsc($value);
+            } elseif ($name === 'clave_sujeto_obligado') {
+                $value = tscSanitizeClaveSO($value);
+            } elseif ($name === 'correo_electronico') {
+                $value = tscToUpper($value);
+            } elseif (in_array($name, ['fecha_nacimiento', 'fecha_constitucion'])) {
+                $value = preg_replace('/[^0-9]/', '', $value);
+                $value = strlen($value) === 8 ? $value : '';
             } elseif ($name === 'referencia_aviso') {
                 $value = tscSanitizeRef($value, true);
             } elseif ($name === 'numero_identificador') {
                 $value = tscSanitizeRef($value, false);
             } elseif (in_array($name, ['descripcion_alerta','descripcion_modificacion'])) {
                 $value = tscSanitizeDesc($value);
+            } elseif (in_array($name, ['tipo_operacion', 'tipo_alerta'])) {
+                $value = preg_replace('/[^0-9]/', '', $value);
+                $value = strlen($value) >= 3 ? substr($value, 0, 4) : str_pad($value, 3, '0', STR_PAD_LEFT);
+            } elseif ($name === 'actividad_economica') {
+                $value = preg_replace('/[^0-9]/', '', $value);
+                $value = str_pad(substr($value, 0, 7), 7, '0', STR_PAD_LEFT);
             } elseif (in_array($name, $UPPER_FIELDS)) {
                 $value = tscToUpper($value);
             }
@@ -93,8 +124,8 @@ if (!function_exists('generateTSCXml')) {
                 $pm = $pData['persona_moral'];
                 $pmEl = $mkEl($dom, $parent, $ns, 'persona_moral');
                 $addEl($dom, $pmEl, $ns, 'denominacion_razon', $pm['denominacion_razon'] ?? null);
-                $addEl($dom, $pmEl, $ns, 'rfc', $pm['rfc'] ?? null);
                 $addEl($dom, $pmEl, $ns, 'fecha_constitucion', $pm['fecha_constitucion'] ?? null);
+                $addEl($dom, $pmEl, $ns, 'rfc', $pm['rfc'] ?? null);
                 $addEl($dom, $pmEl, $ns, 'pais_nacionalidad', $pm['pais_nacionalidad'] ?? null);
                 $addEl($dom, $pmEl, $ns, 'giro_mercantil', $pm['giro_mercantil'] ?? null);
                 if (isset($pm['representante_apoderado']) && is_array($pm['representante_apoderado'])) {
@@ -126,6 +157,34 @@ if (!function_exists('generateTSCXml')) {
             }
         };
 
+        /** tipo_persona_simple (dueno_beneficiario): sin actividad_economica, sin representante en persona_moral/fideicomiso completo */
+        $writePersonaSimple = function(DOMDocument $dom, DOMElement $parent, string $ns, array $pData) use ($addEl, $mkEl) {
+            if (isset($pData['persona_fisica']) && is_array($pData['persona_fisica'])) {
+                $pf = $pData['persona_fisica'];
+                $pfEl = $mkEl($dom, $parent, $ns, 'persona_fisica');
+                $addEl($dom, $pfEl, $ns, 'nombre', $pf['nombre'] ?? null);
+                $addEl($dom, $pfEl, $ns, 'apellido_paterno', $pf['apellido_paterno'] ?? null);
+                $addEl($dom, $pfEl, $ns, 'apellido_materno', $pf['apellido_materno'] ?? null);
+                $addEl($dom, $pfEl, $ns, 'fecha_nacimiento', $pf['fecha_nacimiento'] ?? null);
+                $addEl($dom, $pfEl, $ns, 'rfc', $pf['rfc'] ?? null);
+                $addEl($dom, $pfEl, $ns, 'curp', $pf['curp'] ?? null);
+                $addEl($dom, $pfEl, $ns, 'pais_nacionalidad', $pf['pais_nacionalidad'] ?? null);
+            } elseif (isset($pData['persona_moral']) && is_array($pData['persona_moral'])) {
+                $pm = $pData['persona_moral'];
+                $pmEl = $mkEl($dom, $parent, $ns, 'persona_moral');
+                $addEl($dom, $pmEl, $ns, 'denominacion_razon', $pm['denominacion_razon'] ?? null);
+                $addEl($dom, $pmEl, $ns, 'fecha_constitucion', $pm['fecha_constitucion'] ?? null);
+                $addEl($dom, $pmEl, $ns, 'rfc', $pm['rfc'] ?? null);
+                $addEl($dom, $pmEl, $ns, 'pais_nacionalidad', $pm['pais_nacionalidad'] ?? null);
+            } elseif (isset($pData['fideicomiso']) && is_array($pData['fideicomiso'])) {
+                $fi = $pData['fideicomiso'];
+                $fiEl = $mkEl($dom, $parent, $ns, 'fideicomiso');
+                $addEl($dom, $fiEl, $ns, 'denominacion_razon', $fi['denominacion_razon'] ?? null);
+                $addEl($dom, $fiEl, $ns, 'rfc', $fi['rfc'] ?? null);
+                $addEl($dom, $fiEl, $ns, 'identificador_fideicomiso', $fi['identificador_fideicomiso'] ?? null);
+            }
+        };
+
         $writeDomicilio = function(DOMDocument $dom, DOMElement $parent, string $ns, array $dData) use ($addEl, $mkEl) {
             if (isset($dData['nacional']) && is_array($dData['nacional'])) {
                 $n = $dData['nacional'];
@@ -133,7 +192,7 @@ if (!function_exists('generateTSCXml')) {
                 $addEl($dom, $nEl, $ns, 'colonia', $n['colonia'] ?? null);
                 $addEl($dom, $nEl, $ns, 'calle', $n['calle'] ?? null);
                 $addEl($dom, $nEl, $ns, 'numero_exterior', $n['numero_exterior'] ?? null);
-                if (!empty(trim($n['numero_interior'] ?? ''))) {
+                if (trim($n['numero_interior'] ?? '') !== '') {
                     $addEl($dom, $nEl, $ns, 'numero_interior', $n['numero_interior']);
                 }
                 $addEl($dom, $nEl, $ns, 'codigo_postal', $n['codigo_postal'] ?? null);
@@ -142,7 +201,7 @@ if (!function_exists('generateTSCXml')) {
                 $xEl = $mkEl($dom, $parent, $ns, 'extranjero');
                 $cpExt = trim($x['codigo_postal'] ?? '');
                 if ($cpExt !== '') {
-                    $cpExt = substr(preg_replace('/[^A-ZÑ0-9]/u', '', tscToUpper($cpExt)), 0, 12);
+                    $cpExt = substr(preg_replace('/[^A-Z\x{00D1}0-9]/u', '', tscToUpper($cpExt)), 0, 12);
                 }
                 $addEl($dom, $xEl, $ns, 'pais', $x['pais'] ?? null);
                 $addEl($dom, $xEl, $ns, 'estado_provincia', $x['estado_provincia'] ?? null);
@@ -150,7 +209,7 @@ if (!function_exists('generateTSCXml')) {
                 $addEl($dom, $xEl, $ns, 'colonia', $x['colonia'] ?? null);
                 $addEl($dom, $xEl, $ns, 'calle', $x['calle'] ?? null);
                 $addEl($dom, $xEl, $ns, 'numero_exterior', $x['numero_exterior'] ?? null);
-                if (!empty(trim($x['numero_interior'] ?? ''))) {
+                if (trim($x['numero_interior'] ?? '') !== '') {
                     $addEl($dom, $xEl, $ns, 'numero_interior', $x['numero_interior']);
                 }
                 $addEl($dom, $xEl, $ns, 'codigo_postal', $cpExt !== '' ? $cpExt : ($x['codigo_postal'] ?? null));
@@ -174,7 +233,7 @@ if (!function_exists('generateTSCXml')) {
             $so = $inf['sujeto_obligado'] ?? [];
             if (!is_array($so)) $so = [];
             $soEl = $mkEl($dom, $informeEl, $NS, 'sujeto_obligado');
-            if (!empty(trim($so['clave_entidad_colegiada'] ?? ''))) {
+            if (trim($so['clave_entidad_colegiada'] ?? '') !== '') {
                 $addEl($dom, $soEl, $NS, 'clave_entidad_colegiada', $so['clave_entidad_colegiada']);
             }
             $addEl($dom, $soEl, $NS, 'clave_sujeto_obligado', $so['clave_sujeto_obligado'] ?? null);
@@ -207,12 +266,20 @@ if (!function_exists('generateTSCXml')) {
                     $addEl($dom, $alertaEl, $NS, 'descripcion_alerta', $alerta['descripcion_alerta'] ?? null);
                 }
 
-                /* persona_aviso */
-                $personaAviso = $av['persona_aviso'] ?? [];
-                if (is_array($personaAviso)) {
+                /* persona_aviso (maxOccurs="unbounded" - puede ser array o objeto único) */
+                $personaAvisoRaw = $av['persona_aviso'] ?? [];
+                $personasList = is_array($personaAvisoRaw) && isset($personaAvisoRaw['tipo_persona'])
+                    ? [$personaAvisoRaw]
+                    : (is_array($personaAvisoRaw) ? $personaAvisoRaw : []);
+                $duenoBeneficiarioData = null;
+                foreach ($personasList as $personaAviso) {
+                    if (!is_array($personaAviso)) continue;
+                    if (isset($personaAviso['dueno_beneficiario']) && $duenoBeneficiarioData === null) {
+                        $duenoBeneficiarioData = $personaAviso['dueno_beneficiario'];
+                    }
                     $paEl = $mkEl($dom, $avisoEl, $NS, 'persona_aviso');
                     $tipoPersona = $personaAviso['tipo_persona'] ?? [];
-                    if (is_array($tipoPersona)) {
+                    if (is_array($tipoPersona) && !empty($tipoPersona)) {
                         $tpEl = $mkEl($dom, $paEl, $NS, 'tipo_persona');
                         $writePersona($dom, $tpEl, $NS, $tipoPersona);
                     }
@@ -222,53 +289,39 @@ if (!function_exists('generateTSCXml')) {
                         $writeDomicilio($dom, $tdEl, $NS, $tipoDomicilio);
                     }
                     $telefono = $personaAviso['telefono'] ?? [];
-                    if (is_array($telefono) && !empty($telefono)) {
+                    $numTel = trim($telefono['numero_telefono'] ?? '');
+                    if (is_array($telefono) && $numTel !== '') {
                         $telEl = $mkEl($dom, $paEl, $NS, 'telefono');
                         $addEl($dom, $telEl, $NS, 'clave_pais', $telefono['clave_pais'] ?? null);
                         $addEl($dom, $telEl, $NS, 'numero_telefono', $telefono['numero_telefono'] ?? null);
                         $addEl($dom, $telEl, $NS, 'correo_electronico', $telefono['correo_electronico'] ?? null);
                     }
-
-                    /* dueno_beneficiario (opcional, misma estructura que persona_aviso) */
-                    $duenoBenef = $personaAviso['dueno_beneficiario'] ?? null;
-                    $dbTp = is_array($duenoBenef) ? ($duenoBenef['tipo_persona'] ?? []) : [];
-                    $dbHasData = false;
-                    if (isset($dbTp['persona_fisica']) && is_array($dbTp['persona_fisica'])) {
-                        $pf = $dbTp['persona_fisica'];
-                        $dbHasData = !empty(trim($pf['nombre'] ?? ''));
-                    } elseif (isset($dbTp['persona_moral']) && is_array($dbTp['persona_moral'])) {
-                        $pm = $dbTp['persona_moral'];
-                        $dbHasData = !empty(trim($pm['denominacion_razon'] ?? ''));
-                    } elseif (isset($dbTp['fideicomiso']) && is_array($dbTp['fideicomiso'])) {
-                        $fi = $dbTp['fideicomiso'];
-                        $dbHasData = !empty(trim($fi['denominacion_razon'] ?? ''));
-                    }
-                    if ($dbHasData) {
-                        $dbEl = $mkEl($dom, $paEl, $NS, 'dueno_beneficiario');
-                        $dbTipoPersona = $duenoBenef['tipo_persona'] ?? [];
-                        if (is_array($dbTipoPersona)) {
+                }
+                /* dueno_beneficiario (opcional, a nivel aviso) — XSD: solo tipo_persona (tipo_persona_simple_type) */
+                $duenoBenef = $duenoBeneficiarioData ?? $av['dueno_beneficiario'] ?? null;
+                if (is_array($duenoBenef)) {
+                    $dbList = isset($duenoBenef['tipo_persona']) ? [$duenoBenef] : $duenoBenef;
+                    foreach ($dbList as $db) {
+                        if (!is_array($db)) continue;
+                        $dbTp = $db['tipo_persona'] ?? [];
+                        $dbHasData = false;
+                        if (isset($dbTp['persona_fisica']) && is_array($dbTp['persona_fisica']) && trim($dbTp['persona_fisica']['nombre'] ?? '') !== '') $dbHasData = true;
+                        elseif (isset($dbTp['persona_moral']) && is_array($dbTp['persona_moral']) && trim($dbTp['persona_moral']['denominacion_razon'] ?? '') !== '') $dbHasData = true;
+                        elseif (isset($dbTp['fideicomiso']) && is_array($dbTp['fideicomiso']) && trim($dbTp['fideicomiso']['denominacion_razon'] ?? '') !== '') $dbHasData = true;
+                        if ($dbHasData) {
+                            $dbEl = $mkEl($dom, $avisoEl, $NS, 'dueno_beneficiario');
                             $dbTpEl = $mkEl($dom, $dbEl, $NS, 'tipo_persona');
-                            $writePersona($dom, $dbTpEl, $NS, $dbTipoPersona);
-                        }
-                        $dbTipoDomicilio = $duenoBenef['tipo_domicilio'] ?? [];
-                        if (is_array($dbTipoDomicilio) && !empty($dbTipoDomicilio)) {
-                            $dbTdEl = $mkEl($dom, $dbEl, $NS, 'tipo_domicilio');
-                            $writeDomicilio($dom, $dbTdEl, $NS, $dbTipoDomicilio);
-                        }
-                        $dbTelefono = $duenoBenef['telefono'] ?? [];
-                        if (is_array($dbTelefono) && !empty($dbTelefono)) {
-                            $dbTelEl = $mkEl($dom, $dbEl, $NS, 'telefono');
-                            $addEl($dom, $dbTelEl, $NS, 'clave_pais', $dbTelefono['clave_pais'] ?? null);
-                            $addEl($dom, $dbTelEl, $NS, 'numero_telefono', $dbTelefono['numero_telefono'] ?? null);
-                            $addEl($dom, $dbTelEl, $NS, 'correo_electronico', $dbTelefono['correo_electronico'] ?? null);
+                            $writePersonaSimple($dom, $dbTpEl, $NS, $dbTp);
                         }
                     }
                 }
 
                 /* detalle_operaciones TSC */
                 $detalleEl = $mkEl($dom, $avisoEl, $NS, 'detalle_operaciones');
-                $detalles = $av['detalle_operaciones'] ?? [];
-                if (!is_array($detalles)) $detalles = [];
+                $detallesRaw = $av['detalle_operaciones'] ?? [];
+                $detalles = (is_array($detallesRaw) && isset($detallesRaw['datos_operacion']))
+                    ? [$detallesRaw]
+                    : (is_array($detallesRaw) ? $detallesRaw : []);
 
                 foreach ($detalles as $det) {
                     if (!is_array($det)) continue;

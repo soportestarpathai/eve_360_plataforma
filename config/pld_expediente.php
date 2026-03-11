@@ -6,7 +6,24 @@
  * VAL-PLD-005: Valida que el expediente esté completo
  * VAL-PLD-006: Valida que el expediente se actualice al menos 1 vez al año
  * VAL-PLD-026: Negativa de identificación del cliente → operación bloqueada
+ * 
+ * Validación por anexo (Art. 12 RCG): Anexo 3, 4, 4 Bis, 5, 6, 6 Bis, 7, 7 Bis, 8
  */
+
+require_once __DIR__ . '/pld_anexo_helper.php';
+
+if (!function_exists('_pld_col_exists')) {
+    function _pld_col_exists(PDO $pdo, $table, $col) {
+        static $cache = [];
+        $key = $table . '.' . $col;
+        if (!isset($cache[$key])) {
+            $stmt = $pdo->prepare("SELECT COUNT(*) FROM INFORMATION_SCHEMA.COLUMNS WHERE TABLE_SCHEMA = DATABASE() AND TABLE_NAME = ? AND COLUMN_NAME = ?");
+            $stmt->execute([$table, $col]);
+            $cache[$key] = $stmt->fetchColumn() > 0;
+        }
+        return $cache[$key];
+    }
+}
 
 if (!function_exists('validateExpedienteCompleto')) {
     
@@ -39,6 +56,12 @@ if (!function_exists('validateExpedienteCompleto')) {
             }
             
             $faltantes = [];
+
+            // Obtener anexo aplicable (si existe cat_anexo_expediente)
+            $anexo = ['id_anexo' => null, 'clave' => null, 'simplificado' => false];
+            if (function_exists('getAnexoApplicable')) {
+                $anexo = getAnexoApplicable($pdo, $id_cliente, false);
+            }
             
             // Validar datos básicos según tipo de persona
             if ($cliente['es_fisica'] > 0) {
@@ -48,6 +71,12 @@ if (!function_exists('validateExpedienteCompleto')) {
                 
                 if (!$fisica || empty($fisica['nombre']) || empty($fisica['apellido_paterno'])) {
                     $faltantes[] = 'Datos básicos de persona física (nombre, apellidos)';
+                }
+                // Anexo 5 (PF extranjera visitante): requiere fecha de ingreso al país
+                if ($anexo['clave'] === 'ANEXO_5' && _pld_col_exists($pdo, 'clientes_fisicas', 'fecha_ingreso_pais')) {
+                    if (empty($fisica['fecha_ingreso_pais'])) {
+                        $faltantes[] = 'Fecha de ingreso al país (Anexo 5 - extranjero visitante)';
+                    }
                 }
             } elseif ($cliente['es_moral'] > 0) {
                 $stmt = $pdo->prepare("SELECT * FROM clientes_morales WHERE id_cliente = ?");
@@ -136,6 +165,26 @@ if (!function_exists('validateExpedienteCompleto')) {
             $countDocumentos = (int)($documentos['count'] ?? 0);
             if ($countDocumentos == 0) {
                 $faltantes[] = 'Documentos de soporte';
+            }
+
+            // Check: Documentos vistos en original o copia certificada (Reglas - requisito previo)
+            if (_pld_col_exists($pdo, 'clientes', 'documentos_vistos_original_certificado')) {
+                $stmtDv = $pdo->prepare("SELECT documentos_vistos_original_certificado FROM clientes WHERE id_cliente = ?");
+                $stmtDv->execute([$id_cliente]);
+                $docVistos = $stmtDv->fetchColumn();
+                if (empty($docVistos)) {
+                    $faltantes[] = 'Confirmación: trabajador tuvo a la vista documentos originales o copia certificada';
+                }
+            }
+
+            // Clasificación bajo riesgo sin Manual de Políticas vinculado
+            if (!empty($cliente['clasificacion_bajo_riesgo']) && _pld_col_exists($pdo, 'clientes', 'id_manual_politicas_clasificacion')) {
+                $stmtMp = $pdo->prepare("SELECT id_manual_politicas_clasificacion FROM clientes WHERE id_cliente = ?");
+                $stmtMp->execute([$id_cliente]);
+                $idManual = $stmtMp->fetchColumn();
+                if (empty($idManual)) {
+                    $faltantes[] = 'Vinculación al Manual de Políticas (clasificación bajo riesgo requiere criterios documentados Art. 37)';
+                }
             }
             
             // Log para debug

@@ -61,6 +61,22 @@ document.addEventListener('DOMContentLoaded', async function() {
         // Setup dynamic list builders
         setupDynamicBuilders();
         
+        // KYC Expediente: tipo residencia show/hide fecha ingreso
+        const tipoResidenciaSelect = document.getElementById('id_tipo_residencia');
+        const fechaIngresoContainer = document.getElementById('fisica_fecha_ingreso_container');
+        if (tipoResidenciaSelect && fechaIngresoContainer) {
+            tipoResidenciaSelect.addEventListener('change', function() {
+                fechaIngresoContainer.style.display = (this.value === '4') ? 'block' : 'none';
+            });
+        }
+        const clasifBajoRiesgo = document.getElementById('clasificacion_bajo_riesgo');
+        const manualContainer = document.getElementById('manual_politicas_container');
+        if (clasifBajoRiesgo && manualContainer) {
+            clasifBajoRiesgo.addEventListener('change', function() {
+                manualContainer.style.display = this.checked ? 'block' : 'none';
+            });
+        }
+
         // Status Change Logic
         const statusSelect = document.getElementById('id_status');
         if (statusSelect) {
@@ -137,6 +153,12 @@ function populateForm(data) {
                 if (fisicaFechaNacimiento) fisicaFechaNacimiento.value = data.persona.fecha_nacimiento || '';
                 if (fisicaTaxId) fisicaTaxId.value = data.persona.tax_id || '';
                 if (fisicaCurp) fisicaCurp.value = data.persona.CURP || '';
+                const fisicaPaisNac = document.getElementById('fisica_id_pais_nacimiento');
+                const fisicaFechaIngreso = document.getElementById('fisica_fecha_ingreso_pais');
+                const fisicaFechaIngresoContainer = document.getElementById('fisica_fecha_ingreso_container');
+                if (fisicaPaisNac) fisicaPaisNac.value = data.persona.id_pais_nacimiento || '';
+                if (fisicaFechaIngreso) fisicaFechaIngreso.value = data.persona.fecha_ingreso_pais || '';
+                if (fisicaFechaIngresoContainer) fisicaFechaIngresoContainer.style.display = (data.general?.id_tipo_residencia == 4) ? 'block' : 'none';
             }
         } else if (persona.es_moral > 0) {
             const moralSection = document.getElementById('persona-moral');
@@ -150,6 +172,12 @@ function populateForm(data) {
                 if (moralRazonSocial) moralRazonSocial.value = data.persona.razon_social || '';
                 if (moralFechaConstitucion) moralFechaConstitucion.value = data.persona.fecha_constitucion || '';
                 if (moralTaxId) moralTaxId.value = data.persona.tax_id || '';
+                const moralPaisNac = document.getElementById('moral_id_pais_nacionalidad');
+                const moralAnexo7a = document.getElementById('moral_id_anexo_7a');
+                const moralAnexo7Bis = document.getElementById('moral_id_anexo_7_bis_a');
+                if (moralPaisNac) moralPaisNac.value = data.persona.id_pais_nacionalidad || '';
+                if (moralAnexo7a) moralAnexo7a.value = data.persona.id_anexo_7a || '';
+                if (moralAnexo7Bis) moralAnexo7Bis.value = data.persona.id_anexo_7_bis_a || '';
             }
             if (apoderadosSection) apoderadosSection.style.display = 'block';
         } else if (persona.es_fideicomiso > 0) {
@@ -177,6 +205,39 @@ function populateForm(data) {
     // Re-build Apoderados list
     if (data.apoderados) data.apoderados.forEach(a => addApoderadoItem(a));
     
+    // 4b. Populate KYC/Expediente fields (tipo residencia, clasificación, manual)
+    const idTipoResidencia = document.getElementById('id_tipo_residencia');
+    if (idTipoResidencia && catalogs.tipos_residencia?.length) {
+        idTipoResidencia.innerHTML = '<option value="">-- Seleccione --</option>' +
+            catalogs.tipos_residencia.map(t => `<option value="${t.id_tipo_residencia}" ${t.id_tipo_residencia == data.general?.id_tipo_residencia ? 'selected' : ''}>${t.nombre}</option>`).join('');
+    }
+    const clasificacionBajoRiesgo = document.getElementById('clasificacion_bajo_riesgo');
+    const manualContainer = document.getElementById('manual_politicas_container');
+    if (clasificacionBajoRiesgo) {
+        clasificacionBajoRiesgo.checked = !!data.general?.clasificacion_bajo_riesgo;
+        if (manualContainer) manualContainer.style.display = clasificacionBajoRiesgo.checked ? 'block' : 'none';
+    }
+    const idManualPoliticas = document.getElementById('id_manual_politicas_clasificacion');
+    if (idManualPoliticas && catalogs.manual_politicas?.length) {
+        idManualPoliticas.innerHTML = '<option value="">-- Seleccione versión --</option>' +
+            catalogs.manual_politicas.map(m => `<option value="${m.id_manual}" ${m.id_manual == data.general?.id_manual_politicas_clasificacion ? 'selected' : ''}>${m.version || ''} ${m.fecha_vigencia ? '(' + m.fecha_vigencia + ')' : ''}</option>`).join('');
+    }
+    if (catalogs.paises?.length) {
+        const fisicaPaisNac = document.getElementById('fisica_id_pais_nacimiento');
+        const moralPaisNac = document.getElementById('moral_id_pais_nacionalidad');
+        const paisOpts = (sel, val) => '<option value="">-- Seleccione --</option>' + catalogs.paises.map(p => `<option value="${p.id_pais}" ${p.id_pais == val ? 'selected' : ''}>${p.nombre}</option>`).join('');
+        if (fisicaPaisNac) fisicaPaisNac.innerHTML = paisOpts(fisicaPaisNac, data.persona?.id_pais_nacimiento);
+        if (moralPaisNac) moralPaisNac.innerHTML = paisOpts(moralPaisNac, data.persona?.id_pais_nacionalidad);
+    }
+    if (catalogs.anexo_7a?.length) {
+        const moral7a = document.getElementById('moral_id_anexo_7a');
+        if (moral7a) moral7a.innerHTML = '<option value="">-- No aplica --</option>' + catalogs.anexo_7a.map(a => `<option value="${a.id_anexo_7a}" ${a.id_anexo_7a == data.persona?.id_anexo_7a ? 'selected' : ''}>${a.nombre}</option>`).join('');
+    }
+    if (catalogs.anexo_7_bis_a?.length) {
+        const moral7bis = document.getElementById('moral_id_anexo_7_bis_a');
+        if (moral7bis) moral7bis.innerHTML = '<option value="">-- No aplica --</option>' + catalogs.anexo_7_bis_a.map(a => `<option value="${a.id_anexo_7_bis_a}" ${a.id_anexo_7_bis_a == data.persona?.id_anexo_7_bis_a ? 'selected' : ''}>${a.nombre}</option>`).join('');
+    }
+
     // 5. Re-build Beneficiarios Controladores list
     if (data.beneficiarios_controladores) {
         const beneficiarioSection = document.getElementById('beneficiario-controlador-section');
@@ -194,6 +255,27 @@ function populateForm(data) {
             }
         }
     }
+
+    // Mostrar documentos requeridos según perfil (KYC)
+    updateDocumentosRequeridosHint(personaTypes.find(p => p.id_tipo_persona == data.general?.id_tipo_persona));
+}
+
+function updateDocumentosRequeridosHint(persona) {
+    const hint = document.getElementById('documentos-requeridos-hint');
+    const list = document.getElementById('documentos-requeridos-list');
+    if (!hint || !list) return;
+    let items = [];
+    if (persona && catalogs) {
+        if (persona.es_fisica > 0) items = catalogs.documentos_template_fisica || [];
+        else if (persona.es_moral > 0) items = catalogs.documentos_template_moral || [];
+        else if (persona.es_fideicomiso > 0) items = catalogs.documentos_template_fideicomiso || [];
+    }
+    if (items.length === 0) {
+        hint.style.display = 'none';
+        return;
+    }
+    list.innerHTML = items.map(d => '<li>' + (d.label || d.desc) + (d.required ? ' <span class="badge bg-primary">Requerido</span>' : '') + '</li>').join('');
+    hint.style.display = 'block';
 }
 
 function setupDynamicBuilders() {

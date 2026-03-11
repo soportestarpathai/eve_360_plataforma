@@ -1,8 +1,14 @@
 <?php
+ob_start();
+error_reporting(E_ALL);
+ini_set('display_errors', 0);
+ini_set('log_errors', 1);
 session_start();
 require_once '../config/db.php';
 require_once '../config/pld_expediente.php';
-header('Content-Type: application/json');
+require_once '../config/expediente_documentos_por_anexo.php';
+ob_end_clean();
+header('Content-Type: application/json; charset=utf-8');
 
 // Verificar conexión a la base de datos
 if (!isset($pdo) || $pdo === null) {
@@ -36,7 +42,33 @@ try {
     if (!isset($resultCompleto['faltantes']) || !is_array($resultCompleto['faltantes'])) {
         $resultCompleto['faltantes'] = [];
     }
+
+    // Anexo aplicable y check documentos vistos (Art. 12 RCG)
+    $anexo = ['id_anexo' => null, 'clave' => null, 'nombre' => null, 'simplificado' => false, 'razon' => null];
+    $documentosVistos = false;
+    $fechaDocVistos = null;
+    if (function_exists('getAnexoApplicable')) {
+        $anexo = getAnexoApplicable($pdo, $id_cliente, false);
+    }
+    try {
+        $chk = $pdo->query("SELECT COUNT(*) FROM INFORMATION_SCHEMA.COLUMNS WHERE TABLE_SCHEMA = DATABASE() AND TABLE_NAME = 'clientes' AND COLUMN_NAME = 'documentos_vistos_original_certificado'");
+        if ($chk && $chk->fetchColumn() > 0) {
+            $stmtDv = $pdo->prepare("SELECT documentos_vistos_original_certificado, fecha_documentos_vistos FROM clientes WHERE id_cliente = ?");
+            $stmtDv->execute([$id_cliente]);
+            $rowDv = $stmtDv->fetch(PDO::FETCH_ASSOC);
+            if ($rowDv) {
+                $documentosVistos = !empty($rowDv['documentos_vistos_original_certificado']);
+                $fechaDocVistos = $rowDv['fecha_documentos_vistos'] ?? null;
+            }
+        }
+    } catch (Exception $e) { /* columnas no existen aún */ }
     
+    // Documentos requeridos según anexo aplicable (Reglas KYC EVE360)
+    $documentosRequeridos = [];
+    if (function_exists('getDocumentosRequeridosPorAnexo') && !empty($anexo['clave'])) {
+        $documentosRequeridos = getDocumentosRequeridosPorAnexo($anexo['clave']);
+    }
+
     // Log para debug
     error_log("API validate_expediente_pld Cliente $id_cliente: " .
              "Completo=" . ($resultCompleto['completo'] ? 'SÍ' : 'NO') . ", " .
@@ -47,7 +79,11 @@ try {
         'status' => 'success',
         'completitud' => $resultCompleto,
         'actualizacion' => $resultActualizacion,
-        'valido' => $resultCompleto['completo'] && $resultActualizacion['actualizado']
+        'valido' => $resultCompleto['completo'] && $resultActualizacion['actualizado'],
+        'anexo' => $anexo,
+        'documentos_vistos' => $documentosVistos,
+        'fecha_documentos_vistos' => $fechaDocVistos,
+        'documentos_requeridos' => $documentosRequeridos
     ], JSON_UNESCAPED_UNICODE);
     
 } catch (Exception $e) {

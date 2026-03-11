@@ -1,18 +1,18 @@
 <?php
 /**
  * PLD Middleware
- * Bloquea transacciones PLD según todas las validaciones PLD
+ * Bloquea transacciones PLD seg?n todas las validaciones PLD
  * 
- * VAL-PLD-001: Validación de padrón PLD
- * VAL-PLD-002: Revalidación Periódica
- * VAL-PLD-003: Validación de responsable PLD
- * VAL-PLD-004: Representación Legal del Usuario
- * VAL-PLD-005: Integración de Expediente
- * VAL-PLD-006: Actualización Anual del Expediente
- * VAL-PLD-007: Identificación de Beneficiario Controlador
+ * VAL-PLD-001: Validaci?n de padr?n PLD
+ * VAL-PLD-002: Revalidaci?n Peri?dica
+ * VAL-PLD-003: Validaci?n de responsable PLD
+ * VAL-PLD-004: Representaci?n Legal del Usuario
+ * VAL-PLD-005: Integraci?n de Expediente
+ * VAL-PLD-006: Actualizaci?n Anual del Expediente
+ * VAL-PLD-007: Identificaci?n de Beneficiario Controlador
  * VAL-PLD-008 a VAL-PLD-012: Avisos y Umbrales
- * VAL-PLD-013: Conservación de Información
- * VAL-PLD-014: Atención a Visitas de Verificación
+ * VAL-PLD-013: Conservaci?n de Informaci?n
+ * VAL-PLD-014: Atenci?n a Visitas de Verificaci?n
  * VAL-PLD-015: Registro del Beneficiario Controlador
  */
 
@@ -27,13 +27,13 @@ require_once __DIR__ . '/pld_conservacion.php';
 if (!function_exists('requirePLDHabilitado')) {
     
     /**
-     * Requiere que el sujeto obligado esté habilitado para operar PLD
-     * Si no está habilitado, bloquea la operación y retorna error
+     * Requiere que el sujeto obligado est? habilitado para operar PLD
+     * Si no est? habilitado, bloquea la operaci?n y retorna error
      * 
-     * @param PDO $pdo Conexión a la base de datos
-     * @param bool $returnJson Si es true, retorna JSON. Si es false, lanza excepción
-     * @return array|null Retorna array con error si returnJson es true, null si lanza excepción
-     * @throws Exception Si returnJson es false y no está habilitado
+     * @param PDO $pdo Conexi?n a la base de datos
+     * @param bool $returnJson Si es true, retorna JSON. Si es false, lanza excepci?n
+     * @return array|null Retorna array con error si returnJson es true, null si lanza excepci?n
+     * @throws Exception Si returnJson es false y no est? habilitado
      */
     function requirePLDHabilitado($pdo, $returnJson = true) {
         $habilitado = checkHabilitadoPLD($pdo);
@@ -47,13 +47,13 @@ if (!function_exists('requirePLDHabilitado')) {
                 echo json_encode([
                     'status' => 'error',
                     'code' => 'NO_HABILITADO_PLD',
-                    'message' => 'El sujeto obligado no está habilitado para operar PLD',
-                    'razon' => $result['razon'] ?? 'Validación de padrón PLD fallida',
+                    'message' => 'El sujeto obligado no est? habilitado para operar PLD',
+                    'razon' => $result['razon'] ?? 'Validaci?n de padr?n PLD fallida',
                     'detalles' => $result['detalles'] ?? []
                 ]);
                 exit;
             } else {
-                throw new Exception('NO_HABILITADO_PLD: ' . ($result['razon'] ?? 'Validación de padrón PLD fallida'));
+                throw new Exception('NO_HABILITADO_PLD: ' . ($result['razon'] ?? 'Validaci?n de padr?n PLD fallida'));
             }
         }
         
@@ -61,9 +61,9 @@ if (!function_exists('requirePLDHabilitado')) {
     }
     
     /**
-     * Verifica si debe bloquear operaciones por baja en padrón
+     * Verifica si debe bloquear operaciones por baja en padr?n
      * 
-     * @param PDO $pdo Conexión a la base de datos
+     * @param PDO $pdo Conexi?n a la base de datos
      * @return bool True si debe bloquear, false si no
      */
     function shouldBlockOperations($pdo) {
@@ -80,10 +80,10 @@ if (!function_exists('requirePLDHabilitado')) {
             }
             
             if (!$config) {
-                return true; // Bloquear si no hay configuración
+                return true; // Bloquear si no hay configuraci?n
             }
             
-            // Bloquear si el flag está activo
+            // Bloquear si el flag est? activo
             if (!empty($config['no_habilitado_pld']) && $config['no_habilitado_pld'] == 1) {
                 return true;
             }
@@ -103,13 +103,13 @@ if (!function_exists('requirePLDHabilitado')) {
     
     /**
      * Requiere que un cliente tenga responsable PLD designado (si aplica)
-     * VAL-PLD-003: Designación de Responsable PLD
+     * VAL-PLD-003: Designaci?n de Responsable PLD
      * 
-     * @param PDO $pdo Conexión a la base de datos
+     * @param PDO $pdo Conexi?n a la base de datos
      * @param int $id_cliente ID del cliente a validar
-     * @param bool $returnJson Si es true, retorna JSON. Si es false, lanza excepción
-     * @return array|null Retorna array con error si returnJson es true, null si no hay restricción
-     * @throws Exception Si returnJson es false y hay restricción
+     * @param bool $returnJson Si es true, retorna JSON. Si es false, lanza excepci?n
+     * @return array|null Retorna array con error si returnJson es true, null si no hay restricci?n
+     * @throws Exception Si returnJson es false y hay restricci?n
      */
     function requireResponsablePLD($pdo, $id_cliente, $returnJson = true) {
         $validation = validateResponsablePLD($pdo, $id_cliente);
@@ -135,21 +135,21 @@ if (!function_exists('requirePLDHabilitado')) {
     }
     
     /**
-     * Valida todas las reglas PLD antes de permitir una operación
-     * Función centralizada para validar múltiples reglas
+     * Valida todas las reglas PLD antes de permitir una operaci?n
+     * Funci?n centralizada para validar m?ltiples reglas
      * 
-     * @param PDO $pdo Conexión a la base de datos
+     * @param PDO $pdo Conexi?n a la base de datos
      * @param int|null $id_cliente ID del cliente (si aplica)
      * @param int|null $id_usuario ID del usuario (si aplica)
-     * @param array $validaciones Array de códigos de validación a ejecutar
-     * @param bool $returnJson Si es true, retorna JSON. Si es false, lanza excepción
+     * @param array $validaciones Array de c?digos de validaci?n a ejecutar
+     * @param bool $returnJson Si es true, retorna JSON. Si es false, lanza excepci?n
      * @return array|null Retorna array con error si returnJson es true
      * @throws Exception Si returnJson es false y hay problemas
      */
     function validatePLDOperation($pdo, $id_cliente = null, $id_usuario = null, $validaciones = [], $returnJson = true) {
         $errores = [];
         
-        // VAL-PLD-001: Padrón PLD (siempre validar)
+        // VAL-PLD-001: Padr?n PLD (siempre validar)
         if (in_array('VAL-PLD-001', $validaciones) || empty($validaciones)) {
             try {
                 requirePLDHabilitado($pdo, false);
@@ -175,7 +175,7 @@ if (!function_exists('requirePLDHabilitado')) {
             }
         }
         
-        // VAL-PLD-004: Representación Legal (si hay usuario)
+        // VAL-PLD-004: Representaci?n Legal (si hay usuario)
         if ($id_usuario && (in_array('VAL-PLD-004', $validaciones) || empty($validaciones))) {
             $result = validateRepresentacionLegal($pdo, $id_usuario, $id_cliente);
             if (!$result['valido'] || $result['bloqueado']) {
@@ -215,7 +215,7 @@ if (!function_exists('requirePLDHabilitado')) {
             }
         }
         
-        // Si hay errores, retornar o lanzar excepción
+        // Si hay errores, retornar o lanzar excepci?n
         if (!empty($errores)) {
             $primerError = $errores[0];
             
@@ -225,7 +225,7 @@ if (!function_exists('requirePLDHabilitado')) {
                 echo json_encode([
                     'status' => 'error',
                     'code' => $primerError['codigo'],
-                    'message' => 'Validación PLD fallida',
+                    'message' => 'Validaci?n PLD fallida',
                     'validacion' => $primerError['validacion'],
                     'razon' => $primerError['mensaje'],
                     'todos_errores' => $errores
@@ -243,21 +243,21 @@ if (!function_exists('requirePLDHabilitado')) {
 if (!function_exists('requireConservacionInformacion')) {
     
     /**
-     * Valida que la conservación de información esté completa
+     * Valida que la conservaci?n de informaci?n est? completa
      * VAL-PLD-013
      * 
-     * @param PDO $pdo Conexión a la base de datos
+     * @param PDO $pdo Conexi?n a la base de datos
      * @param int|null $id_cliente ID del cliente
-     * @param int|null $id_operacion ID de la operación
+     * @param int|null $id_operacion ID de la operaci?n
      * @param int|null $id_aviso ID del aviso
-     * @param bool $returnJson Si es true, retorna JSON; si es false, lanza excepción
+     * @param bool $returnJson Si es true, retorna JSON; si es false, lanza excepci?n
      * @throws Exception Si returnJson es false y hay problemas
      */
     function requireConservacionInformacion($pdo, $id_cliente = null, $id_operacion = null, $id_aviso = null, $returnJson = true) {
         $result = validateConservacionInformacion($pdo, $id_cliente, $id_operacion, $id_aviso);
         
         if ($result['expediente_incompleto']) {
-            $mensaje = $result['mensaje'] ?? 'Falta evidencia para conservación (VAL-PLD-013)';
+            $mensaje = $result['mensaje'] ?? 'Falta evidencia para conservaci?n (VAL-PLD-013)';
             
             if ($returnJson) {
                 http_response_code(403);
@@ -266,7 +266,7 @@ if (!function_exists('requireConservacionInformacion')) {
                     'status' => 'error',
                     'code' => 'EXPEDIENTE_INCOMPLETO',
                     'validacion' => 'VAL-PLD-013',
-                    'message' => 'Validación PLD fallida',
+                    'message' => 'Validaci?n PLD fallida',
                     'razon' => $mensaje,
                     'detalles' => [
                         'faltantes' => $result['faltantes'] ?? [],

@@ -732,6 +732,7 @@ if (!function_exists('registrarOperacionPLD')) {
             $fecha_operacion = $data['fecha_operacion'] ?? date('Y-m-d');
             $id_fraccion = $data['id_fraccion'] ?? null;
             $tipo_operacion = $data['tipo_operacion'] ?? null;
+            $subfraccion_xi = $data['subfraccion_xi'] ?? null;
             $es_sospechosa = $data['es_sospechosa'] ?? 0;
             $fecha_conocimiento_sospecha = $data['fecha_conocimiento_sospecha'] ?? null;
             $match_listas_restringidas = $data['match_listas_restringidas'] ?? 0;
@@ -741,6 +742,23 @@ if (!function_exists('registrarOperacionPLD')) {
                 return [
                     'success' => false,
                     'message' => 'Datos incompletos: id_cliente y monto son requeridos'
+                ];
+            }
+
+            // Validar duplicado: misma operación ya registrada (DIN, TSC, SPR)
+            $stmtDup = $pdo->prepare("SELECT COUNT(*) FROM operaciones_pld
+                WHERE id_cliente = ?
+                  AND fecha_operacion = ?
+                  AND ABS(monto - ?) < 0.01
+                  AND (tipo_operacion <=> ?)
+                  AND (id_fraccion <=> ?)
+                  AND (id_status = 1 OR id_status IS NULL)");
+            $stmtDup->execute([$id_cliente, $fecha_operacion, $monto, $tipo_operacion, $id_fraccion]);
+            if ($stmtDup->fetchColumn() > 0) {
+                return [
+                    'success' => false,
+                    'message' => 'Ya existe una operación idéntica registrada (mismo cliente, fecha, monto y tipo). Evite duplicados.',
+                    'duplicado' => true
                 ];
             }
             
@@ -817,31 +835,66 @@ if (!function_exists('registrarOperacionPLD')) {
                 }
             }
 
+            // Verificar si existe columna subfraccion_xi
+            $tieneSubfraccion = false;
+            try {
+                $chkSubf = $pdo->query("SELECT COUNT(*) FROM INFORMATION_SCHEMA.COLUMNS WHERE TABLE_SCHEMA = DATABASE() AND TABLE_NAME = 'operaciones_pld' AND COLUMN_NAME = 'subfraccion_xi'");
+                $tieneSubfraccion = $chkSubf && $chkSubf->fetchColumn() > 0;
+            } catch (Exception $e) { }
+
             // Insertar operación
             if ($snapshotDisponible) {
-                $stmt = $pdo->prepare("INSERT INTO operaciones_pld
-                                       (id_cliente, id_fraccion, tipo_operacion, monto, monto_uma, fecha_operacion,
-                                        es_sospechosa, fecha_conocimiento_sospecha, match_listas_restringidas,
-                                        fecha_conocimiento_match, requiere_aviso, tipo_aviso, fecha_deadline_aviso,
-                                        kyc_snapshot_json, id_status)
-                                       VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, 1)");
-                $stmt->execute([
-                    $id_cliente, $id_fraccion, $tipo_operacion, $monto, $montoUMA, $fecha_operacion,
-                    $es_sospechosa, $fecha_conocimiento_sospecha, $match_listas_restringidas,
-                    $fecha_conocimiento_match, $requiere_aviso ? 1 : 0, $tipo_aviso, $fecha_deadline_aviso,
-                    $kycSnapshotJson
-                ]);
+                if ($tieneSubfraccion) {
+                    $stmt = $pdo->prepare("INSERT INTO operaciones_pld
+                                           (id_cliente, id_fraccion, tipo_operacion, subfraccion_xi, monto, monto_uma, fecha_operacion,
+                                            es_sospechosa, fecha_conocimiento_sospecha, match_listas_restringidas,
+                                            fecha_conocimiento_match, requiere_aviso, tipo_aviso, fecha_deadline_aviso,
+                                            kyc_snapshot_json, id_status)
+                                           VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, 1)");
+                    $stmt->execute([
+                        $id_cliente, $id_fraccion, $tipo_operacion, $subfraccion_xi, $monto, $montoUMA, $fecha_operacion,
+                        $es_sospechosa, $fecha_conocimiento_sospecha, $match_listas_restringidas,
+                        $fecha_conocimiento_match, $requiere_aviso ? 1 : 0, $tipo_aviso, $fecha_deadline_aviso,
+                        $kycSnapshotJson
+                    ]);
+                } else {
+                    $stmt = $pdo->prepare("INSERT INTO operaciones_pld
+                                           (id_cliente, id_fraccion, tipo_operacion, monto, monto_uma, fecha_operacion,
+                                            es_sospechosa, fecha_conocimiento_sospecha, match_listas_restringidas,
+                                            fecha_conocimiento_match, requiere_aviso, tipo_aviso, fecha_deadline_aviso,
+                                            kyc_snapshot_json, id_status)
+                                           VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, 1)");
+                    $stmt->execute([
+                        $id_cliente, $id_fraccion, $tipo_operacion, $monto, $montoUMA, $fecha_operacion,
+                        $es_sospechosa, $fecha_conocimiento_sospecha, $match_listas_restringidas,
+                        $fecha_conocimiento_match, $requiere_aviso ? 1 : 0, $tipo_aviso, $fecha_deadline_aviso,
+                        $kycSnapshotJson
+                    ]);
+                }
             } else {
-                $stmt = $pdo->prepare("INSERT INTO operaciones_pld
-                                       (id_cliente, id_fraccion, tipo_operacion, monto, monto_uma, fecha_operacion,
-                                        es_sospechosa, fecha_conocimiento_sospecha, match_listas_restringidas,
-                                        fecha_conocimiento_match, requiere_aviso, tipo_aviso, fecha_deadline_aviso, id_status)
-                                       VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, 1)");
-                $stmt->execute([
-                    $id_cliente, $id_fraccion, $tipo_operacion, $monto, $montoUMA, $fecha_operacion,
-                    $es_sospechosa, $fecha_conocimiento_sospecha, $match_listas_restringidas,
-                    $fecha_conocimiento_match, $requiere_aviso ? 1 : 0, $tipo_aviso, $fecha_deadline_aviso
-                ]);
+                if ($tieneSubfraccion) {
+                    $stmt = $pdo->prepare("INSERT INTO operaciones_pld
+                                           (id_cliente, id_fraccion, tipo_operacion, subfraccion_xi, monto, monto_uma, fecha_operacion,
+                                            es_sospechosa, fecha_conocimiento_sospecha, match_listas_restringidas,
+                                            fecha_conocimiento_match, requiere_aviso, tipo_aviso, fecha_deadline_aviso, id_status)
+                                           VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, 1)");
+                    $stmt->execute([
+                        $id_cliente, $id_fraccion, $tipo_operacion, $subfraccion_xi, $monto, $montoUMA, $fecha_operacion,
+                        $es_sospechosa, $fecha_conocimiento_sospecha, $match_listas_restringidas,
+                        $fecha_conocimiento_match, $requiere_aviso ? 1 : 0, $tipo_aviso, $fecha_deadline_aviso
+                    ]);
+                } else {
+                    $stmt = $pdo->prepare("INSERT INTO operaciones_pld
+                                           (id_cliente, id_fraccion, tipo_operacion, monto, monto_uma, fecha_operacion,
+                                            es_sospechosa, fecha_conocimiento_sospecha, match_listas_restringidas,
+                                            fecha_conocimiento_match, requiere_aviso, tipo_aviso, fecha_deadline_aviso, id_status)
+                                           VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, 1)");
+                    $stmt->execute([
+                        $id_cliente, $id_fraccion, $tipo_operacion, $monto, $montoUMA, $fecha_operacion,
+                        $es_sospechosa, $fecha_conocimiento_sospecha, $match_listas_restringidas,
+                        $fecha_conocimiento_match, $requiere_aviso ? 1 : 0, $tipo_aviso, $fecha_deadline_aviso
+                    ]);
+                }
             }
             
             $id_operacion = $pdo->lastInsertId();

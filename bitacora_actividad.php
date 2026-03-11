@@ -26,18 +26,18 @@ $aviso_filter = $_GET['aviso'] ?? '';
 $search = $_GET['search'] ?? '';
 
 // 2. CONSTRUIR CONSULTA SQL DINÁMICA
-$where_clauses = ["DATE(COALESCE(fecha_registro, fecha_operacion)) BETWEEN ? AND ?"];
+$where_clauses = ["DATE(COALESCE(op.fecha_registro, op.fecha_operacion)) BETWEEN ? AND ?"];
 $params = [$fecha_inicio, $fecha_fin];
 
 if ($aviso_filter !== '') {
-    $where_clauses[] = "tipo_aviso = ?";
+    $where_clauses[] = "op.tipo_aviso = ?";
     $params[] = $aviso_filter;
 }
 
 if ($search !== '') {
     // Buscamos dentro del JSON del cliente, el nombre del XML o el tipo de aviso
     $searchLike = "%$search%";
-    $where_clauses[] = "(COALESCE(kyc_snapshot_json,'') LIKE ? OR COALESCE(xml_nombre_archivo,'') LIKE ? OR COALESCE(tipo_aviso,'') LIKE ?)";
+    $where_clauses[] = "(COALESCE(op.kyc_snapshot_json,'') LIKE ? OR COALESCE(op.xml_nombre_archivo,'') LIKE ? OR COALESCE(op.tipo_aviso,'') LIKE ?)";
     $params[] = $searchLike;
     $params[] = $searchLike;
     $params[] = $searchLike;
@@ -50,7 +50,17 @@ $resultados_db = [];
 $error_msj = "";
 
 try {
-    $query = "SELECT * FROM operaciones_pld WHERE $where_sql ORDER BY COALESCE(fecha_registro, fecha_operacion) DESC LIMIT 1000";
+    $tieneSubfraccion = false;
+    try {
+        $chkSubf = $pdo->query("SELECT COUNT(*) FROM INFORMATION_SCHEMA.COLUMNS WHERE TABLE_SCHEMA = DATABASE() AND TABLE_NAME = 'operaciones_pld' AND COLUMN_NAME = 'subfraccion_xi'");
+        $tieneSubfraccion = $chkSubf && $chkSubf->fetchColumn() > 0;
+    } catch (Exception $ex) { /* ignorar */ }
+    $selSubf = $tieneSubfraccion ? 'op.subfraccion_xi' : 'NULL AS subfraccion_xi';
+    $query = "SELECT op.*, cv.fraccion AS fraccion_codigo, cv.nombre AS fraccion_nombre, $selSubf
+        FROM operaciones_pld op
+        LEFT JOIN cat_vulnerables cv ON op.id_fraccion = cv.id_vulnerable
+        WHERE $where_sql
+        ORDER BY COALESCE(op.fecha_registro, op.fecha_operacion) DESC LIMIT 1000";
     $stmt = $pdo->prepare($query);
     $stmt->execute($params);
     $resultados_db = $stmt->fetchAll(PDO::FETCH_ASSOC);
@@ -98,6 +108,10 @@ foreach ($resultados_db as $r) {
 
     $fechaTs = strtotime($r['fecha_registro'] ?? $r['fecha_operacion'] ?? 'now');
 
+    $fraccionDisplay = trim($r['fraccion_codigo'] ?? '') ?: trim($r['fraccion_nombre'] ?? '');
+    if (!empty($r['subfraccion_xi'])) {
+        $fraccionDisplay = ($fraccionDisplay ? $fraccionDisplay . ' ' : '') . $r['subfraccion_xi'];
+    }
     $reporte[] = [
         'id' => $r['id_operacion'],
         'fecha_formateada' => date("d/m/Y H:i:s", $fechaTs),
@@ -108,7 +122,8 @@ foreach ($resultados_db as $r) {
         'monto' => (float)($r['monto'] ?? 0),
         'monto_formateado' => '$ ' . number_format((float)($r['monto'] ?? 0), 2),
         'nombre_xml' => $nombre_xml,
-        'xml_contenido' => $xml_limpio
+        'xml_contenido' => $xml_limpio,
+        'fraccion' => $fraccionDisplay ?: '-'
     ];
 }
 ?>
@@ -334,6 +349,7 @@ foreach ($resultados_db as $r) {
                     <tr>
                         <th><button class="ba-sort-btn" data-sort="fecha_raw">Fecha <i class="fa-solid fa-sort ms-1 opacity-50"></i></button></th>
                         <th><button class="ba-sort-btn" data-sort="cliente">Cliente <i class="fa-solid fa-sort ms-1 opacity-50"></i></button></th>
+                        <th><button class="ba-sort-btn" data-sort="fraccion">Fracción</button></th>
                         <th><button class="ba-sort-btn" data-sort="tipo_aviso">Tipo <i class="fa-solid fa-sort ms-1 opacity-50"></i></button></th>
                         <th><button class="ba-sort-btn" data-sort="monto">Monto <i class="fa-solid fa-sort ms-1 opacity-50"></i></button></th>
                         <th><button class="ba-sort-btn" data-sort="nombre_xml">Archivo XML <i class="fa-solid fa-sort ms-1 opacity-50"></i></button></th>
@@ -341,7 +357,7 @@ foreach ($resultados_db as $r) {
                     </tr>
                 </thead>
                 <tbody id="avisosTableBody">
-                    <tr><td colspan="6" class="text-center py-5 text-muted"><i class="fa-solid fa-spinner fa-spin fa-2x mb-2"></i><br>Cargando bitácora...</td></tr>
+                    <tr><td colspan="7" class="text-center py-5 text-muted"><i class="fa-solid fa-spinner fa-spin fa-2x mb-2"></i><br>Cargando bitácora...</td></tr>
                 </tbody>
             </table>
         </div>
@@ -380,7 +396,7 @@ document.addEventListener("DOMContentLoaded", function() {
 
     function renderTable() {
         if (!tableData || tableData.length === 0) {
-            tbody.innerHTML = `<tr class="ba-empty-row"><td colspan="6" class="text-center py-5 text-muted"><i class="fa-solid fa-folder-open fa-3x mb-3 text-light"></i><br>No hay actividad registrada ante el SAT en este periodo.</td></tr>`;
+            tbody.innerHTML = `<tr class="ba-empty-row"><td colspan="7" class="text-center py-5 text-muted"><i class="fa-solid fa-folder-open fa-3x mb-3 text-light"></i><br>No hay actividad registrada ante el SAT en este periodo.</td></tr>`;
             return;
         }
         
@@ -390,6 +406,7 @@ document.addEventListener("DOMContentLoaded", function() {
             <tr>
                 <td data-label="Fecha" class="ps-3"><div><span class="d-block fw-bold text-dark">${esc(r.fecha_formateada)}</span><small class="text-muted"><i class="fa-regular fa-clock me-1"></i>Op #${r.id}</small></div></td>
                 <td data-label="Cliente"><div class="fw-bold text-dark text-uppercase">${esc(r.cliente)}</div></td>
+                <td data-label="Fracción"><span class="badge bg-secondary">${esc(r.fraccion || '-')}</span></td>
                 <td data-label="Tipo"><span class="badge ${r.clase_badge} px-2 py-1">${esc(r.tipo_aviso)}</span></td>
                 <td data-label="Monto"><span class="text-monto-ba text-success">${r.monto_formateado}</span></td>
                 <td data-label="Archivo XML">

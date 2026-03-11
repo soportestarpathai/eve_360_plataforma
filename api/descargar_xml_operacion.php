@@ -1,6 +1,6 @@
 <?php
 /**
- * API: Descargar XML de transacción PLD (DIN)
+ * API: Descargar XML de operación PLD (DIN, TSC, SPR)
  */
 session_start();
 require_once __DIR__ . '/../config/db.php';
@@ -20,7 +20,7 @@ if (!$id_operacion) {
 }
 
 try {
-    $stmt = $pdo->prepare("SELECT xml_contenido, xml_nombre_archivo FROM operaciones_pld WHERE id_operacion = ? AND id_status = 1");
+    $stmt = $pdo->prepare("SELECT xml_contenido, xml_nombre_archivo, tipo_operacion FROM operaciones_pld WHERE id_operacion = ? AND id_status = 1");
     $stmt->execute([$id_operacion]);
     $row = $stmt->fetch(PDO::FETCH_ASSOC);
 
@@ -31,7 +31,14 @@ try {
         exit;
     }
 
-    $filename = $row['xml_nombre_archivo'] ?: ('din_op' . $id_operacion . '.xml');
+    $filename = $row['xml_nombre_archivo'];
+    if (!$filename) {
+        $tipo = strtoupper(trim($row['tipo_operacion'] ?? ''));
+        $prefijo = 'din_op';
+        if (strpos($tipo, 'TSC') === 0) $prefijo = 'tsc_op';
+        elseif (strpos($tipo, 'SPR') === 0) $prefijo = 'spr_op';
+        $filename = $prefijo . $id_operacion . '.xml';
+    }
 
     header('Content-Type: application/xml; charset=utf-8');
     header('Content-Disposition: attachment; filename="' . $filename . '"');

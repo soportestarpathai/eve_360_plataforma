@@ -70,8 +70,8 @@ try {
     $response['uma_value'] = (float)$uma;
 
     $fraccionesActivas = parseFraccionesActivas($config['fracciones_activas'] ?? null);
+    // Solo usar las fracciones habilitadas en config; no mostrar todas si está vacío
     $activities = [];
-
     if (!empty($fraccionesActivas)) {
         $placeholders = implode(',', array_fill(0, count($fraccionesActivas), '?'));
         $stmtActivities = $pdo->prepare("

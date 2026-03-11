@@ -32,8 +32,37 @@ if (!function_exists('sprSanitizeRef')) {
 if (!function_exists('sprSanitizeDesc')) {
     function sprSanitizeDesc($val): string {
         $v = sprToUpper(trim((string)$val));
-        $v = preg_replace('/[^A-ZÑ0-9 \-\.,\':\/$]/u', '', $v);
+        $v = preg_replace('/[^A-Z\x{00D1}0-9 \-\.,\':\/$]/u', '', $v);
         return substr($v, 0, 3000);
+    }
+}
+
+/** Sanitiza clave_sujeto_obligado a formato RFC (clave_so_type): 12-13 chars, solo A-Z0-9 */
+if (!function_exists('sprSanitizeClaveSO')) {
+    function sprSanitizeClaveSO($val): string {
+        $v = sprToUpper(trim((string)$val));
+        $v = preg_replace('/[^A-Z\x{00D1}0-9]/u', '', $v);
+        return substr($v, 0, 13);
+    }
+}
+
+/** Convierte tipo_ocupacion (XI.X NN) a código XML 1-2 dígitos (XSD digito_1-2_type) */
+if (!function_exists('sprMapOcupacionToXml')) {
+    function sprMapOcupacionToXml($val): string {
+        static $map = [
+            'XI.A 01' => '1', 'XI.A 02' => '2', 'XI.A 03' => '3', 'XI.A 04' => '4',
+            'XI.B 01' => '5', 'XI.C 01' => '6', 'XI.D 01' => '7', 'XI.E 01' => '8',
+            'XI.F 01' => '9', 'XI.G 01' => '10', 'XI.H 01' => '11', 'XI.I 01' => '12',
+            'XI.J 01' => '13', 'XI.K 01' => '14', 'XI.L 01' => '15', 'XI.M 01' => '16',
+            'XI.N 01' => '17', 'XI.O 01' => '18', 'XI.P 01' => '19', 'XI.Q 01' => '20',
+            'XI.R 01' => '21', 'XI.S 01' => '22', 'XI.T 01' => '23', 'XI.U 01' => '24',
+            'XI.V 01' => '25', 'XI.W 01' => '26', 'XI.X 01' => '27', 'XI.Y 01' => '28',
+            'XI.Z 01' => '29', 'XI.Z 02' => '30', 'XI.Z 03' => '31', 'XI.Z 04' => '32',
+            '99' => '99',
+        ];
+        $k = trim((string)$val);
+        if (isset($map[$k])) return $map[$k];
+        return preg_replace('/[^0-9]/', '', $k) ?: (strlen($k) <= 2 ? $k : '1');
     }
 }
 
@@ -54,6 +83,12 @@ if (!function_exists('generateSPRXml')) {
                 $value = sprFormatMonto($value);
             } elseif ($name === 'referencia_aviso') {
                 $value = sprSanitizeRef($value);
+            } elseif ($name === 'clave_sujeto_obligado') {
+                $value = sprSanitizeClaveSO($value);
+            } elseif ($name === 'tipo_ocupacion') {
+                $value = sprMapOcupacionToXml($value);
+            } elseif ($name === 'correo_electronico') {
+                $value = sprToUpper($value);
             } elseif (in_array($name, ['descripcion_alerta', 'descripcion_modificacion', 'tipo_administracion', 'descripcion_otro_area_servicio', 'descripcion_otro_activo_administrado', 'descripcion_activo_administrado'])) {
                 $value = sprSanitizeDesc($value);
             } elseif ($name === 'tipo_operacion' && strlen($value) > 2) {

@@ -1409,7 +1409,7 @@ function readPersona(container) {
             apellido_paterno: container.querySelector('.pf-apellido-paterno').value.trim(),
             apellido_materno: container.querySelector('.pf-apellido-materno').value.trim(),
             fecha_nacimiento: (container.querySelector('.pf-fecha-nacimiento').value || '').replace(/-/g, ''),
-            rfc: container.querySelector('.pf-rfc')?.value.trim() || undefined,
+            rfc: (container.querySelector('.pf-rfc')?.value || '').trim() || undefined,
             curp: container.querySelector('.pf-curp').value.trim(),
             pais_nacionalidad: container.querySelector('.pf-pais-nacionalidad').value.trim(),
             actividad_economica: container.querySelector('.pf-actividad-economica').value.trim()
@@ -1417,7 +1417,7 @@ function readPersona(container) {
     } else if (tipo === 'persona_moral') {
         return { persona_moral: {
             denominacion_razon: container.querySelector('.pm-denominacion').value.trim(),
-            rfc: container.querySelector('.pm-rfc')?.value.trim() || undefined,
+            rfc: (container.querySelector('.pm-rfc')?.value || '').trim() || undefined,
             fecha_constitucion: (container.querySelector('.pm-fecha-constitucion').value || '').replace(/-/g, ''),
             pais_nacionalidad: container.querySelector('.pm-pais-nacionalidad').value.trim(),
             giro_mercantil: container.querySelector('.pm-giro-mercantil').value.trim(),

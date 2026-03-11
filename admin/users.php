@@ -286,7 +286,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
                 logUserAction($pdo, 'CREAR', $id_usuario, null, ['nombre' => $nombre, 'login_user' => $email]);
             }
 
-            $permCols = ['catalogo_instituciones', 'catalogo_emisoras', 'catalogo_clientes', 'captura', 'administracion', 'reportes', 'valuacion', 'correcciones', 'rebalanceo'];
+            $permCols = ['catalogo_instituciones', 'catalogo_emisoras', 'catalogo_clientes', 'captura', 'administracion', 'reportes', 'valuacion', 'correcciones', 'rebalanceo', 'permiso_pld_modificacion'];
             $permValues = [];
             foreach ($permCols as $col) { $permValues[$col] = isset($_POST['perm_' . $col]) ? 1 : 0; }
             $selectedFracciones = $_POST['fracciones_pld'] ?? [];
@@ -296,6 +296,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
 
             require_once __DIR__ . '/../config/pld_permisos.php';
             ensureFraccionesPLDColumn($pdo);
+            ensurePermisoPldModificacionColumn($pdo);
 
             $stmtCheckPerm = $pdo->prepare("SELECT id_permiso FROM usuarios_permisos WHERE id_usuario = ?");
             $stmtCheckPerm->execute([$id_usuario]);
@@ -358,6 +359,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
 
 require_once __DIR__ . '/../config/pld_permisos.php';
 ensureFraccionesPLDColumn($pdo);
+ensurePermisoPldModificacionColumn($pdo);
 try {
     $chk = $pdo->query("SELECT COUNT(*) FROM INFORMATION_SCHEMA.COLUMNS WHERE TABLE_SCHEMA = DATABASE() AND TABLE_NAME = 'usuarios_permisos' AND COLUMN_NAME = 'subfracciones_xi'");
     if ($chk && $chk->fetchColumn() == 0) {
@@ -385,7 +387,8 @@ try {
 
 $stmt = $pdo->query("
     SELECT u.*, up.catalogo_instituciones, up.catalogo_emisoras, up.catalogo_clientes,
-           up.captura, up.administracion, up.reportes, up.valuacion, up.correcciones, up.rebalanceo, up.fracciones_pld, up.subfracciones_xi
+           up.captura, up.administracion, up.reportes, up.valuacion, up.correcciones, up.rebalanceo,
+           up.fracciones_pld, up.subfracciones_xi, COALESCE(up.permiso_pld_modificacion, 0) AS permiso_pld_modificacion
     FROM usuarios u
     LEFT JOIN usuarios_permisos up ON u.id_usuario = up.id_usuario
     ORDER BY u.nombre ASC
@@ -478,7 +481,7 @@ $users = $stmt->fetchAll(PDO::FETCH_ASSOC);
                                     <td class="text-center">
                                         <?php
                                         $countP = 0;
-                                        foreach (['catalogo_instituciones','catalogo_emisoras','catalogo_clientes','captura','administracion','reportes','valuacion','correcciones','rebalanceo'] as $p) {
+                                        foreach (['catalogo_instituciones','catalogo_emisoras','catalogo_clientes','captura','administracion','reportes','valuacion','correcciones','rebalanceo','permiso_pld_modificacion'] as $p) {
                                             if (!empty($u[$p]) && $u[$p] == 1) $countP++;
                                         }
                                         echo $countP > 0 ? '<span class="badge bg-info">' . $countP . ' roles</span>' : '<span class="text-muted">-</span>';
@@ -610,7 +613,8 @@ $users = $stmt->fetchAll(PDO::FETCH_ASSOC);
                             <div class="perm-section h-100">
                                 <small class="d-block mb-2">Control</small>
                                 <div class="form-check mb-1"><input class="form-check-input" type="checkbox" name="perm_correcciones" id="perm_corr"><label class="form-check-label" for="perm_corr">Correcciones</label></div>
-                                <div class="form-check"><input class="form-check-input" type="checkbox" name="perm_reportes" id="perm_rep"><label class="form-check-label" for="perm_rep">Reportes</label></div>
+                                <div class="form-check mb-1"><input class="form-check-input" type="checkbox" name="perm_reportes" id="perm_rep"><label class="form-check-label" for="perm_rep">Reportes</label></div>
+                                <div class="form-check"><input class="form-check-input" type="checkbox" name="perm_permiso_pld_modificacion" id="perm_pld_mod"><label class="form-check-label" for="perm_pld_mod">Modificar avisos PLD</label></div>
                             </div>
                         </div>
                     </div>
@@ -728,7 +732,7 @@ function editUser(u) {
     const setP = (id, v) => { const el = document.getElementById(id); if (el) el.checked = (v == 1); };
     setP('perm_inst', u.catalogo_instituciones); setP('perm_emi', u.catalogo_emisoras); setP('perm_cli', u.catalogo_clientes);
     setP('perm_cap', u.captura); setP('perm_val', u.valuacion); setP('perm_reb', u.rebalanceo);
-    setP('perm_corr', u.correcciones); setP('perm_rep', u.reportes);
+    setP('perm_corr', u.correcciones); setP('perm_rep', u.reportes); setP('perm_pld_mod', u.permiso_pld_modificacion);
     document.querySelectorAll('#userModal .pld-fraccion-check').forEach(el => el.checked = false);
     document.querySelectorAll('#userModal .user-subfraccion-xi').forEach(el => el.checked = false);
     const subfSec = document.getElementById('userSubfraccionesXiSection');

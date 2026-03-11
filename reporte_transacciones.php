@@ -73,18 +73,26 @@ function obtenerSemaforo($nivel, $rangos) {
 }
 
 // 4. TRANSACCIONES DETALLADAS - filtradas por usuario
+$tieneSubfraccion = false;
+try {
+    $chkSubf = $pdo->query("SELECT COUNT(*) FROM INFORMATION_SCHEMA.COLUMNS WHERE TABLE_SCHEMA = DATABASE() AND TABLE_NAME = 'operaciones_pld' AND COLUMN_NAME = 'subfraccion_xi'");
+    $tieneSubfraccion = $chkSubf && $chkSubf->fetchColumn() > 0;
+} catch (Exception $e) { /* ignorar */ }
+$selSubf = $tieneSubfraccion ? 'op.subfraccion_xi' : 'NULL AS subfraccion_xi';
 $sql = "SELECT 
             op.id_operacion, op.id_cliente, op.fecha_operacion, op.monto, op.tipo_operacion, op.requiere_aviso,
             c.no_contrato, c.nivel_riesgo, c.id_usuario,
             CASE WHEN c.id_tipo_persona = 1 THEN CONCAT(cf.nombre, ' ', cf.apellido_paterno)
                  WHEN c.id_tipo_persona = 2 THEN cm.razon_social ELSE c.alias END AS cliente_nombre,
-            COALESCE(cf.tax_id, cm.tax_id) AS rfc_cliente, av.folio_sppld, av.estatus AS estatus_aviso
+            COALESCE(cf.tax_id, cm.tax_id) AS rfc_cliente, av.folio_sppld, av.estatus AS estatus_aviso,
+            cv.fraccion AS fraccion_codigo, cv.nombre AS fraccion_nombre, $selSubf
         FROM operaciones_pld op
         JOIN clientes c ON op.id_cliente = c.id_cliente
         LEFT JOIN clientes_fisicas cf ON c.id_cliente = cf.id_cliente
         LEFT JOIN clientes_morales cm ON c.id_cliente = cm.id_cliente
         LEFT JOIN aviso_transacciones at ON op.id_operacion = at.id_operacion
         LEFT JOIN avisos_pld av ON at.id_aviso = av.id_aviso
+        LEFT JOIN cat_vulnerables cv ON op.id_fraccion = cv.id_vulnerable
         WHERE op.id_status = 1" . ($opUserFilter ? $opUserFilter : "") . "
         ORDER BY op.fecha_operacion DESC";
 
@@ -105,6 +113,10 @@ foreach ($db_data as $row) {
     $uid = isset($row['id_usuario']) ? (int)$row['id_usuario'] : 0;
     $rangosRep = $rangosPorUsuarioRep[$uid] ?? [];
     $s = obtenerSemaforo($row['nivel_riesgo'] ?? 0, $rangosRep);
+    $fraccionDisplay = trim($row['fraccion_codigo'] ?? '') ?: trim($row['fraccion_nombre'] ?? '');
+    if (!empty($row['subfraccion_xi'])) {
+        $fraccionDisplay = ($fraccionDisplay ? $fraccionDisplay . ' ' : '') . $row['subfraccion_xi'];
+    }
     $reporte_json[] = [
         'id' => $row['id_operacion'],
         'id_cliente' => (int)$row['id_cliente'],
@@ -120,7 +132,8 @@ foreach ($db_data as $row) {
         'nivel_riesgo' => (float)($row['nivel_riesgo'] ?? 0),
         'semaforo_clase' => $s['clase'],
         'semaforo_texto' => $s['texto'],
-        'semaforo_icono' => $s['icono']
+        'semaforo_icono' => $s['icono'],
+        'fraccion' => $fraccionDisplay ?: '-'
     ];
 }
 
@@ -130,7 +143,7 @@ $idsClientes = array_keys($kpiPorCliente);
 if (!empty($idsClientes)) {
     $placeholders = implode(',', array_fill(0, count($idsClientes), '?'));
     $stmtCli = $pdo->prepare("
-        SELECT c.id_cliente, c.nivel_riesgo, c.alias, c.no_contrato,
+        SELECT c.id_cliente, c.id_usuario, c.nivel_riesgo, c.alias, c.no_contrato,
             COALESCE(cm.razon_social, TRIM(CONCAT(COALESCE(cf.nombre,''),' ', COALESCE(cf.apellido_paterno,''),' ', COALESCE(cf.apellido_materno,''))), c.alias) AS nombre_display
         FROM clientes c
         LEFT JOIN clientes_fisicas cf ON c.id_cliente = cf.id_cliente
@@ -147,7 +160,8 @@ if (!empty($idsClientes)) {
 }
 foreach ($kpiPorCliente as $idCliente => $kpi) {
     $cli = $clientesMap[$idCliente] ?? [];
-    $s = obtenerSemaforo($cli['nivel_riesgo'] ?? 0, $riesgoRangos);
+    $uidCli = isset($cli['id_usuario']) ? (int)$cli['id_usuario'] : 0;
+    $s = obtenerSemaforo($cli['nivel_riesgo'] ?? 0, $rangosPorUsuarioRep[$uidCli] ?? []);
     $nombreDisplay = trim($cli['nombre_display'] ?? $cli['alias'] ?? 'Sin nombre');
     $resumen_clientes[] = [
         'id_cliente' => (int)$idCliente,
@@ -400,6 +414,7 @@ include 'templates/header.php';
                     <tr>
                         <th class="ps-4"><button class="sort-btn" data-sort="fecha">Fecha <i class="fa-solid fa-sort ms-1 opacity-50"></i></button></th>
                         <th><button class="sort-btn" data-sort="nombre">Cliente <i class="fa-solid fa-sort ms-1 opacity-50"></i></button></th>
+                        <th class="text-center"><button class="sort-btn" data-sort="fraccion">Fracción</button></th>
                         <th class="text-center"><button class="sort-btn" data-sort="monto">Monto (MXN) <i class="fa-solid fa-sort ms-1 opacity-50"></i></button></th>
                         <th class="text-center">Riesgo</th>
                         <th class="text-center">Estado Aviso</th>
@@ -467,7 +482,7 @@ function renderClientes(items) {
 function renderTable(items) {
     const tbody = document.getElementById('jsTableBody');
     if (items.length === 0) {
-        tbody.innerHTML = '<tr><td colspan="6" class="text-center py-5 text-muted">No se encontraron transacciones.</td></tr>';
+        tbody.innerHTML = '<tr><td colspan="7" class="text-center py-5 text-muted">No se encontraron transacciones.</td></tr>';
         return;
     }
     tbody.innerHTML = items.map(t => `
@@ -480,6 +495,7 @@ function renderTable(items) {
                 <div class="fw-bold text-dark" style="font-size: 0.9rem;">${esc(t.nombre)}</div>
                 <small class="text-muted">RFC: ${esc(t.rfc)} | # ${esc(t.contrato)}</small>
             </td>
+            <td class="text-center"><span class="badge bg-secondary">${esc(t.fraccion || '-')}</span></td>
             <td class="text-center">
                 <div class="text-monto">$${t.monto.toLocaleString('es-MX', {minimumFractionDigits: 2})}</div>
             </td>

@@ -78,6 +78,7 @@ try {
                 $data['fecha_presentacion'] ?? date('Y-m-d'),
                 $data['folio_sppld'] ?? null,
                 $data['observaciones'] ?? null,
+                $id_usuario_actual,
                 $informe_existente['id_informe']
             ]);
             

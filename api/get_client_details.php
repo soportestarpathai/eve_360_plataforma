@@ -1,8 +1,13 @@
 <?php
+ob_start();
+error_reporting(E_ALL);
+ini_set('display_errors', 0);
+ini_set('log_errors', 1);
 session_start();
 require_once '../config/db.php';
 require_once '../config/risk_engine.php'; // Include engine
-header('Content-Type: application/json');
+ob_end_clean();
+header('Content-Type: application/json; charset=utf-8');
 
 if (!isset($_SESSION['user_id'])) {
     http_response_code(401);
@@ -28,7 +33,7 @@ try {
     }
 
     // 1. Get main `clientes` data WITH Status Name
-    // UPDATED: Added JOIN to cat_status_cliente
+    // JOIN cat_status para obtener status_nombre
     $stmt = $pdo->prepare("
         SELECT c.*, s.nombre as status_nombre 
         FROM clientes c
@@ -64,13 +69,15 @@ try {
         throw new Exception("Tipo de persona no encontrado.");
     }
 
+    $personaRows = [];
     if ($personaType['es_fisica'] > 0) {
-        $details['persona'] = fetchRelated($pdo, 'clientes_fisicas', $id_cliente)[0];
+        $personaRows = fetchRelated($pdo, 'clientes_fisicas', $id_cliente);
     } elseif ($personaType['es_moral'] > 0) {
-        $details['persona'] = fetchRelated($pdo, 'clientes_morales', $id_cliente)[0];
+        $personaRows = fetchRelated($pdo, 'clientes_morales', $id_cliente);
     } elseif ($personaType['es_fideicomiso'] > 0) {
-        $details['persona'] = fetchRelated($pdo, 'clientes_fideicomisos', $id_cliente)[0];
+        $personaRows = fetchRelated($pdo, 'clientes_fideicomisos', $id_cliente);
     }
+    $details['persona'] = (!empty($personaRows)) ? $personaRows[0] : null;
     $details['general']['tipo_persona_nombre'] = $personaType['nombre'];
 
 
