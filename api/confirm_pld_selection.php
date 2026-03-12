@@ -29,9 +29,9 @@ function getRequestData(): array {
 }
 
 function hasColumn(PDO $pdo, string $table, string $column): bool {
-    $stmt = $pdo->prepare("SHOW COLUMNS FROM `$table` LIKE ?");
-    $stmt->execute([$column]);
-    return (bool)$stmt->fetch(PDO::FETCH_ASSOC);
+    $stmt = $pdo->prepare("SELECT COUNT(*) FROM INFORMATION_SCHEMA.COLUMNS WHERE TABLE_SCHEMA = DATABASE() AND TABLE_NAME = ? AND COLUMN_NAME = ?");
+    $stmt->execute([$table, $column]);
+    return (int)$stmt->fetchColumn() > 0;
 }
 
 function saveSupportFile(int $idBusqueda): ?string {
@@ -112,20 +112,30 @@ try {
     if (is_array($seleccion) || is_object($seleccion)) {
         $seleccion = json_encode($seleccion, JSON_UNESCAPED_UNICODE);
     }
+    $seleccion = (string)$seleccion;
 
     $documento_soporte = saveSupportFile($id_busqueda);
     $hasDocumentoSoporte = hasColumn($pdo, 'clientes_busquedas_listas', 'documento_soporte');
-    $comentariosGuardar = $comentarios;
+    $comentariosGuardar = (string)$comentarios;
     if ($documento_soporte && !$hasDocumentoSoporte) {
         $comentariosGuardar = trim($comentariosGuardar . "\n[Documento de soporte: " . $documento_soporte . "]");
     }
 
     if ($hasDocumentoSoporte) {
         $stmt = $pdo->prepare("UPDATE clientes_busquedas_listas SET coincidencia_seleccionada = ?, riesgo_detectado = ?, comentarios = ?, documento_soporte = ? WHERE id_busqueda = ?");
-        $stmt->execute([$seleccion, $riesgo_final, $comentariosGuardar, $documento_soporte, $id_busqueda]);
+        $stmt->bindValue(1, $seleccion, PDO::PARAM_STR);
+        $stmt->bindValue(2, $riesgo_final, PDO::PARAM_INT);
+        $stmt->bindValue(3, $comentariosGuardar, PDO::PARAM_STR);
+        $stmt->bindValue(4, $documento_soporte, $documento_soporte === null ? PDO::PARAM_NULL : PDO::PARAM_STR);
+        $stmt->bindValue(5, $id_busqueda, PDO::PARAM_INT);
+        $stmt->execute();
     } else {
         $stmt = $pdo->prepare("UPDATE clientes_busquedas_listas SET coincidencia_seleccionada = ?, riesgo_detectado = ?, comentarios = ? WHERE id_busqueda = ?");
-        $stmt->execute([$seleccion, $riesgo_final, $comentariosGuardar, $id_busqueda]);
+        $stmt->bindValue(1, $seleccion, PDO::PARAM_STR);
+        $stmt->bindValue(2, $riesgo_final, PDO::PARAM_INT);
+        $stmt->bindValue(3, $comentariosGuardar, PDO::PARAM_STR);
+        $stmt->bindValue(4, $id_busqueda, PDO::PARAM_INT);
+        $stmt->execute();
     }
     
     // Log Change
