@@ -107,7 +107,7 @@ try {
         // Mostrar detalles
         $stmt = $pdo->prepare("SELECT ci.*, ti.nombre as tipo_nombre 
                                FROM clientes_identificaciones ci
-                               LEFT JOIN cat_tipo_identificacion ti ON ci.id_tipo_identificacion = ti.id_tipo_identificacion
+                               LEFT JOIN cat_tipo_identificaciones ti ON ci.id_tipo_identificacion = ti.id_tipo_identificacion
                                WHERE ci.id_cliente = ? AND ci.id_status = 1");
         $stmt->execute([$id_cliente]);
         $ids = $stmt->fetchAll(PDO::FETCH_ASSOC);

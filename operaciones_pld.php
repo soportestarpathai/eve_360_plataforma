@@ -288,7 +288,7 @@ include 'templates/top_bar.php';
                     <div class="row mb-3 align-items-center">
                 <div class="col-md-3">
                             <div class="form-check">
-                                <input class="form-check-input" type="checkbox" id="chk-historico-av" onchange="cargarAvisos(); cargarAlertasAvisos();">
+                                <input class="form-check-input" type="checkbox" id="chk-historico-av" onchange="cargarAvisos();">
                                 <label class="form-check-label small" for="chk-historico-av">Incluir histórico</label>
                             </div>
                         </div>
@@ -660,6 +660,11 @@ let clientesList = [];
 let fraccionesList = [];
 let puedeModificarPLD = false;
 const kycCacheOperacion = new Map();
+let clientesLoaded = false;
+let fraccionesLoaded = false;
+let clientesLoadingPromise = null;
+let fraccionesLoadingPromise = null;
+let informesLoaded = false;
 
 function escapeHtml(s) {
     if (s == null || s === undefined) return '';
@@ -684,15 +689,11 @@ function todayLocalMidnight() {
 }
 
 document.addEventListener('DOMContentLoaded', function() {
-    cargarClientes();
-    cargarFracciones();
     cargarOperaciones();
     cargarAvisos();
-    cargarInformes();
-    cargarAlertasAvisos();
-    actualizarTotalOperaciones();
-    checkPermisoPLD();
-    fetch('api/generar_notificaciones_avisos_pld.php').then(r=>r.json()).catch(()=>{});
+    setTimeout(() => {
+        fetch('api/generar_notificaciones_avisos_pld.php').then(r=>r.json()).catch(()=>{});
+    }, 1200);
     
     // Cargar acumulaciones cuando se cambia al tab (solo si el elemento existe)
     const acumulacionesTab = document.getElementById('acumulaciones-tab');
@@ -706,7 +707,9 @@ document.addEventListener('DOMContentLoaded', function() {
     const informesTab = document.getElementById('informes-tab');
     if (informesTab) {
         informesTab.addEventListener('shown.bs.tab', function() {
-            cargarInformes();
+            if (!informesLoaded) {
+                cargarInformes();
+            }
         });
     }
     
@@ -754,7 +757,14 @@ document.addEventListener('DOMContentLoaded', function() {
 });
 
 function cargarClientes() {
-    fetch('api/get_clients.php')
+    if (clientesLoaded) {
+        return Promise.resolve(clientesList);
+    }
+    if (clientesLoadingPromise) {
+        return clientesLoadingPromise;
+    }
+
+    clientesLoadingPromise = fetch('api/get_clients.php')
         .then(res => res.json())
         .then(data => {
             clientesList = data;
@@ -766,8 +776,18 @@ function cargarClientes() {
                 option.textContent = cliente.nombre_cliente || `Cliente #${cliente.id_cliente}`;
                 select.appendChild(option);
             });
+            clientesLoaded = true;
+            return data;
         })
-        .catch(err => console.error('Error al cargar clientes:', err));
+        .catch(err => {
+            console.error('Error al cargar clientes:', err);
+            throw err;
+        })
+        .finally(() => {
+            clientesLoadingPromise = null;
+        });
+
+    return clientesLoadingPromise;
 }
 
 function limpiarKYCOperacion() {
@@ -846,7 +866,14 @@ function cargarKYCOperacion(idCliente) {
 }
 
 function cargarFracciones() {
-    fetch('api/get_catalogos.php')
+    if (fraccionesLoaded) {
+        return Promise.resolve(fraccionesList);
+    }
+    if (fraccionesLoadingPromise) {
+        return fraccionesLoadingPromise;
+    }
+
+    fraccionesLoadingPromise = fetch('api/get_catalogos.php')
         .then(res => res.json())
         .then(data => {
             if (data.status === 'success' && data.data.vulnerables) {
@@ -858,9 +885,20 @@ function cargarFracciones() {
                     option.textContent = `${fraccion.nombre} (${fraccion.fraccion})`;
                     select.appendChild(option);
                 });
+                fraccionesLoaded = true;
+                return fraccionesList;
             }
+            throw new Error('No se pudieron cargar fracciones');
         })
-        .catch(err => console.error('Error al cargar fracciones:', err));
+        .catch(err => {
+            console.error('Error al cargar fracciones:', err);
+            throw err;
+        })
+        .finally(() => {
+            fraccionesLoadingPromise = null;
+        });
+
+    return fraccionesLoadingPromise;
 }
 
 function checkPermisoPLD(idCliente) {
@@ -876,16 +914,23 @@ function cargarOperaciones() {
         .then(res => res.json())
         .then(data => {
             if (data.status === 'success') {
-                renderOperaciones(data.operaciones || []);
+                const operaciones = data.operaciones || [];
+                renderOperaciones(operaciones);
+                const totalEl = document.getElementById('total-operaciones');
+                if (totalEl) totalEl.textContent = operaciones.length;
             } else {
                 document.getElementById('operaciones-tbody').innerHTML = 
                     '<tr><td colspan="10" class="text-center text-danger">Error al cargar transacciones</td></tr>';
+                const totalEl = document.getElementById('total-operaciones');
+                if (totalEl) totalEl.textContent = '-';
             }
         })
         .catch(err => {
             console.error('Error al cargar transacciones:', err);
             document.getElementById('operaciones-tbody').innerHTML = 
                 '<tr><td colspan="10" class="text-center text-danger">Error de conexión</td></tr>';
+            const totalEl = document.getElementById('total-operaciones');
+            if (totalEl) totalEl.textContent = '-';
         });
 }
 
@@ -1002,6 +1047,7 @@ function cargarAvisos() {
                 renderAvisos(data.avisos || []);
                 actualizarBadgeAvisos(data.contadores?.pendientes || 0);
                 actualizarEstadisticas(data.contadores);
+                renderAlertasAvisos(data.contadores || {});
             } else {
                 document.getElementById('avisos-tbody').innerHTML = 
                     '<tr><td colspan="8" class="text-center text-danger">Error al cargar avisos</td></tr>';
@@ -1012,6 +1058,32 @@ function cargarAvisos() {
             document.getElementById('avisos-tbody').innerHTML = 
                 '<tr><td colspan="8" class="text-center text-danger">Error de conexión</td></tr>';
         });
+}
+
+function renderAlertasAvisos(contadores) {
+    const cont = contadores || {};
+    const vencidosSinFolio = cont.vencidos_sin_folio ?? cont.vencidos ?? 0;
+    const porVencer = cont.por_vencer || 0;
+    const alertDiv = document.getElementById('alertas-avisos');
+    if (!alertDiv) return;
+
+    let html = '';
+    if (vencidosSinFolio > 0) {
+        html += `<div class="alert alert-danger alert-dismissible fade show" role="alert">
+            <i class="fa-solid fa-exclamation-triangle me-2"></i>
+            <strong>¡Atención!</strong> Tienes <strong>${vencidosSinFolio}</strong> aviso(s) vencido(s) sin folio SAT. Capture el folio en Actualizar Aviso.
+            <button type="button" class="btn-close" data-bs-dismiss="alert"></button>
+        </div>`;
+    }
+    if (porVencer > 0) {
+        html += `<div class="alert alert-warning alert-dismissible fade show" role="alert">
+            <i class="fa-solid fa-clock me-2"></i>
+            <strong>Por vencer:</strong> <strong>${porVencer}</strong> aviso(s) próximo(s) a vencer sin folio SAT. No olvide capturar el folio.
+            <button type="button" class="btn-close" data-bs-dismiss="alert"></button>
+        </div>`;
+    }
+
+    alertDiv.innerHTML = html;
 }
 
 function actualizarEstadisticas(contadores) {
@@ -1030,22 +1102,12 @@ function actualizarEstadisticas(contadores) {
     }
 }
 
-function actualizarTotalOperaciones() {
-    fetch('api/get_operaciones_pld.php')
-        .then(res => res.json())
-        .then(data => {
-            if (data.status === 'success') {
-                document.getElementById('total-operaciones').textContent = (data.operaciones || []).length;
-            }
-        })
-        .catch(err => console.error('Error al cargar total transacciones:', err));
-}
-
 function cargarInformes() {
     fetch('api/get_informes_no_operaciones.php')
         .then(res => res.json())
         .then(data => {
             if (data.status === 'success') {
+                informesLoaded = true;
                 renderInformes(data.informes || []);
                 renderPeriodosPendientes(data.periodos_pendientes || []);
             } else {
@@ -1472,7 +1534,7 @@ function bajaOperacion(id) {
         .then(r=>{ if (r.isConfirmed) {
             fetch('api/baja_operacion_pld.php', { method: 'POST', headers: {'Content-Type': 'application/json'}, body: JSON.stringify({id_operacion: id}) })
                 .then(res=>res.json()).then(d=>{
-                    if (d.status === 'success') { Swal.fire({ icon: 'success', text: d.message }); cargarOperaciones(); actualizarTotalOperaciones(); }
+                    if (d.status === 'success') { Swal.fire({ icon: 'success', text: d.message }); cargarOperaciones(); }
                     else { Swal.fire({ icon: 'error', text: d.message }); }
                 });
         }});
@@ -1483,7 +1545,7 @@ function bajaAviso(id) {
         .then(r=>{ if (r.isConfirmed) {
             fetch('api/baja_aviso_pld.php', { method: 'POST', headers: {'Content-Type': 'application/json'}, body: JSON.stringify({id_aviso: id}) })
                 .then(res=>res.json()).then(d=>{
-                    if (d.status === 'success') { Swal.fire({ icon: 'success', text: d.message }); cargarAvisos(); cargarAlertasAvisos(); }
+                    if (d.status === 'success') { Swal.fire({ icon: 'success', text: d.message }); cargarAvisos(); }
                     else { Swal.fire({ icon: 'error', text: d.message }); }
                 });
         }});
@@ -1495,38 +1557,9 @@ function actualizarBadgeAvisos(count) {
     badge.style.display = count > 0 ? 'inline' : 'none';
 }
 
-function cargarAlertasAvisos() {
-    const historico = document.getElementById('chk-historico-av')?.checked ? '1' : '';
-    const url = 'api/get_avisos_pld.php' + (historico ? '?historico=1' : '');
-    fetch(url)
-        .then(res => res.json())
-        .then(data => {
-            if (data.status !== 'success') return;
-            const cont = data.contadores || {};
-            const vencidosSinFolio = cont.vencidos_sin_folio ?? cont.vencidos ?? 0;
-            const porVencer = cont.por_vencer || 0;
-            const alertDiv = document.getElementById('alertas-avisos');
-            let html = '';
-            if (vencidosSinFolio > 0) {
-                html += `<div class="alert alert-danger alert-dismissible fade show" role="alert">
-                    <i class="fa-solid fa-exclamation-triangle me-2"></i>
-                    <strong>¡Atención!</strong> Tienes <strong>${vencidosSinFolio}</strong> aviso(s) vencido(s) sin folio SAT. Capture el folio en Actualizar Aviso.
-                    <button type="button" class="btn-close" data-bs-dismiss="alert"></button>
-                </div>`;
-            }
-            if (porVencer > 0) {
-                html += `<div class="alert alert-warning alert-dismissible fade show" role="alert">
-                    <i class="fa-solid fa-clock me-2"></i>
-                    <strong>Por vencer:</strong> <strong>${porVencer}</strong> aviso(s) próximo(s) a vencer sin folio SAT. No olvide capturar el folio.
-                    <button type="button" class="btn-close" data-bs-dismiss="alert"></button>
-                </div>`;
-            }
-            if (alertDiv) alertDiv.innerHTML = html;
-        })
-        .catch(err => console.error('Error al cargar alertas:', err));
-}
-
 function abrirModalOperacion() {
+    cargarClientes().catch(() => {});
+    cargarFracciones().catch(() => {});
     document.getElementById('formOperacion').reset();
     document.getElementById('operacion_fecha').value = new Date().toISOString().split('T')[0];
     document.getElementById('fecha-conocimiento-sospecha').style.display = 'none';
@@ -1584,8 +1617,6 @@ function guardarOperacion() {
                 bootstrap.Modal.getInstance(document.getElementById('modalOperacion')).hide();
                 cargarOperaciones();
                 cargarAvisos();
-                cargarAlertasAvisos();
-                actualizarTotalOperaciones();
             });
         } else {
             Swal.fire({
@@ -1689,8 +1720,6 @@ function actualizarAviso() {
             }).then(() => {
                 bootstrap.Modal.getInstance(document.getElementById('modalAviso')).hide();
                 cargarAvisos();
-                cargarAlertasAvisos();
-                actualizarTotalOperaciones();
             });
         } else {
             Swal.fire({
@@ -1777,4 +1806,3 @@ function descargarXmlOperacion(idOperacion) {
 </script>
 
 <?php include 'templates/footer.php'; ?>
-

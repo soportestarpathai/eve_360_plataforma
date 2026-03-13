@@ -1,87 +1,117 @@
 <?php
-require_once '../config/db.php'; 
+session_start();
+require_once __DIR__ . '/../config/db.php';
 
 header('Content-Type: application/json');
 
-// 1. CONFIGURATION
-// ID Provided by user: 539260 (UMA)
-$indicatorID = "539260"; 
-$token = "fbc251b6-02a1-f46a-fbea-6e8b891b4f67"; 
+if (!isset($_SESSION['user_id']) && php_sapi_name() !== 'cli') {
+    http_response_code(401);
+    echo json_encode(['status' => 'error', 'message' => 'No autorizado']);
+    exit;
+}
 
-// We request the historical series (false) in JSON format
+$indicatorID = '539260';
+$token = 'fbc251b6-02a1-f46a-fbea-6e8b891b4f67';
 $apiUrl = "https://www.inegi.org.mx/app/api/indicadores/desarrolladores/jsonxml/INDICATOR/$indicatorID/es/00/false/BISE/2.0/$token?type=json";
 
 try {
-    // 2. FETCH DATA
+    if (!function_exists('curl_init')) {
+        throw new RuntimeException('La extensión cURL no está disponible en PHP.');
+    }
+
     $ch = curl_init();
     curl_setopt($ch, CURLOPT_URL, $apiUrl);
     curl_setopt($ch, CURLOPT_RETURNTRANSFER, true);
-    curl_setopt($ch, CURLOPT_USERAGENT, "Mozilla/5.0 (compatible; InvestorMLP/1.0)");
-    
+    curl_setopt($ch, CURLOPT_USERAGENT, 'Mozilla/5.0 (compatible; EVE360/1.0)');
+    curl_setopt($ch, CURLOPT_CONNECTTIMEOUT, 8);
+    curl_setopt($ch, CURLOPT_TIMEOUT, 20);
+
     $response = curl_exec($ch);
-    
-    if (curl_errno($ch)) {
-        throw new Exception('Error cURL: ' . curl_error($ch));
-    }
+    $httpCode = (int)curl_getinfo($ch, CURLINFO_HTTP_CODE);
+    $curlErr = curl_error($ch);
     curl_close($ch);
 
-    // 3. PARSE JSON
-    $data = json_decode($response, true);
-
-    if (!$data) {
-        throw new Exception('Error decoding JSON or empty response from INEGI.');
+    if ($response === false || $curlErr !== '') {
+        throw new RuntimeException('No se pudo consultar INEGI: ' . $curlErr);
+    }
+    if ($httpCode >= 400) {
+        throw new RuntimeException('INEGI respondió con HTTP ' . $httpCode);
     }
 
-    // 4. PROCESS OBSERVATIONS
-    // We check if the path Series -> OBSERVATIONS exists
-    if (isset($data['Series'][0]['OBSERVATIONS'])) {
-        
-        $nombreIndicador = "UMA (Valor Diario)"; 
+    $data = json_decode($response, true);
+    if (!is_array($data)) {
+        throw new RuntimeException('Respuesta inválida de INEGI.');
+    }
 
-        // Optional: Clear previous UMA values to avoid duplicates or use ON DUPLICATE KEY UPDATE
-        // For now, we just insert.
-        $stmt = $pdo->prepare("INSERT INTO indicadores (nombre, fecha, valor) VALUES (?, ?, ?)");
-        
-        $count = 0;
-        $pdo->beginTransaction();
+    $observaciones = $data['Series'][0]['OBSERVATIONS'] ?? null;
+    if (!is_array($observaciones) || empty($observaciones)) {
+        throw new RuntimeException('La respuesta de INEGI no contiene observaciones de UMA.');
+    }
 
-        foreach ($data['Series'][0]['OBSERVATIONS'] as $obs) {
-            $rawDate = $obs['TIME_PERIOD']; // Example: "2016/02/01" or "2024"
-            $valor = $obs['OBS_VALUE'];
-            
-            // Date Logic:
-            // UMA is usually annual. If INEGI returns just "2024", we assume 2024-02-01 (UMA standard start)
-            // or 2024-01-01 for sorting.
-            if (strlen($rawDate) == 4) {
-                // If year only, set to February 1st (Official UMA change date)
-                $fecha = $rawDate . "-02-01"; 
-            } else {
-                // If full date "YYYY/MM/DD", format it for MySQL
-                $fecha = date('Y-m-d', strtotime(str_replace('/', '-', $rawDate)));
-            }
+    $nombreIndicador = 'UMA (Valor Diario)';
+    $stmtFind = $pdo->prepare('SELECT id_indicador FROM indicadores WHERE nombre = ? AND DATE(fecha) = ? LIMIT 1');
+    $stmtInsert = $pdo->prepare('INSERT INTO indicadores (nombre, fecha, valor) VALUES (?, ?, ?)');
+    $stmtUpdate = $pdo->prepare('UPDATE indicadores SET valor = ? WHERE id_indicador = ?');
 
-            $stmt->execute([$nombreIndicador, $fecha, $valor]);
-            $count++;
+    $insertados = 0;
+    $actualizados = 0;
+
+    $pdo->beginTransaction();
+    foreach ($observaciones as $obs) {
+        $rawDate = trim((string)($obs['TIME_PERIOD'] ?? ''));
+        $rawValor = trim((string)($obs['OBS_VALUE'] ?? ''));
+        if ($rawDate === '' || $rawValor === '') {
+            continue;
         }
 
-        $pdo->commit();
+        if (strlen($rawDate) === 4 && ctype_digit($rawDate)) {
+            $fecha = $rawDate . '-02-01';
+        } else {
+            $timestamp = strtotime(str_replace('/', '-', $rawDate));
+            if ($timestamp === false) {
+                continue;
+            }
+            $fecha = date('Y-m-d', $timestamp);
+        }
 
-        echo json_encode([
-            'status' => 'success', 
-            'message' => "Importación exitosa. Se guardaron $count registros de UMA (ID: $indicatorID)."
-        ]);
+        if (!is_numeric($rawValor)) {
+            continue;
+        }
+        $valor = (float)$rawValor;
 
-    } else {
-        // Log the raw response for debugging if it fails again
-        error_log("INEGI Response Error: " . print_r($data, true));
-        throw new Exception('La respuesta de INEGI es válida pero no contiene datos (OBSERVATIONS). Verifique si el ID ' . $indicatorID . ' es correcto para el Banco de Indicadores (BISE).');
+        $stmtFind->execute([$nombreIndicador, $fecha]);
+        $idExistente = (int)$stmtFind->fetchColumn();
+
+        if ($idExistente > 0) {
+            $stmtUpdate->execute([$valor, $idExistente]);
+            $actualizados++;
+        } else {
+            $stmtInsert->execute([$nombreIndicador, $fecha, $valor]);
+            $insertados++;
+        }
     }
+    $pdo->commit();
 
-} catch (Exception $e) {
-    if ($pdo->inTransaction()) {
+    echo json_encode([
+        'status' => 'success',
+        'message' => 'Importación de UMA completada.',
+        'insertados' => $insertados,
+        'actualizados' => $actualizados,
+        'total_procesados' => $insertados + $actualizados
+    ]);
+} catch (Throwable $e) {
+    if (isset($pdo) && $pdo instanceof PDO && $pdo->inTransaction()) {
         $pdo->rollBack();
     }
-    http_response_code(500);
-    echo json_encode(['status' => 'error', 'message' => $e->getMessage()]);
+    error_log('import_inegi_uma: ' . $e->getMessage());
+
+    $msg = $e->getMessage();
+    if (stripos($msg, 'INEGI') !== false || stripos($msg, 'cURL') !== false) {
+        http_response_code(502);
+    } else {
+        http_response_code(500);
+    }
+
+    echo json_encode(['status' => 'error', 'message' => $msg]);
 }
 ?>

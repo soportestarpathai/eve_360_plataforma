@@ -97,40 +97,63 @@
 
     // --- 1. USER & PERMISSIONS ---
     function initUserAndNav() {
-        fetch('api/get_current_user.php')
-            .then(res => res.ok ? res.json() : Promise.reject('Auth failed'))
-            .then(data => {
-                if(data && data.status === 'success') {
-                    // Populate user info (escape to prevent XSS)
-                    const userNameEl = document.getElementById('navUserName');
-                    if (userNameEl) {
-                        const nameSpan = userNameEl.querySelector('span');
-                        if (nameSpan) {
-                            nameSpan.textContent = data.user.name || '';
-                        } else {
-                            userNameEl.innerHTML = '<i class="fa-solid fa-user-circle"></i><span class="d-none d-md-inline"></span>';
-                            const sp = userNameEl.querySelector('span');
-                            if (sp) sp.textContent = data.user.name || '';
-                        }
-                    }
-                    const avatarEl = document.getElementById('navUserAvatar');
-                    if (avatarEl && data.user) avatarEl.src = data.user.avatar || '';
-                    
-                    // Apply permissions and module visibility
-                    // Configuración EBR: visible para cualquier usuario con módulo risk activo (admin o no)
-                    const riskActive = data.sys_modules && data.sys_modules.risk !== 0;
-                    const ebrSection = document.getElementById('topbarEbrSection');
-                    if (ebrSection) ebrSection.classList.toggle('restricted', !riskActive);
-
-                    // Admin config section: solo si tiene permiso administracion
-                    if (data.permissions && data.permissions.administracion > 0) {
-                        const adminSection = document.getElementById('adminConfigSection');
-                        if (adminSection) adminSection.classList.remove('restricted');
-                    }
-                } else {
-                    window.location.href = 'login.php';
+        fetch('api/get_current_user.php', {
+            cache: 'no-store',
+            credentials: 'same-origin'
+        })
+            .then(async (res) => {
+                let data = null;
+                try {
+                    data = await res.json();
+                } catch (e) {
+                    data = null;
                 }
-            }).catch(() => window.location.href = 'login.php');
+
+                // Solo redirigir a login cuando realmente no hay sesión.
+                if (res.status === 401) {
+                    window.location.href = 'login.php';
+                    return;
+                }
+
+                // Para errores temporales (500, JSON inválido, etc.), no expulsar al usuario.
+                if (!res.ok || !data || data.status !== 'success') {
+                    console.warn('TopBar: no se pudo cargar perfil de usuario', {
+                        status: res.status,
+                        payload: data
+                    });
+                    return;
+                }
+
+                // Populate user info (escape to prevent XSS)
+                const userNameEl = document.getElementById('navUserName');
+                if (userNameEl) {
+                    const nameSpan = userNameEl.querySelector('span');
+                    if (nameSpan) {
+                        nameSpan.textContent = data.user.name || '';
+                    } else {
+                        userNameEl.innerHTML = '<i class="fa-solid fa-user-circle"></i><span class="d-none d-md-inline"></span>';
+                        const sp = userNameEl.querySelector('span');
+                        if (sp) sp.textContent = data.user.name || '';
+                    }
+                }
+                const avatarEl = document.getElementById('navUserAvatar');
+                if (avatarEl && data.user) avatarEl.src = data.user.avatar || '';
+                
+                // Apply permissions and module visibility
+                // Configuración EBR: visible para cualquier usuario con módulo risk activo (admin o no)
+                const riskActive = data.sys_modules && data.sys_modules.risk !== 0;
+                const ebrSection = document.getElementById('topbarEbrSection');
+                if (ebrSection) ebrSection.classList.toggle('restricted', !riskActive);
+
+                // Admin config section: solo si tiene permiso administracion
+                if (data.permissions && data.permissions.administracion > 0) {
+                    const adminSection = document.getElementById('adminConfigSection');
+                    if (adminSection) adminSection.classList.remove('restricted');
+                }
+            })
+            .catch((err) => {
+                console.warn('TopBar: error de red al obtener usuario actual', err);
+            });
 
         // Logout
         const btnLogout = document.getElementById('btnLogout');

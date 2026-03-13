@@ -8,6 +8,7 @@ $id = $data['id'] ?? 0;
 $action = $data['action'] ?? ''; // 'dismiss' or 'snooze'
 
 if (!isset($_SESSION['user_id']) || !$id) {
+    http_response_code(401);
     echo json_encode(['status' => 'error']);
     exit;
 }

@@ -3,6 +3,7 @@
 // 1. Suppress HTML errors to ensure JSON integrity
 ini_set('display_errors', 0);
 error_reporting(E_ALL);
+ob_start();
 
 session_start();
 header('Content-Type: application/json');
@@ -16,10 +17,12 @@ if (!isset($_SESSION['user_id'])) {
 
 try {
     // 3. Load DB inside Try/Catch
-    if (!file_exists('../config/db.php')) {
+    $dbPath = __DIR__ . '/../config/db.php';
+    if (!file_exists($dbPath)) {
         throw new Exception("DB config missing");
     }
-    require_once '../config/db.php';
+    require_once $dbPath;
+    ob_end_clean();
 
     $userId = $_SESSION['user_id'];
 

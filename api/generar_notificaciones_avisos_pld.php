@@ -12,8 +12,8 @@ header('Content-Type: application/json');
 // Puede llamarse sin sesión (cron) o con sesión (al cargar página)
 $id_usuario_actual = $_SESSION['user_id'] ?? null;
 if (!$id_usuario_actual && php_sapi_name() !== 'cli') {
-    // Si es petición web sin sesión, retornar vacío
-    echo json_encode(['status' => 'success', 'generadas' => 0, 'message' => 'Requiere sesión']);
+    http_response_code(401);
+    echo json_encode(['status' => 'error', 'generadas' => 0, 'message' => 'No autorizado']);
     exit;
 }
 

@@ -15,9 +15,10 @@ if (!isset($_SESSION['user_id'])) {
     exit;
 }
 
-$id_cliente = $_GET['id'] ?? 0;
+$id_cliente = isset($_GET['id']) ? (int)$_GET['id'] : 0;
 
 if (!$id_cliente) {
+    http_response_code(400);
     echo json_encode(['status' => 'error', 'message' => 'No client ID provided']);
     exit;
 }
@@ -44,7 +45,9 @@ try {
     $details['general'] = $stmt->fetch(PDO::FETCH_ASSOC);
 
     if (!$details['general']) {
-        throw new Exception("Cliente no encontrado.");
+        http_response_code(404);
+        echo json_encode(['status' => 'error', 'message' => 'Cliente no encontrado.']);
+        exit;
     }
 
     // Verificar ownership: usuario no admin solo ve sus clientes
@@ -57,7 +60,9 @@ try {
         $isAdmin = $perm && (int)($perm['administracion'] ?? 0) > 0;
     }
     if (!$isAdmin && $userId > 0 && (int)($details['general']['id_usuario'] ?? 0) !== (int)$userId) {
-        throw new Exception("Acceso denegado. Este cliente no pertenece a tu cuenta.");
+        http_response_code(403);
+        echo json_encode(['status' => 'error', 'message' => 'Acceso denegado. Este cliente no pertenece a tu cuenta.']);
+        exit;
     }
 
     // 2. Get specific persona data (Fisica, Moral, Fideicomiso)

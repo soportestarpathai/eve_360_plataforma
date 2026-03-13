@@ -5,14 +5,12 @@ include 'templates/header.php';
 require_once __DIR__ . '/config/logger.php';
 require_once __DIR__ . '/config/modules_helper.php';
 require_once __DIR__ . '/config/cache.php';
-require_once __DIR__ . '/config/banxico_api.php';
 require_once __DIR__ . '/config/pld_validation.php';
 require_once __DIR__ . '/config/pld_middleware.php';
 require_once __DIR__ . '/config/pld_revalidation.php';
 
 // Inicializar logger y caché
 $logger = Logger::getInstance();
-$banxicoAPI = new BanxicoAPI();
 
 // --- 1. DYNAMIC MENU LOGIC ---
 $currentCompanyType = 1;
@@ -53,49 +51,17 @@ try {
         $tickerItems[] = "<i class='fa-solid fa-scale-balanced me-2 text-warning'></i>UMA {$year}: <strong>$ {$valor} MXN</strong>";
     }
 
-    // C. Ticker: Banxico (Mejorado con caché, validación y manejo de errores)
-    try {
-        $seriesIds = ['SP68257', 'SF43718', 'SF46410', 'SP74660'];
-        $banxicoData = $banxicoAPI->getSeriesData($seriesIds, 1800); // 30 minutos de caché
-        
-        if ($banxicoData && is_array($banxicoData)) {
-            foreach ($banxicoData as $serie) {
-                $val = number_format($serie['dato'], 2);
-                $date = $serie['fecha'];
-                
-                    switch ($serie['idSerie']) {
-                    case 'SP68257': 
-                        $tickerItems[] = "<i class='fa-solid fa-coins me-2 text-info'></i>UDIS: <strong>$ {$val}</strong>"; 
-                        break;
-                    case 'SF43718': 
-                        $tickerItems[] = "<i class='fa-solid fa-dollar-sign me-2 text-success'></i>Dólar: <strong>$ {$val} MXN</strong>"; 
-                        break;
-                    case 'SF46410': 
-                        $tickerItems[] = "<i class='fa-solid fa-euro-sign me-2 text-primary'></i>Euro: <strong>$ {$val} MXN</strong>"; 
-                        break;
-                    case 'SP74660': 
-                        $tickerItems[] = "<i class='fa-solid fa-chart-line me-2 text-danger'></i>Inflación: <strong>{$val}%</strong>"; 
-                        break;
-                }
-            }
-            $logger->debug('BanxicoAPI: Datos obtenidos correctamente', ['count' => count($banxicoData)]);
-        } else {
-            $logger->warning('BanxicoAPI: No se obtuvieron datos', ['seriesIds' => implode(',', $seriesIds)]);
-        }
-    } catch (Exception $e) {
-        $logger->error('BanxicoAPI: Error al obtener datos', [
-            'error' => $e->getMessage(),
-            'trace' => $e->getTraceAsString()
-        ]);
-        // Continuar sin datos de Banxico (degradación elegante)
-    }
-
 } catch (Exception $e) {
     $logger->error('Error en lógica de menú dinámico', [
         'error' => $e->getMessage(),
         'file' => __FILE__,
         'line' => $e->getLine()
     ]);
+}
+
+// Asegurar que el ticker siempre renderice algo de inmediato.
+if (empty($tickerItems)) {
+    $tickerItems[] = "<i class='fa-solid fa-clock me-2 text-info'></i>Indicadores: <strong>Cargando...</strong>";
 }
 
 // --- 2. STATISTICS DATA (Optimizado - Una sola consulta con GROUP BY) ---
@@ -568,14 +534,12 @@ try {
 <body>
     <?php include 'templates/top_bar.php'; ?>
     
-    <?php if (!empty($tickerItems)): ?>
     <div class="news-ticker">
-        <div class="ticker-track">
+        <div class="ticker-track" id="dashboardTickerTrack">
             <?php foreach ($tickerItems as $item): ?><div class="ticker-item"><?= $item ?></div><?php endforeach; ?>
             <?php foreach ($tickerItems as $item): ?><div class="ticker-item"><?= $item ?></div><?php endforeach; ?>
         </div>
     </div>
-    <?php endif; ?>
 
     <?php if (!empty($watermarkText)): ?>
         <div class="watermark"><?= htmlspecialchars($watermarkText) ?></div>
@@ -1014,6 +978,32 @@ try {
     const monthlyClients = <?= json_encode($monthlyClients) ?>;
     const statusComparison = <?= json_encode($statusComparison) ?>;
     const topRiskLevels = <?= json_encode($topRiskLevels) ?>;
+    const baseTickerItems = <?= json_encode($tickerItems, JSON_UNESCAPED_UNICODE) ?>;
+</script>
+<script>
+    (function() {
+        const tickerTrack = document.getElementById('dashboardTickerTrack');
+        if (!tickerTrack) return;
+
+        const renderTicker = (items) => {
+            if (!Array.isArray(items) || items.length === 0) return;
+            const duplicated = items.concat(items);
+            tickerTrack.innerHTML = duplicated.map((item) => `<div class="ticker-item">${item}</div>`).join('');
+            tickerTrack.style.animationDuration = `${Math.max(40, items.length * 10)}s`;
+        };
+
+        renderTicker(baseTickerItems);
+
+        fetch('api/get_ticker_banxico.php')
+            .then((res) => res.ok ? res.json() : Promise.reject())
+            .then((json) => {
+                if (!json || json.status !== 'success' || !Array.isArray(json.items) || json.items.length === 0) return;
+                renderTicker(baseTickerItems.concat(json.items));
+            })
+            .catch(() => {
+                // Si falla Banxico, dejamos solo los indicadores locales.
+            });
+    })();
 </script>
 <script>
     (function() {

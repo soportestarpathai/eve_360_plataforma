@@ -60,7 +60,7 @@ SELECT
     ci.numero_identificacion,
     CASE WHEN ci.id_status = 1 THEN 'Activa' ELSE 'Inactiva' END as estado
 FROM clientes_identificaciones ci
-LEFT JOIN cat_tipo_identificacion ti ON ci.id_tipo_identificacion = ti.id_tipo_identificacion
+LEFT JOIN cat_tipo_identificaciones ti ON ci.id_tipo_identificacion = ti.id_tipo_identificacion
 WHERE ci.id_cliente = @id_cliente
 ORDER BY ci.id_cliente_identificacion;
 

@@ -123,39 +123,57 @@ if (!function_exists('canModifyPLD')) {
      */
     function canModifyPLD($pdo, $id_usuario, $id_cliente = null) {
         try {
-            // 1. Verificar permiso de administración
-            $stmt = $pdo->prepare("SELECT administracion FROM usuarios_permisos WHERE id_usuario = ?");
-            $stmt->execute([$id_usuario]);
-            $perm = $stmt->fetch(PDO::FETCH_ASSOC);
-            if ($perm && !empty($perm['administracion']) && (int)$perm['administracion'] > 0) {
+            static $adminCache = [];
+            static $permisoColExists = null;
+            static $permisoPldCache = [];
+            static $responsableCache = [];
+
+            // 1. Verificar permiso de administración (cacheado por usuario)
+            if (!array_key_exists($id_usuario, $adminCache)) {
+                $stmt = $pdo->prepare("SELECT administracion FROM usuarios_permisos WHERE id_usuario = ?");
+                $stmt->execute([$id_usuario]);
+                $perm = $stmt->fetch(PDO::FETCH_ASSOC);
+                $adminCache[$id_usuario] = (bool)($perm && !empty($perm['administracion']) && (int)$perm['administracion'] > 0);
+            }
+            if ($adminCache[$id_usuario]) {
                 return true;
             }
 
-            // 2. Verificar permiso_pld_modificacion (si existe la columna)
-            try {
-                $chk = $pdo->query("SELECT COUNT(*) FROM INFORMATION_SCHEMA.COLUMNS WHERE TABLE_SCHEMA = DATABASE() AND TABLE_NAME = 'usuarios_permisos' AND COLUMN_NAME = 'permiso_pld_modificacion'");
-                if ($chk && $chk->fetchColumn() > 0) {
+            // 2. Verificar permiso_pld_modificacion (cachea existencia de columna y valor por usuario)
+            if ($permisoColExists === null) {
+                try {
+                    $chk = $pdo->query("SELECT COUNT(*) FROM INFORMATION_SCHEMA.COLUMNS WHERE TABLE_SCHEMA = DATABASE() AND TABLE_NAME = 'usuarios_permisos' AND COLUMN_NAME = 'permiso_pld_modificacion'");
+                    $permisoColExists = ($chk && $chk->fetchColumn() > 0);
+                } catch (Exception $e) {
+                    $permisoColExists = false;
+                }
+            }
+            if ($permisoColExists) {
+                if (!array_key_exists($id_usuario, $permisoPldCache)) {
                     $stmt = $pdo->prepare("SELECT permiso_pld_modificacion FROM usuarios_permisos WHERE id_usuario = ?");
                     $stmt->execute([$id_usuario]);
                     $p = $stmt->fetch(PDO::FETCH_ASSOC);
-                    if ($p && !empty($p['permiso_pld_modificacion']) && (int)$p['permiso_pld_modificacion'] > 0) {
-                        return true;
-                    }
+                    $permisoPldCache[$id_usuario] = (bool)($p && !empty($p['permiso_pld_modificacion']) && (int)$p['permiso_pld_modificacion'] > 0);
                 }
-            } catch (Exception $e) { /* ignorar */ }
-
-            // 3. Verificar si es responsable PLD del cliente (si se proporciona id_cliente)
-            if ($id_cliente) {
-                $stmt = $pdo->prepare("
-                    SELECT 1 FROM clientes_responsable_pld
-                    WHERE id_cliente = ? AND id_usuario_responsable = ?
-                    AND activo = 1
-                    AND (fecha_baja IS NULL OR fecha_baja > CURDATE())
-                ");
-                $stmt->execute([$id_cliente, $id_usuario]);
-                if ($stmt->fetch()) {
+                if ($permisoPldCache[$id_usuario]) {
                     return true;
                 }
+            }
+
+            // 3. Verificar si es responsable PLD del cliente (cacheado por usuario+cliente)
+            if ($id_cliente) {
+                $cacheKey = $id_usuario . ':' . $id_cliente;
+                if (!array_key_exists($cacheKey, $responsableCache)) {
+                    $stmt = $pdo->prepare("
+                        SELECT 1 FROM clientes_responsable_pld
+                        WHERE id_cliente = ? AND id_usuario_responsable = ?
+                        AND activo = 1
+                        AND (fecha_baja IS NULL OR fecha_baja > CURDATE())
+                    ");
+                    $stmt->execute([$id_cliente, $id_usuario]);
+                    $responsableCache[$cacheKey] = (bool)$stmt->fetch();
+                }
+                return $responsableCache[$cacheKey];
             }
 
             return false;
