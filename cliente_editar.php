@@ -104,6 +104,20 @@ include 'templates/header.php';
                             <option value="3">Cancelado</option>
                         </select>
                     </div>
+                    <div class="col-md-6 mb-3">
+                        <label class="form-label d-block">
+                            <i class="fa-solid fa-list-check me-1"></i>Modalidad de Alta
+                        </label>
+                        <div class="form-check">
+                            <input class="form-check-input" type="checkbox" id="es_preregistro" name="es_preregistro" value="1">
+                            <label class="form-check-label" for="es_preregistro">
+                                Pre-registro obligatorio mínimo (cliente aún no obligado a expediente completo)
+                            </label>
+                        </div>
+                        <div class="form-text small">
+                            Mantiene al cliente en pendiente y permite expediente parcial. Las operaciones PLD seguirán bloqueadas hasta completar expediente.
+                        </div>
+                    </div>
                     <div class="col-md-6 mb-3" id="fechaBajaContainer" style="display: none;">
                         <label class="form-label">
                             <i class="fa-solid fa-calendar-times"></i>

@@ -67,7 +67,10 @@ try {
             $chkXI2 = $pdo->query("SELECT 1 FROM cat_vulnerables WHERE fraccion = 'XI' LIMIT 1");
             if (!$chkXI2 || !$chkXI2->fetch()) {
                 try {
-                    $pdo->exec("INSERT INTO cat_vulnerables (nombre, fraccion) VALUES ('Servicios Profesionales (SPR)', 'XI')");
+                    $pdo->exec("
+                        INSERT INTO cat_vulnerables (nombre, fraccion, umbral_aviso_uma, umbral_acumulacion_uma)
+                        VALUES ('Servicios Profesionales (SPR)', 'XI', 1605.00, 1605.00)
+                    ");
                 } catch (Exception $e) { /* ignorar si falla */ }
             }
         }

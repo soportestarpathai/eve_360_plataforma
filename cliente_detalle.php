@@ -33,7 +33,10 @@ include 'templates/header.php';
 <!-- MAIN CONTENT -->
 <div class="detail-card">
     <div class="d-flex justify-content-between align-items-center mb-3">
-        <h2 id="clientName">Cargando...</h2>
+        <div class="d-flex align-items-center flex-wrap gap-2">
+            <h2 id="clientName" class="mb-0">Cargando...</h2>
+            <span id="preRegistroBadge" class="badge bg-warning text-dark" style="display: none;">Pre-registro</span>
+        </div>
         <div>
             <button class="btn btn-warning me-2" onclick="openPldCheck()">
                 <i class="fa-solid fa-shield-halved me-2"></i>Consultar Listas
@@ -508,7 +511,15 @@ include 'templates/header.php';
         
         const persona = data.persona || {};
         const name = persona.nombre ? `${persona.nombre} ${persona.apellido_paterno || ''}`.trim() : (persona.razon_social || data.general?.alias || '-');
-        document.getElementById('clientName').textContent = name;
+        const clientNameEl = document.getElementById('clientName');
+        if (clientNameEl) clientNameEl.textContent = name;
+
+        const isPreRegistro = Number(data.general?.id_status) === 2
+            && (Number(data.general?.identificacion_incompleta) === 1 || Number(data.general?.expediente_completo) !== 1);
+        const preRegistroBadgeEl = document.getElementById('preRegistroBadge');
+        if (preRegistroBadgeEl) {
+            preRegistroBadgeEl.style.display = isPreRegistro ? 'inline-block' : 'none';
+        }
 
         // General Info
         const genInfo = document.getElementById('general-info');

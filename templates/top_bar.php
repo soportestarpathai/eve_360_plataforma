@@ -1,3 +1,39 @@
+<?php
+$topbarUserName = trim((string)($_SESSION['user_name'] ?? 'Usuario'));
+if ($topbarUserName === '') {
+    $topbarUserName = 'Usuario';
+}
+
+if (!function_exists('buildTopbarAvatarDataUri')) {
+    function buildTopbarAvatarDataUri(string $name): string {
+        $name = trim($name);
+        $initials = '';
+        if ($name !== '') {
+            $parts = preg_split('/\s+/', $name);
+            foreach ($parts as $part) {
+                if ($part === '') continue;
+                $initials .= strtoupper(substr($part, 0, 1));
+                if (strlen($initials) >= 2) break;
+            }
+        }
+        if ($initials === '') $initials = 'U';
+
+        $svg = '<svg xmlns="http://www.w3.org/2000/svg" width="96" height="96" viewBox="0 0 96 96">'
+             . '<defs><linearGradient id="g" x1="0" y1="0" x2="1" y2="1">'
+             . '<stop offset="0%" stop-color="#0D8ABC"/><stop offset="100%" stop-color="#0B3C8A"/></linearGradient></defs>'
+             . '<rect width="96" height="96" rx="48" fill="url(#g)"/>'
+             . '<text x="50%" y="54%" dominant-baseline="middle" text-anchor="middle" '
+             . 'font-family="Segoe UI, Arial, sans-serif" font-size="34" font-weight="700" fill="#ffffff">'
+             . htmlspecialchars($initials, ENT_QUOTES, 'UTF-8')
+             . '</text></svg>';
+
+        return 'data:image/svg+xml;utf8,' . rawurlencode($svg);
+    }
+}
+
+$topbarAvatarFallback = buildTopbarAvatarDataUri($topbarUserName);
+?>
+
 <!-- TOP BANNER -->
 <div class="top-banner">
     <div class="top-bar-left">
@@ -33,9 +69,9 @@
             <div class="user-profile" data-bs-toggle="dropdown" title="Mi Perfil">
                 <span class="user-name" id="navUserName">
                     <i class="fa-solid fa-user-circle"></i>
-                    <span class="d-none d-md-inline">...</span>
+                    <span class="d-none d-md-inline"><?= htmlspecialchars($topbarUserName) ?></span>
                 </span>
-                <img src="" id="navUserAvatar" class="user-avatar" alt="Avatar">
+                <img src="<?= htmlspecialchars($topbarAvatarFallback) ?>" id="navUserAvatar" class="user-avatar" alt="Avatar" data-fallback="<?= htmlspecialchars($topbarAvatarFallback) ?>">
                 <i class="fa-solid fa-chevron-down ms-1" style="font-size: 0.75rem; color: rgba(255,255,255,0.8);"></i>
             </div>
             <ul class="dropdown-menu dropdown-menu-end shadow-lg border-0" style="border-radius: 12px; margin-top: 10px; min-width: 220px;">
@@ -97,11 +133,63 @@
 
     // --- 1. USER & PERMISSIONS ---
     function initUserAndNav() {
+        const applyUserPayload = (data) => {
+            if (!data || data.status !== 'success') return;
+
+            const userNameEl = document.getElementById('navUserName');
+            if (userNameEl) {
+                const nameSpan = userNameEl.querySelector('span');
+                if (nameSpan) {
+                    nameSpan.textContent = data.user && data.user.name ? data.user.name : '';
+                } else {
+                    userNameEl.innerHTML = '<i class="fa-solid fa-user-circle"></i><span class="d-none d-md-inline"></span>';
+                    const sp = userNameEl.querySelector('span');
+                    if (sp) sp.textContent = data.user && data.user.name ? data.user.name : '';
+                }
+            }
+
+            const avatarEl = document.getElementById('navUserAvatar');
+            if (avatarEl && data.user) {
+                const fallback = avatarEl.dataset.fallback || '';
+                const nextAvatar = data.user.avatar || fallback;
+                if (nextAvatar) avatarEl.src = nextAvatar;
+                avatarEl.onerror = () => {
+                    if (fallback && avatarEl.src !== fallback) avatarEl.src = fallback;
+                };
+            }
+
+            const riskActive = data.sys_modules && data.sys_modules.risk !== 0;
+            const ebrSection = document.getElementById('topbarEbrSection');
+            if (ebrSection) ebrSection.classList.toggle('restricted', !riskActive);
+
+            const adminSection = document.getElementById('adminConfigSection');
+            if (adminSection) {
+                const isAdmin = !!(data.permissions && Number(data.permissions.administracion) > 0);
+                adminSection.classList.toggle('restricted', !isAdmin);
+            }
+        };
+
+        try {
+            const cachedRaw = sessionStorage.getItem('topbar_user_cache_v1');
+            if (cachedRaw) {
+                const cached = JSON.parse(cachedRaw);
+                const ageMs = Date.now() - Number(cached.ts || 0);
+                if (cached.payload && ageMs >= 0 && ageMs < 120000) {
+                    applyUserPayload(cached.payload);
+                }
+            }
+        } catch (e) { /* sin cache */ }
+
+        const abortController = new AbortController();
+        const timeoutId = setTimeout(() => abortController.abort(), 2500);
+
         fetch('api/get_current_user.php', {
             cache: 'no-store',
-            credentials: 'same-origin'
+            credentials: 'same-origin',
+            signal: abortController.signal
         })
             .then(async (res) => {
+                clearTimeout(timeoutId);
                 let data = null;
                 try {
                     data = await res.json();
@@ -123,35 +211,13 @@
                     });
                     return;
                 }
-
-                // Populate user info (escape to prevent XSS)
-                const userNameEl = document.getElementById('navUserName');
-                if (userNameEl) {
-                    const nameSpan = userNameEl.querySelector('span');
-                    if (nameSpan) {
-                        nameSpan.textContent = data.user.name || '';
-                    } else {
-                        userNameEl.innerHTML = '<i class="fa-solid fa-user-circle"></i><span class="d-none d-md-inline"></span>';
-                        const sp = userNameEl.querySelector('span');
-                        if (sp) sp.textContent = data.user.name || '';
-                    }
-                }
-                const avatarEl = document.getElementById('navUserAvatar');
-                if (avatarEl && data.user) avatarEl.src = data.user.avatar || '';
-                
-                // Apply permissions and module visibility
-                // Configuración EBR: visible para cualquier usuario con módulo risk activo (admin o no)
-                const riskActive = data.sys_modules && data.sys_modules.risk !== 0;
-                const ebrSection = document.getElementById('topbarEbrSection');
-                if (ebrSection) ebrSection.classList.toggle('restricted', !riskActive);
-
-                // Admin config section: solo si tiene permiso administracion
-                if (data.permissions && data.permissions.administracion > 0) {
-                    const adminSection = document.getElementById('adminConfigSection');
-                    if (adminSection) adminSection.classList.remove('restricted');
-                }
+                applyUserPayload(data);
+                try {
+                    sessionStorage.setItem('topbar_user_cache_v1', JSON.stringify({ ts: Date.now(), payload: data }));
+                } catch (e) { /* storage full o no disponible */ }
             })
             .catch((err) => {
+                clearTimeout(timeoutId);
                 console.warn('TopBar: error de red al obtener usuario actual', err);
             });
 

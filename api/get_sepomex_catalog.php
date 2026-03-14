@@ -33,6 +33,18 @@ try {
         exit;
     }
 
+    $rowCountStmt = $pdo->query("SELECT COUNT(*) FROM cat_sepomex");
+    $rowCount = (int)$rowCountStmt->fetchColumn();
+    if ($rowCount === 0) {
+        http_response_code(503);
+        echo json_encode([
+            'status' => 'error',
+            'code' => 'CATALOGO_VACIO',
+            'message' => 'El catálogo SEPOMEX está vacío. Importe CPdescarga para habilitar autocompletado.'
+        ]);
+        exit;
+    }
+
     $mode = strtolower(trim((string)($_GET['mode'] ?? 'states')));
     $limit = isset($_GET['limit']) ? (int)$_GET['limit'] : 200;
     if ($limit < 1) $limit = 1;

@@ -11,7 +11,35 @@ let container = null;
 let centerTitle = null;
 let backBtn = null;
 let isMobile = false;
-const RADIUS = 180; // Radio fijo para todos los items
+
+/**
+ * Calcula radio dinámico para el menú circular según el tamaño disponible.
+ * Evita desbordes en resoluciones medianas y menús con muchos elementos.
+ */
+function getMenuRadius(totalItems) {
+    if (!container) return 180;
+
+    const rect = container.getBoundingClientRect();
+    const cssItemSize = parseFloat(getComputedStyle(document.documentElement).getPropertyValue('--item-size')) || 110;
+    const shortestSide = Math.min(rect.width, rect.height);
+    const clearance = Math.max(cssItemSize * 0.6, 58);
+    let radius = (shortestSide / 2) - clearance;
+
+    // Ajustes finos según densidad de nodos
+    if (totalItems >= 10) radius -= 14;
+    if (totalItems >= 12) radius -= 10;
+
+    // Límites razonables para mantener legibilidad
+    radius = Math.max(80, Math.min(radius, 220));
+    return radius;
+}
+
+function getCurrentMenuItems() {
+    if (menuStack.length > 0) {
+        return menuStack[menuStack.length - 1].items;
+    }
+    return (typeof menuData !== 'undefined' && Array.isArray(menuData)) ? menuData : [];
+}
 
 /**
  * Inicializa las referencias del DOM del menú
@@ -20,7 +48,7 @@ function initMenuRefs() {
     container = document.getElementById('menuContainer');
     centerTitle = document.querySelector('#centerInfo h5');
     backBtn = document.getElementById('backBtn');
-    isMobile = window.innerWidth <= 768;
+    isMobile = window.innerWidth <= 991;
 }
 
 /**
@@ -53,6 +81,7 @@ function renderMenu(items) {
     }
 
     const total = items.length;
+    const radius = getMenuRadius(total);
     const angleStep = 360 / total; // Ángulo entre cada item
     const startAngle = -90; // Empezar desde arriba (12 o'clock)
 
@@ -100,8 +129,8 @@ function renderMenu(items) {
             const angleRad = (angleDeg * Math.PI) / 180;
             
             // Calcular coordenadas X e Y desde el centro del contenedor
-            const x = Math.cos(angleRad) * RADIUS;
-            const y = Math.sin(angleRad) * RADIUS;
+            const x = Math.cos(angleRad) * radius;
+            const y = Math.sin(angleRad) * radius;
             
             // Guardar coordenadas para hover
             el.dataset.x = x;
@@ -701,26 +730,25 @@ document.addEventListener('DOMContentLoaded', () => {
     initChart();
     
     // Cargar gráficos adicionales después de que la página se haya renderizado
-    requestIdleCallback(() => {
-        initMonthlyChart();
-        initStatusChart();
-        initTopRiskChart();
-        initAreaChart();
-    }, { timeout: 2000 }); // Fallback después de 2 segundos si el navegador no soporta requestIdleCallback
-    
-    // Fallback para navegadores que no soportan requestIdleCallback
-    if (!window.requestIdleCallback) {
-        // Cargar inmediatamente sin delay
+    if (window.requestIdleCallback) {
+        window.requestIdleCallback(() => {
+            initMonthlyChart();
+            initStatusChart();
+            initTopRiskChart();
+            initAreaChart();
+        }, { timeout: 2000 });
+    } else {
+        // Fallback para navegadores que no soportan requestIdleCallback
         initMonthlyChart();
         initStatusChart();
         initTopRiskChart();
         initAreaChart();
     }
     
-    // Recalcular isMobile en resize
+    // Recalcular layout del menú en resize
     window.addEventListener('resize', () => {
         const wasMobile = isMobile;
-        isMobile = window.innerWidth <= 768;
+        isMobile = window.innerWidth <= 991;
         
         // Si cambió de móvil a desktop o viceversa, re-renderizar menú
         if (wasMobile !== isMobile && typeof menuData !== 'undefined') {
@@ -731,6 +759,15 @@ document.addEventListener('DOMContentLoaded', () => {
                 if (backBtn) backBtn.style.display = 'none';
             }
             renderMenu(menuData);
+            return;
+        }
+
+        // En desktop, re-renderizar también para reajustar radio dinámico.
+        if (!isMobile) {
+            const currentItems = getCurrentMenuItems();
+            if (currentItems.length > 0) {
+                renderMenu(currentItems);
+            }
         }
     });
 });

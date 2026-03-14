@@ -105,6 +105,17 @@ function normalizePldValue(value) {
         .replace(/\s+/g, ' ');
 }
 
+function isPreRegistroMode() {
+    const checkbox = document.getElementById('es_preregistro');
+    return !!(checkbox && checkbox.checked);
+}
+
+function hasPreRegistroQueryFlag() {
+    const params = new URLSearchParams(window.location.search);
+    const value = (params.get('preregistro') || '').toString().trim().toLowerCase();
+    return ['1', 'true', 'si', 'yes', 'on'].includes(value);
+}
+
 function resetPldValidationState() {
     isValidatedPLD = false;
     currentSearchId = null;
@@ -122,8 +133,15 @@ function getPldSearchPayload(isAutomatic = false) {
         return { ok: false, message: 'No se pudo identificar el tipo de persona.' };
     }
 
-    const isFisica = personaFisica.style.display !== 'none';
-    const isMoral = personaMoral.style.display !== 'none';
+    const personaCfg = getSelectedPersonaConfig();
+    const isFisicaByType = !!(personaCfg && Number(personaCfg.es_fisica) > 0);
+    const isMoralByType = !!(personaCfg && (Number(personaCfg.es_moral) > 0 || Number(personaCfg.es_fideicomiso) > 0));
+    const isFisicaByView = window.getComputedStyle(personaFisica).display !== 'none';
+    const isMoralByView = window.getComputedStyle(personaMoral).display !== 'none';
+
+    // Prioriza el tipo seleccionado; si no está disponible, usa visibilidad actual.
+    const isFisica = isFisicaByType || (!isMoralByType && isFisicaByView);
+    const isMoral = isMoralByType || (!isFisicaByType && isMoralByView);
     const data = {
         nombre: '',
         paterno: '',
@@ -147,14 +165,22 @@ function getPldSearchPayload(isAutomatic = false) {
             };
         }
     } else if (isMoral) {
-        data.nombre = (document.getElementById('moral_razon_social')?.value || '').trim() || '';
+        const nombreMoral = (document.getElementById('moral_razon_social')?.value || '').trim();
+        const fideNumero = (document.getElementById('fide_numero')?.value || document.querySelector('input[name="fide_numero"]')?.value || '').trim();
+        const fideInstitucion = (document.getElementById('fide_institucion')?.value || document.querySelector('input[name="fide_institucion"]')?.value || '').trim();
+        const generalFideNumero = (document.getElementById('general_fide_numero')?.value || '').trim();
+
+        data.nombre = nombreMoral || fideNumero || generalFideNumero || fideInstitucion || '';
         data.tipo_persona = 'moral';
         if (data.nombre.length < 3) {
+            const isFideicomiso = !!(personaCfg && Number(personaCfg.es_fideicomiso) > 0);
             return {
                 ok: false,
                 message: isAutomatic
                     ? 'Datos insuficientes para validar en listas.'
-                    : 'Por favor ingrese la Razón Social (mínimo 3 caracteres) para realizar la búsqueda.'
+                    : (isFideicomiso
+                        ? 'Por favor capture Número de Fideicomiso o Institución (mínimo 3 caracteres) para realizar la búsqueda.'
+                        : 'Por favor ingrese la Razón Social (mínimo 3 caracteres) para realizar la búsqueda.')
             };
         }
     } else {
@@ -792,6 +818,10 @@ async function validateStep2BeforeNext() {
 }
 
 function validateStep3BeforeNext() {
+    if (isPreRegistroMode()) {
+        return true;
+    }
+
     const nacionalidades = Array.from(document.querySelectorAll('#nacionalidades-list select[name="nacionalidad_id[]"]'));
     if (nacionalidades.length === 0) {
         alert('Debe agregar al menos una nacionalidad.');
@@ -883,50 +913,53 @@ function validateStep4BeforeSubmit() {
     }
 
     const isFisica = Number(persona.es_fisica || 0) > 0;
+    const isPreRegistro = isPreRegistroMode();
     if (isFisica) {
         const empleo = document.getElementById('kyc_empleo_actual');
         const ocupacion = document.getElementById('kyc_id_ocupacion');
         const estudios = document.getElementById('kyc_nivel_estudios');
         const pep = document.getElementById('kyc_tiene_familiar_pep');
 
-        if (!empleo?.value.trim()) {
-            empleo?.focus();
-            alert('Capture el empleo actual.');
-            return false;
-        }
-        if (!ocupacion?.value) {
-            ocupacion?.focus();
-            alert('Seleccione la ocupación.');
-            return false;
-        }
-        if (!estudios?.value) {
-            estudios?.focus();
-            alert('Seleccione el nivel de estudios.');
-            return false;
-        }
-        if (pep?.value !== '0' && pep?.value !== '1') {
-            pep?.focus();
-            alert('Indique si tiene familiar directo políticamente expuesto.');
-            return false;
-        }
-
-        if (pep.value === '1') {
-            const parentesco = document.getElementById('kyc_parentesco_familiar_pep');
-            const nombreFamiliar = document.getElementById('kyc_nombre_familiar_pep');
-            const puesto = document.getElementById('kyc_puesto_familiar_pep');
-            const fechaIngreso = document.getElementById('kyc_fecha_ingreso_pep');
-            if (!parentesco?.value || !nombreFamiliar?.value.trim() || !puesto?.value.trim() || !fechaIngreso?.value) {
-                alert('Complete parentesco, nombre, puesto y fecha de ingreso del familiar PEP.');
-                parentesco?.focus();
+        if (!isPreRegistro) {
+            if (!empleo?.value.trim()) {
+                empleo?.focus();
+                alert('Capture el empleo actual.');
                 return false;
             }
-            const fechaPep = parseInputDate(fechaIngreso.value);
-            const hoy = new Date();
-            hoy.setHours(0, 0, 0, 0);
-            if (!fechaPep || fechaPep > hoy) {
-                fechaIngreso.focus();
-                alert('La fecha de ingreso del familiar PEP no puede ser futura.');
+            if (!ocupacion?.value) {
+                ocupacion?.focus();
+                alert('Seleccione la ocupación.');
                 return false;
+            }
+            if (!estudios?.value) {
+                estudios?.focus();
+                alert('Seleccione el nivel de estudios.');
+                return false;
+            }
+            if (pep?.value !== '0' && pep?.value !== '1') {
+                pep?.focus();
+                alert('Indique si tiene familiar directo políticamente expuesto.');
+                return false;
+            }
+
+            if (pep.value === '1') {
+                const parentesco = document.getElementById('kyc_parentesco_familiar_pep');
+                const nombreFamiliar = document.getElementById('kyc_nombre_familiar_pep');
+                const puesto = document.getElementById('kyc_puesto_familiar_pep');
+                const fechaIngreso = document.getElementById('kyc_fecha_ingreso_pep');
+                if (!parentesco?.value || !nombreFamiliar?.value.trim() || !puesto?.value.trim() || !fechaIngreso?.value) {
+                    alert('Complete parentesco, nombre, puesto y fecha de ingreso del familiar PEP.');
+                    parentesco?.focus();
+                    return false;
+                }
+                const fechaPep = parseInputDate(fechaIngreso.value);
+                const hoy = new Date();
+                hoy.setHours(0, 0, 0, 0);
+                if (!fechaPep || fechaPep > hoy) {
+                    fechaIngreso.focus();
+                    alert('La fecha de ingreso del familiar PEP no puede ser futura.');
+                    return false;
+                }
             }
         }
     }
@@ -954,6 +987,7 @@ async function nextStep(step) {
     document.getElementById(`step-${currentStep}`).classList.remove('active');
     document.getElementById(`step-${step}`).classList.add('active');
     currentStep = step;
+    updateWizardProgress();
     window.scrollTo(0, 0);
 }
 
@@ -961,10 +995,75 @@ function prevStep(step) {
     document.getElementById(`step-${currentStep}`).classList.remove('active');
     document.getElementById(`step-${step}`).classList.add('active');
     currentStep = step;
+    updateWizardProgress();
     window.scrollTo(0, 0);
 }
 
 // --- 3. UTILITY FUNCTIONS ---
+function updateWizardProgress() {
+    const stepPills = document.querySelectorAll('#wizardProgress .wizard-step-pill[data-step]');
+    stepPills.forEach((pill) => {
+        const step = Number(pill.dataset.step || 0);
+        pill.classList.remove('active', 'completed');
+        if (step < currentStep) {
+            pill.classList.add('completed');
+        } else if (step === currentStep) {
+            pill.classList.add('active');
+        }
+    });
+
+    const bar = document.getElementById('wizardProgressBar');
+    if (bar) {
+        const percent = ((Math.max(1, Math.min(4, currentStep)) - 1) / 3) * 100;
+        bar.style.width = `${percent}%`;
+    }
+}
+
+function buildPlaceholderFromLabel(labelText, inputType) {
+    const base = String(labelText || '')
+        .replace(/\*/g, '')
+        .replace(/\s+/g, ' ')
+        .trim()
+        .toLowerCase();
+
+    if (!base) return inputType === 'number' ? 'Ej: 1' : 'Ej: Captura el dato';
+    if (base.includes('contrato')) return 'Ej: EVE-000123';
+    if (base.includes('alias')) return 'Ej: Cliente preferente';
+    if (base.includes('razon social')) return 'Ej: Empresa S.A. de C.V.';
+    if (base.includes('nombre comercial')) return 'Ej: EVE Consultores';
+    if (base.includes('nombre') && base.includes('familiar')) return 'Ej: Juan Pérez López';
+    if (base.includes('nombre')) return 'Ej: Juan';
+    if (base.includes('apellido paterno')) return 'Ej: Pérez';
+    if (base.includes('apellido materno')) return 'Ej: González';
+    if (base.includes('rfc') || base.includes('tax id')) return 'Ej: PERG800101ABC';
+    if (base.includes('curp')) return 'Ej: PERG800101HDFRNS01';
+    if (base.includes('fideicomiso')) return 'Ej: FID-2026-001';
+    if (base.includes('calle')) return 'Ej: Av. Reforma 123';
+    if (base.includes('colonia')) return 'Ej: Centro';
+    if (base.includes('municipio')) return 'Ej: Cuauhtémoc';
+    if (base.includes('codigo postal')) return 'Ej: 06000';
+    if (base.includes('empleo')) return 'Ej: Analista financiero';
+    if (base.includes('puesto')) return 'Ej: Director de área';
+    if (base.includes('dato de contacto')) return 'Ej: correo@empresa.com';
+    if (base.includes('comentarios') || base.includes('justificacion')) return 'Ej: Homónimo, fecha no coincide';
+    if (base.includes('tipo de documento')) return 'Ej: Comprobante de domicilio';
+    if (inputType === 'number') return 'Ej: 1';
+    return `Ej: ${labelText.replace(/\*/g, '').trim()}`;
+}
+
+function applyExamplePlaceholders(scope = document) {
+    const fields = scope.querySelectorAll('input[type="text"], input[type="number"], input[type="email"], input[type="tel"], textarea');
+    fields.forEach((field) => {
+        if (!field || field.disabled || field.type === 'hidden') return;
+        if ((field.placeholder || '').trim() !== '') return;
+
+        const wrapper = field.closest('.col-md-12, .col-md-8, .col-md-6, .col-md-5, .col-md-4, .col-md-3, .col-md-2, .col-12, .col-6, .col');
+        const label = wrapper ? wrapper.querySelector('label') : null;
+        const labelText = (label?.textContent || '').trim();
+        field.placeholder = buildPlaceholderFromLabel(labelText, field.type);
+    });
+}
+
 function populateSelect(elementId, data, valueField, labelField) {
     const select = document.getElementById(elementId);
     if (!select) return;
@@ -1202,11 +1301,11 @@ async function getPostalCodesByStateMunicipality(stateName, municipalityName, pr
 async function lookupSepomexByPostalCode(postalCode, municipalityHint = '') {
     const cp = String(postalCode || '').trim();
     if (!/^\d{5}$/.test(cp)) {
-        return null;
+        return { data: null, error: 'Código postal inválido.' };
     }
     const cacheKey = municipalityHint ? `${cp}|${normalizeAddressValue(municipalityHint)}` : cp;
     if (sepomexCache.cpLookup.has(cacheKey)) {
-        return sepomexCache.cpLookup.get(cacheKey);
+        return { data: sepomexCache.cpLookup.get(cacheKey), error: '' };
     }
     try {
         const result = await fetchSepomex('postal_code_lookup', {
@@ -1214,10 +1313,25 @@ async function lookupSepomexByPostalCode(postalCode, municipalityHint = '') {
             municipality: municipalityHint || ''
         });
         sepomexCache.cpLookup.set(cacheKey, result);
-        return result;
+        return { data: result, error: '' };
     } catch (error) {
+        // Reintento sin pista de municipio para evitar fallos por captura distinta.
+        if ((municipalityHint || '').trim() !== '') {
+            try {
+                const fallbackResult = await fetchSepomex('postal_code_lookup', {
+                    postal_code: cp,
+                    municipality: ''
+                });
+                sepomexCache.cpLookup.set(cacheKey, fallbackResult);
+                return { data: fallbackResult, error: '' };
+            } catch (fallbackError) {
+                console.warn('No fue posible resolver C.P. con SEPOMEX (reintento).', fallbackError);
+                return { data: null, error: fallbackError?.message || 'No fue posible resolver C.P. con SEPOMEX.' };
+            }
+        }
+
         console.warn('No fue posible resolver C.P. con SEPOMEX.', error);
-        return null;
+        return { data: null, error: error?.message || 'No fue posible resolver C.P. con SEPOMEX.' };
     }
 }
 
@@ -1257,11 +1371,13 @@ async function resolvePostalCodeForRow(row, force = false) {
     const municipioDataList = row.querySelector('datalist[data-role="municipios"]');
     const cpDataList = row.querySelector('datalist[data-role="cp"]');
     const coloniaDataList = row.querySelector('datalist[data-role="colonias"]');
+    const statusEl = row.querySelector('.geo-status');
     if (!estadoSelect || !municipioInput || !cpInput || !municipioDataList || !cpDataList || !coloniaInput || !coloniaDataList) return;
 
     const cp = String(cpInput.value || '').trim();
     if (!/^\d{5}$/.test(cp)) {
         setDataListOptions(coloniaDataList, []);
+        if (statusEl) statusEl.textContent = 'Capture un C.P. de 5 dígitos para autocompletar municipio/colonia.';
         return;
     }
     const lastCp = row.dataset.lastCpLookup || '';
@@ -1269,9 +1385,18 @@ async function resolvePostalCodeForRow(row, force = false) {
         return;
     }
 
-    const lookup = await lookupSepomexByPostalCode(cp, municipioInput.value);
+    const lookupResult = await lookupSepomexByPostalCode(cp, municipioInput.value);
+    const lookup = lookupResult?.data || null;
+    const lookupError = String(lookupResult?.error || '').trim();
     row.dataset.lastCpLookup = cp;
-    if (!lookup) return;
+    if (!lookup) {
+        if (statusEl) {
+            statusEl.textContent = lookupError !== ''
+                ? `Autocompletado no disponible: ${lookupError}`
+                : `No se encontró el C.P. ${cp} en SEPOMEX. Verifique C.P./municipio o complete manualmente.`;
+        }
+        return;
+    }
 
     if (lookup.state) {
         selectStateOptionByName(estadoSelect, lookup.state);
@@ -1289,6 +1414,11 @@ async function resolvePostalCodeForRow(row, force = false) {
         setDataListOptions(coloniaDataList, lookup.colonias_by_municipality);
     }
     await updateAddressCatalogForRow(row, { fromCpLookup: true });
+    if (statusEl) {
+        const totalColonias = Array.isArray(lookup.colonias) ? lookup.colonias.length : 0;
+        const mun = lookup.municipality || municipioInput.value || 'municipio detectado';
+        statusEl.textContent = `C.P. ${cp} resuelto: ${mun}, ${lookup.state || 'estado detectado'} (${totalColonias} colonias).`;
+    }
 }
 
 async function updateAddressCatalogForRow(row, options = {}) {
@@ -1329,7 +1459,8 @@ async function updateAddressCatalogForRow(row, options = {}) {
     setDataListOptions(cpDataList, postalCodes);
 
     if (!options.fromCpLookup && /^\d{5}$/.test(cpPrefix)) {
-        const lookup = await lookupSepomexByPostalCode(cpPrefix, municipio);
+        const lookupResult = await lookupSepomexByPostalCode(cpPrefix, municipio);
+        const lookup = lookupResult?.data || null;
         if (lookup && Array.isArray(lookup.colonias)) {
             setDataListOptions(coloniaDataList, lookup.colonias);
         } else {
@@ -1371,7 +1502,8 @@ function captureLocationForRow(buttonEl) {
                 const response = await fetch(`api/reverse_geocode.php?lat=${encodeURIComponent(latEl.value)}&lng=${encodeURIComponent(lngEl.value)}`);
                 const payload = await response.json().catch(() => null);
                 if (!response.ok || !payload || payload.status !== 'success' || !payload.data) {
-                    throw new Error(payload?.message || 'No fue posible resolver la dirección.');
+                    const detail = payload?.details ? ` | ${payload.details}` : '';
+                    throw new Error((payload?.message || 'No fue posible resolver la dirección.') + detail);
                 }
 
                 const address = payload.data;
@@ -1405,7 +1537,7 @@ function captureLocationForRow(buttonEl) {
 
                 statusEl.textContent = `Ubicación y dirección capturadas (${lat.toFixed(5)}, ${lng.toFixed(5)}).`;
             } catch (error) {
-                statusEl.textContent = `Ubicación capturada (${lat.toFixed(5)}, ${lng.toFixed(5)}). No se pudo autocompletar — ingrese la dirección manualmente.`;
+                statusEl.textContent = `Ubicación capturada (${lat.toFixed(5)}, ${lng.toFixed(5)}). Si no se completó la dirección, captura C.P. y municipio para autocompletar colonias.`;
                 console.warn('reverse_geocode error', error);
             }
         },
@@ -1530,7 +1662,7 @@ function addDynamicItem(listId, name, catalogData, catValue, catLabel) {
             </div>
             <div class="col-md-3">
                 <label class="form-label small">Municipio / Alcaldía*</label>
-                <input type="text" class="form-control dir-municipio-input" name="dir_municipio[]" list="${municipioListId}" required>
+                <input type="text" class="form-control dir-municipio-input" name="dir_municipio[]" list="${municipioListId}" placeholder="Ej: Cuauhtémoc" required>
                 <datalist id="${municipioListId}" data-role="municipios"></datalist>
             </div>
             <div class="col-md-3">
@@ -1577,6 +1709,7 @@ function addDynamicItem(listId, name, catalogData, catValue, catLabel) {
     
     item.innerHTML = `<div class="row w-100 g-2">${html}</div><button type="button" class="btn btn-sm btn-danger" onclick="this.parentElement.remove()"><i class="fa-solid fa-trash"></i></button>`;
     list.appendChild(item);
+    applyExamplePlaceholders(item);
     if (listId === 'identificaciones-list') {
         const sel = item.querySelector('.ident-tipo-select');
         if (sel) {
@@ -1612,17 +1745,17 @@ function addApoderadoItem() {
         </div>
         <div id="apoderado-fisica-${index}" class="apoderado-specific" style="display:none;">
             <div class="row">
-                <div class="col-md-4 mb-3"><label class="small">Nombre*</label><input type="text" class="form-control" name="apoderado[${index}][fisica_nombre]"></div>
-                <div class="col-md-4 mb-3"><label class="small">Apellido Paterno*</label><input type="text" class="form-control" name="apoderado[${index}][fisica_ap_paterno]"></div>
-                <div class="col-md-4 mb-3"><label class="small">Apellido Materno</label><input type="text" class="form-control" name="apoderado[${index}][fisica_ap_materno]"></div>
-                <div class="col-md-6 mb-3"><label class="small">RFC / Tax ID*</label><input type="text" class="form-control" name="apoderado[${index}][fisica_tax_id]"></div>
-                <div class="col-md-6 mb-3"><label class="small">CURP</label><input type="text" class="form-control" name="apoderado[${index}][fisica_curp]"></div>
+                <div class="col-md-4 mb-3"><label class="small">Nombre*</label><input type="text" class="form-control" name="apoderado[${index}][fisica_nombre]" placeholder="Ej: Juan"></div>
+                <div class="col-md-4 mb-3"><label class="small">Apellido Paterno*</label><input type="text" class="form-control" name="apoderado[${index}][fisica_ap_paterno]" placeholder="Ej: Pérez"></div>
+                <div class="col-md-4 mb-3"><label class="small">Apellido Materno</label><input type="text" class="form-control" name="apoderado[${index}][fisica_ap_materno]" placeholder="Ej: González"></div>
+                <div class="col-md-6 mb-3"><label class="small">RFC / Tax ID*</label><input type="text" class="form-control" name="apoderado[${index}][fisica_tax_id]" placeholder="Ej: PERG800101ABC"></div>
+                <div class="col-md-6 mb-3"><label class="small">CURP</label><input type="text" class="form-control" name="apoderado[${index}][fisica_curp]" placeholder="Ej: PERG800101HDFRNS01"></div>
             </div>
         </div>
         <div id="apoderado-moral-${index}" class="apoderado-specific" style="display:none;">
             <div class="row">
-                <div class="col-md-6 mb-3"><label class="small">Razón Social*</label><input type="text" class="form-control" name="apoderado[${index}][moral_razon_social]"></div>
-                <div class="col-md-6 mb-3"><label class="small">RFC / Tax ID*</label><input type="text" class="form-control" name="apoderado[${index}][moral_tax_id]"></div>
+                <div class="col-md-6 mb-3"><label class="small">Razón Social*</label><input type="text" class="form-control" name="apoderado[${index}][moral_razon_social]" placeholder="Ej: Empresa S.A. de C.V."></div>
+                <div class="col-md-6 mb-3"><label class="small">RFC / Tax ID*</label><input type="text" class="form-control" name="apoderado[${index}][moral_tax_id]" placeholder="Ej: ABC123456DEF"></div>
             </div>
         </div>
         <hr>
@@ -1631,6 +1764,7 @@ function addApoderadoItem() {
         <button type="button" class="btn btn-sm btn-outline-secondary" onclick="addApoderadoContactoItem(${index})"><i class="fa-solid fa-plus"></i> Agregar Contacto (Apoderado)</button>
     `;
     list.appendChild(item);
+    applyExamplePlaceholders(item);
 }
 
 function addApoderadoContactoItem(apoderadoIndex) {
@@ -1641,9 +1775,10 @@ function addApoderadoContactoItem(apoderadoIndex) {
     item.className = 'dynamic-list-item';
     const options = catalogs.tipos_contacto.map(t => `<option value="${t.id_tipo_contacto}">${t.nombre}</option>`).join('');
     item.innerHTML = `<select class="form-select" name="apoderado[${apoderadoIndex}][contactos][tipo][]">${options}</select>
-            <input type="text" class="form-control" name="apoderado[${apoderadoIndex}][contactos][valor][]" placeholder="Dato de Contacto">
+            <input type="text" class="form-control" name="apoderado[${apoderadoIndex}][contactos][valor][]" placeholder="Ej: correo@empresa.com">
             <button type="button" class="btn btn-sm btn-danger" onclick="this.parentElement.remove()"><i class="fa-solid fa-trash"></i></button>`;
     list.appendChild(item);
+    applyExamplePlaceholders(item);
 }
 
 function toggleApoderadoType(selectElement, index) {
@@ -1669,16 +1804,20 @@ function addDocumentoItem() {
     const item = document.createElement('div');
     item.className = 'dynamic-list-item row g-2';
     item.innerHTML = `
-        <div class="col-md-4"><input type="text" class="form-control" name="doc_tipo[]" placeholder="Tipo de Documento"></div>
+        <div class="col-md-4"><input type="text" class="form-control" name="doc_tipo[]" placeholder="Ej: Comprobante de domicilio"></div>
         <div class="col-md-5"><input type="file" class="form-control" name="doc_file[]"></div>
         <div class="col-md-2"><input type="date" class="form-control" name="doc_vencimiento[]"></div>
         <div class="col-md-1"><button type="button" class="btn btn-sm btn-danger" onclick="this.closest('.dynamic-list-item').remove()"><i class="fa-solid fa-trash"></i></button></div>
     `;
     list.appendChild(item);
+    applyExamplePlaceholders(item);
 }
 
 // --- 4. INITIALIZATION ---
 document.addEventListener('DOMContentLoaded', function() {
+    updateWizardProgress();
+    applyExamplePlaceholders();
+
     setupBidirectionalSync('general_fisica_nombre', 'fisica_nombre');
     setupBidirectionalSync('general_fisica_ap_paterno', 'fisica_ap_paterno');
     setupBidirectionalSync('general_fisica_ap_materno', 'fisica_ap_materno');
@@ -1880,6 +2019,9 @@ document.addEventListener('DOMContentLoaded', function() {
     const idStatusSelect = document.getElementById('id_status');
     if (idStatusSelect) {
         idStatusSelect.addEventListener('change', function(e) {
+            if (isPreRegistroMode() && e.target.value !== '2') {
+                e.target.value = '2';
+            }
             const status = e.target.value;
             const bajaContainer = document.getElementById('fechaBajaContainer');
             if (bajaContainer) {
@@ -1896,6 +2038,22 @@ document.addEventListener('DOMContentLoaded', function() {
                 }
             }
         });
+    }
+
+    const preRegistroCheckbox = document.getElementById('es_preregistro');
+    if (preRegistroCheckbox && idStatusSelect) {
+        preRegistroCheckbox.addEventListener('change', function() {
+            if (this.checked) {
+                idStatusSelect.value = '2';
+                idStatusSelect.dispatchEvent(new Event('change'));
+            }
+        });
+
+        if (hasPreRegistroQueryFlag()) {
+            preRegistroCheckbox.checked = true;
+            idStatusSelect.value = '2';
+            idStatusSelect.dispatchEvent(new Event('change'));
+        }
     }
 
     // Event Listeners for Dynamic Items

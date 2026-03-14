@@ -1,0 +1,32 @@
+UMAS POR FRACCION (AVISO)
+Proyecto: eve_360_plataforma
+Fecha de corte: 2026-03-13
+UMA vigente en sistema: 117.31 MXN (indicadores, fecha 2026-02-01)
+
+Formula:
+- Umbral en MXN = Umbral en UMA x 117.31
+
+Fracciones solicitadas:
+
+1) Fraccion II
+- Umbral de aviso: 1,285 UMA
+- Umbral de aviso en MXN: 150,743.35
+
+2) Fraccion V
+- Umbral de aviso: 8,025 UMA
+- Umbral de aviso en MXN: 941,412.75
+
+3) Fraccion V Bis
+- Umbral de aviso: 8,025 UMA
+- Umbral de aviso en MXN: 941,412.75
+- Nota: en este entorno no existe fila "V Bis" en cat_vulnerables; se toma del codigo (config/pld_fraccion_v_bis.php).
+
+4) Fraccion XI (Servicios Profesionales / administracion_recursos activa)
+- Umbral de aviso: 1,605 UMA
+- Umbral de aviso en MXN: 188,282.55
+
+Resumen rapido:
+- II    -> 1,285 UMA -> 150,743.35 MXN
+- V     -> 8,025 UMA -> 941,412.75 MXN
+- V Bis -> 8,025 UMA -> 941,412.75 MXN
+- XI    -> 1,605 UMA -> 188,282.55 MXN

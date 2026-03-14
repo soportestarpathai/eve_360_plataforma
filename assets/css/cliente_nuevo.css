@@ -13,9 +13,100 @@
 
 /* Wizard Container */
 .wizard-card { 
-    max-width: 1000px; 
+    max-width: 1080px; 
     margin: 2rem auto;
     padding: 0 1rem;
+}
+
+/* Wizard Progress */
+.wizard-progress {
+    position: sticky;
+    top: 12px;
+    z-index: 30;
+    margin-bottom: 1rem;
+    border: 1px solid rgba(27, 143, 234, 0.18);
+    border-radius: 14px;
+    padding: 0.8rem 0.9rem;
+    background: rgba(255, 255, 255, 0.9);
+    backdrop-filter: blur(6px);
+    box-shadow: 0 10px 26px rgba(11, 60, 138, 0.1);
+}
+
+.wizard-progress-track {
+    width: 100%;
+    height: 6px;
+    border-radius: 999px;
+    background: #dce6f6;
+    overflow: hidden;
+    margin-bottom: 0.7rem;
+}
+
+#wizardProgressBar {
+    display: block;
+    height: 100%;
+    width: 0;
+    border-radius: 999px;
+    background: linear-gradient(90deg, #2ed1ff 0%, #1b8fea 50%, #0b3c8a 100%);
+    transition: width 0.25s ease;
+}
+
+.wizard-progress-steps {
+    display: grid;
+    grid-template-columns: repeat(4, minmax(0, 1fr));
+    gap: 0.45rem;
+}
+
+.wizard-step-pill {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    gap: 0.4rem;
+    min-height: 36px;
+    border-radius: 999px;
+    border: 1px solid #d2dfef;
+    background: #f2f6fc;
+    color: #5b6e85;
+    font-size: 0.78rem;
+    font-weight: 700;
+    letter-spacing: 0.1px;
+    text-align: center;
+    padding: 0.35rem 0.55rem;
+}
+
+.wizard-step-num {
+    width: 20px;
+    height: 20px;
+    border-radius: 50%;
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    background: #dce7f7;
+    color: #35547a;
+    font-size: 0.72rem;
+    font-weight: 700;
+}
+
+.wizard-step-pill.active {
+    color: #ffffff;
+    border-color: #1b8fea;
+    background: linear-gradient(135deg, #1b8fea 0%, #0b3c8a 100%);
+    box-shadow: 0 8px 18px rgba(27, 143, 234, 0.3);
+}
+
+.wizard-step-pill.active .wizard-step-num {
+    background: rgba(255, 255, 255, 0.2);
+    color: #ffffff;
+}
+
+.wizard-step-pill.completed {
+    color: #0d3f65;
+    border-color: #79d8f0;
+    background: linear-gradient(135deg, #dcf6fc 0%, #c8effa 100%);
+}
+
+.wizard-step-pill.completed .wizard-step-num {
+    background: #2ed1ff;
+    color: #083e61;
 }
 
 /* Step Navigation */
@@ -38,7 +129,7 @@
     background: var(--eve-white); 
     padding: 2rem; 
     border-radius: 12px; 
-    box-shadow: 0 4px 20px rgba(11, 60, 138, 0.1);
+    box-shadow: 0 8px 26px rgba(11, 60, 138, 0.12);
     border: 1px solid rgba(199, 205, 214, 0.2);
     margin-bottom: 1.5rem;
 }
@@ -59,6 +150,236 @@
 .section-title i {
     color: var(--eve-blue-medium);
     font-size: 1.1rem;
+}
+
+/* Step 1 - Informacion General (Modernized) */
+.step1-general {
+    background:
+        radial-gradient(1200px 240px at -10% -10%, rgba(46, 209, 255, 0.18), transparent 60%),
+        radial-gradient(900px 180px at 120% 0%, rgba(11, 60, 138, 0.14), transparent 60%),
+        #ffffff;
+}
+
+.step1-title {
+    border-bottom-width: 2px;
+    margin-bottom: 1rem;
+}
+
+.step1-intro-band {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 0.5rem;
+    margin-bottom: 1rem;
+}
+
+.step1-chip {
+    display: inline-flex;
+    align-items: center;
+    gap: 0.4rem;
+    border-radius: 999px;
+    padding: 0.35rem 0.75rem;
+    font-size: 0.78rem;
+    font-weight: 700;
+    letter-spacing: 0.2px;
+    color: #0d3f65;
+    background: #eaf5ff;
+    border: 1px solid #cfe6ff;
+}
+
+.step1-chip i {
+    color: #1b8fea;
+    font-size: 0.75rem;
+}
+
+.step1-panel {
+    background: #ffffff;
+    border: 1px solid rgba(27, 143, 234, 0.2);
+    border-radius: 14px;
+    padding: 1rem 1rem 0.5rem;
+    box-shadow: 0 10px 24px rgba(11, 60, 138, 0.06);
+}
+
+.step1-panel-secondary {
+    background: linear-gradient(180deg, #ffffff 0%, #f8fbff 100%);
+    border-color: rgba(11, 72, 107, 0.25);
+}
+
+.step1-panel-title {
+    display: inline-flex;
+    align-items: center;
+    gap: 0.5rem;
+    margin-bottom: 0.95rem;
+    font-size: 0.95rem;
+    font-weight: 700;
+    color: #0b3c8a;
+    background: #edf5ff;
+    border: 1px solid #d3e7ff;
+    border-radius: 10px;
+    padding: 0.4rem 0.7rem;
+}
+
+.step1-panel-title i {
+    color: #1b8fea;
+}
+
+.step1-persona-box {
+    border: 1px dashed rgba(27, 143, 234, 0.45);
+    border-radius: 12px;
+    padding: 0.9rem 0.9rem 0.2rem;
+    background: rgba(234, 245, 255, 0.45);
+}
+
+/* Step 1 compact mode (desktop/tablet) */
+.step1-compact {
+    padding: 1.4rem;
+}
+
+.step1-compact .step1-intro-band {
+    margin-bottom: 0.75rem;
+}
+
+.step1-compact .step1-chip {
+    padding: 0.25rem 0.6rem;
+    font-size: 0.72rem;
+}
+
+.step1-compact .step1-panel {
+    padding: 0.75rem 0.85rem 0.3rem;
+}
+
+.step1-compact .step1-panel-title {
+    margin-bottom: 0.7rem;
+    font-size: 0.88rem;
+    padding: 0.32rem 0.58rem;
+}
+
+.step1-compact .row > [class*="col-"] {
+    margin-bottom: 0.6rem !important;
+}
+
+.step1-compact .form-label {
+    font-size: 0.86rem;
+    margin-bottom: 0.32rem;
+}
+
+.step1-compact .form-control,
+.step1-compact .form-select {
+    min-height: 39px;
+    padding-top: 0.45rem;
+    padding-bottom: 0.45rem;
+    font-size: 0.9rem;
+}
+
+.step1-compact .form-text,
+.step1-compact .small {
+    font-size: 0.78rem;
+}
+
+.step1-compact .step-navigation {
+    margin-top: 1.25rem;
+    padding-top: 1rem;
+}
+
+/* Step 3 - Identificacion y Contacto (Modernized) */
+.step3-modern {
+    background:
+        radial-gradient(1200px 220px at 110% -10%, rgba(46, 209, 255, 0.12), transparent 65%),
+        radial-gradient(800px 180px at -10% -20%, rgba(11, 60, 138, 0.09), transparent 62%),
+        #ffffff;
+}
+
+.step3-modern #ai-extraction-badge {
+    border: 1px solid #b7d7ff;
+    background: linear-gradient(135deg, #edf5ff 0%, #e4f1ff 100%);
+    color: #1f4d7a;
+    border-radius: 10px;
+}
+
+.step3-group {
+    border: 1px solid rgba(27, 143, 234, 0.18);
+    background: #ffffff;
+    border-radius: 14px;
+    padding: 0.9rem;
+    margin-bottom: 0.95rem;
+    box-shadow: 0 8px 20px rgba(11, 60, 138, 0.06);
+}
+
+#step-3 .subsection-title {
+    font-size: 0.95rem;
+    font-weight: 700;
+    color: #0b3c8a;
+    border: none;
+    margin: 0 0 0.65rem 0;
+    padding: 0;
+}
+
+#step-3 .subsection-title i {
+    color: #1b8fea;
+    font-size: 0.9rem;
+}
+
+.step3-modern .dynamic-list-item {
+    position: relative;
+    align-items: flex-start;
+    gap: 0.8rem;
+    margin-bottom: 0.7rem;
+    background: linear-gradient(180deg, #ffffff 0%, #f7fbff 100%);
+    padding: 0.85rem 0.9rem;
+    border-radius: 12px;
+    border: 1px solid #d7e6fb;
+    border-left: 4px solid #1b8fea;
+    box-shadow: 0 5px 14px rgba(11, 60, 138, 0.06);
+}
+
+.step3-modern .dynamic-list-item .row {
+    width: 100%;
+}
+
+.step3-modern .dynamic-list-item .form-label.small {
+    font-size: 0.76rem;
+    margin-bottom: 0.3rem;
+    color: #35557d;
+}
+
+.step3-modern .dynamic-list-item .form-control,
+.step3-modern .dynamic-list-item .form-select {
+    border-color: #cfe0f6;
+    border-radius: 10px;
+    min-height: 40px;
+    font-size: 0.9rem;
+    background-color: #fff;
+}
+
+.step3-modern .dynamic-list-item .form-control:focus,
+.step3-modern .dynamic-list-item .form-select:focus {
+    border-color: #1b8fea;
+    box-shadow: 0 0 0 0.18rem rgba(27, 143, 234, 0.14);
+}
+
+.step3-modern .dynamic-list-item .btn-danger {
+    flex-shrink: 0;
+    align-self: flex-start;
+    width: 34px;
+    height: 34px;
+    padding: 0;
+    border-radius: 9px;
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+}
+
+.step3-add-btn {
+    border-style: dashed;
+    border-width: 2px;
+    border-radius: 10px;
+    min-height: 40px;
+    padding-inline: 0.9rem;
+    font-weight: 700;
+    background: #f4f9ff;
+}
+
+.step3-add-btn:hover {
+    transform: translateY(-1px);
 }
 
 /* Form Labels with Icons */
@@ -714,6 +1035,20 @@ hr {
         padding: 0 0.75rem;
     }
 
+    .wizard-progress {
+        position: static;
+        padding: 0.7rem;
+    }
+
+    .wizard-progress-steps {
+        grid-template-columns: repeat(2, minmax(0, 1fr));
+    }
+
+    .wizard-step-pill {
+        font-size: 0.72rem;
+        min-height: 34px;
+    }
+
     .form-section {
         padding: 1.5rem;
         border-radius: 10px;
@@ -759,6 +1094,27 @@ hr {
         margin: 0.5rem;
         max-width: calc(100% - 1rem);
     }
+
+    .step1-panel {
+        padding: 0.85rem 0.85rem 0.35rem;
+    }
+
+    .step3-group {
+        padding: 0.75rem;
+        border-radius: 12px;
+    }
+
+    .step3-modern .dynamic-list-item {
+        padding: 0.75rem;
+    }
+
+    .step1-compact {
+        padding: 1.2rem;
+    }
+
+    .step1-compact .row > [class*="col-"] {
+        margin-bottom: 0.75rem !important;
+    }
 }
 
 /* Responsive Design - Mobile (576px and below) */
@@ -771,6 +1127,24 @@ hr {
     .form-section {
         padding: 1.25rem;
         border-radius: 8px;
+    }
+
+    .wizard-progress {
+        margin-bottom: 0.75rem;
+        padding: 0.6rem;
+    }
+
+    .wizard-progress-track {
+        margin-bottom: 0.55rem;
+    }
+
+    .wizard-progress-steps {
+        grid-template-columns: 1fr;
+    }
+
+    .wizard-step-pill {
+        justify-content: flex-start;
+        padding-inline: 0.7rem;
     }
 
     .section-title {
@@ -832,6 +1206,38 @@ hr {
 
     .hit-row {
         padding: 12px;
+    }
+
+    .step1-intro-band {
+        gap: 0.4rem;
+    }
+
+    .step1-chip {
+        font-size: 0.72rem;
+        padding: 0.28rem 0.62rem;
+    }
+
+    .step1-panel-title {
+        width: 100%;
+        justify-content: flex-start;
+    }
+
+    .step3-modern .dynamic-list-item {
+        gap: 0.55rem;
+    }
+
+    .step3-modern .dynamic-list-item .btn-danger {
+        width: 32px;
+        height: 32px;
+    }
+
+    .step1-compact {
+        padding: 1rem;
+    }
+
+    .step1-compact .form-control,
+    .step1-compact .form-select {
+        min-height: 40px;
     }
 }
 

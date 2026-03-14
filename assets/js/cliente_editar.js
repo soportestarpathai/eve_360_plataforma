@@ -9,6 +9,11 @@ let catalogs = {}; // Holds all DB catalogs
 let personaTypes = []; // Specific map for persona types
 let apoderadoCounter = 0; // Counter for unique apoderado form fields
 
+function isPreRegistroModeEdit() {
+    const checkbox = document.getElementById('es_preregistro');
+    return !!(checkbox && checkbox.checked);
+}
+
 // --- ON PAGE LOAD ---
 document.addEventListener('DOMContentLoaded', async function() {
     if (!clientId) {
@@ -81,6 +86,9 @@ document.addEventListener('DOMContentLoaded', async function() {
         const statusSelect = document.getElementById('id_status');
         if (statusSelect) {
             statusSelect.addEventListener('change', function(e) {
+                if (isPreRegistroModeEdit() && e.target.value !== '2') {
+                    e.target.value = '2';
+                }
                 const status = e.target.value;
                 const bajaContainer = document.getElementById('fechaBajaContainer');
                 if (!bajaContainer) return;
@@ -94,6 +102,16 @@ document.addEventListener('DOMContentLoaded', async function() {
                     bajaContainer.style.display = 'none';
                     if (bajaInput) bajaInput.required = false;
                     // Don't null the value on edit, in case they mis-clicked
+                }
+            });
+        }
+
+        const preRegistroCheckbox = document.getElementById('es_preregistro');
+        if (preRegistroCheckbox && statusSelect) {
+            preRegistroCheckbox.addEventListener('change', function() {
+                if (this.checked) {
+                    statusSelect.value = '2';
+                    statusSelect.dispatchEvent(new Event('change'));
                 }
             });
         }
@@ -116,6 +134,7 @@ function populateForm(data) {
 
     // Populate Status
     const idStatus = document.getElementById('id_status');
+    const preRegistroCheckbox = document.getElementById('es_preregistro');
     if (idStatus) {
         idStatus.value = data.general?.id_status || '1';
         if (data.general?.id_status == '3') {
@@ -124,6 +143,11 @@ function populateForm(data) {
             if (fechaBajaContainer) fechaBajaContainer.style.display = 'block';
             if (fechaBaja) fechaBaja.value = data.general?.fecha_baja || '';
         }
+    }
+    if (preRegistroCheckbox) {
+        const statusPendiente = String(data.general?.id_status || '') === '2';
+        const expedienteIncompleto = Number(data.general?.identificacion_incompleta || 0) === 1 || Number(data.general?.expediente_completo || 0) === 0;
+        preRegistroCheckbox.checked = statusPendiente && expedienteIncompleto;
     }
 
     // 2. Populate and disable Tipo Persona

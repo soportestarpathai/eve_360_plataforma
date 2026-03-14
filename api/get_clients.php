@@ -49,6 +49,14 @@ try {
         )";
     } elseif ($estatus === 'pendiente' || $estatus === 'pendientes') {
         $conditions[] = "($statusExpr LIKE 'pendiente%')";
+    } elseif ($estatus === 'preregistro' || $estatus === 'preregistros') {
+        $conditions[] = "(
+            c.id_status = 2
+            AND (
+                COALESCE(c.identificacion_incompleta, 0) = 1
+                OR COALESCE(c.expediente_completo, 0) = 0
+            )
+        )";
     } elseif ($estatus === 'cancelado' || $estatus === 'cancelados') {
         $conditions[] = "($statusExpr LIKE 'cancelado%' OR c.id_status = 3)";
     }

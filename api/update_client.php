@@ -25,6 +25,7 @@ requirePLDHabilitado($pdo, true);
 $data = $_POST;
 $id_cliente = $data['id_cliente'] ?? 0;
 $id_usuario_actual = $_SESSION['user_id']; 
+$esPreRegistro = in_array(strtolower(trim((string)($data['es_preregistro'] ?? '0'))), ['1', 'true', 'on', 'yes'], true);
 
 if (!$id_cliente) {
     echo json_encode(['status' => 'error', 'message' => 'ID de cliente no válido.']);
@@ -72,8 +73,10 @@ try {
     // Count: 5 placeholders
     // Where: id_cliente (1 placeholder)
     // Total: 6 placeholders
+    $idStatusCliente = $esPreRegistro ? '2' : (string)$data['id_status'];
+    $fechaBaja = ($idStatusCliente == '3') ? ($data['fecha_baja'] ?? null) : null;
     $updCols = ['no_contrato', 'alias', 'fecha_apertura', 'id_status', 'fecha_baja'];
-    $updVals = [$data['no_contrato'], $data['alias'], $data['fecha_apertura'], $data['id_status'], ($data['id_status'] == '3') ? $data['fecha_baja'] : null];
+    $updVals = [$data['no_contrato'], $data['alias'], $data['fecha_apertura'], $idStatusCliente, $fechaBaja];
     $chk = function($t, $c) use ($pdo) {
         $st = $pdo->query("SELECT COUNT(*) FROM INFORMATION_SCHEMA.COLUMNS WHERE TABLE_SCHEMA = DATABASE() AND TABLE_NAME = '$t' AND COLUMN_NAME = '$c'");
         return $st && $st->fetchColumn() > 0;
@@ -101,7 +104,7 @@ try {
     // --- Log Change ---
     $newData = [
         'no_contrato' => $data['no_contrato'], 'alias' => $data['alias'], 'fecha_apertura' => $data['fecha_apertura'],
-        'id_status' => $data['id_status'], 'fecha_baja' => $fecha_baja
+        'id_status' => $idStatusCliente, 'fecha_baja' => $fechaBaja, 'es_preregistro' => $esPreRegistro ? 1 : 0
     ];
     logChange($pdo, $id_usuario_actual, "ACTUALIZAR", "clientes", $id_cliente, $oldData, $newData);
     // --- End Log ---

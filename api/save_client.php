@@ -69,6 +69,7 @@ $data['kyc_parentesco_familiar_pep'] = trim((string)($data['kyc_parentesco_famil
 $data['kyc_puesto_familiar_pep'] = trim((string)($data['kyc_puesto_familiar_pep'] ?? ''));
 $data['kyc_fecha_ingreso_pep'] = trim((string)($data['kyc_fecha_ingreso_pep'] ?? ''));
 $data['kyc_nivel_estudios'] = trim((string)($data['kyc_nivel_estudios'] ?? ''));
+$esPreRegistro = in_array(strtolower(trim((string)($data['es_preregistro'] ?? '0'))), ['1', 'true', 'on', 'yes'], true);
 
 function isValidDateYmd($dateValue) {
     if (!is_string($dateValue) || $dateValue === '') return false;
@@ -112,6 +113,87 @@ function tableExists(PDO $pdo, string $tableName): bool {
     ");
     $stmt->execute([$tableName]);
     return (int)$stmt->fetchColumn() > 0;
+}
+
+function getNotificacionUsuariosAltaCliente(PDO $pdo, int $idCliente, int $idUsuarioActual): array {
+    $usuarios = [];
+    if ($idUsuarioActual > 0) {
+        $usuarios[$idUsuarioActual] = true;
+    }
+
+    if (tableExists($pdo, 'usuarios') && tableExists($pdo, 'usuarios_permisos')) {
+        $stmtAdmin = $pdo->query("
+            SELECT DISTINCT u.id_usuario
+            FROM usuarios u
+            INNER JOIN usuarios_permisos up ON u.id_usuario = up.id_usuario
+            WHERE u.id_status_usuario = 1
+              AND up.administracion > 0
+        ");
+        while ($row = $stmtAdmin->fetch(PDO::FETCH_ASSOC)) {
+            $usuarios[(int)$row['id_usuario']] = true;
+        }
+    }
+
+    if ($idCliente > 0 && tableExists($pdo, 'clientes_responsable_pld')) {
+        $stmtResp = $pdo->prepare("
+            SELECT id_usuario_responsable
+            FROM clientes_responsable_pld
+            WHERE id_cliente = ?
+              AND activo = 1
+              AND (fecha_baja IS NULL OR fecha_baja > CURDATE())
+        ");
+        $stmtResp->execute([$idCliente]);
+        while ($row = $stmtResp->fetch(PDO::FETCH_ASSOC)) {
+            $usuarios[(int)$row['id_usuario_responsable']] = true;
+        }
+    }
+
+    return array_keys($usuarios);
+}
+
+function registrarNotificacionesAltaCliente(PDO $pdo, int $idCliente, int $idUsuarioActual, string $mensaje): int {
+    if ($idCliente <= 0 || !tableExists($pdo, 'notificaciones')) {
+        return 0;
+    }
+
+    $usuarios = getNotificacionUsuariosAltaCliente($pdo, $idCliente, $idUsuarioActual);
+    if (empty($usuarios)) {
+        return 0;
+    }
+
+    $tipo = 'cliente_nuevo';
+    $creadas = 0;
+    foreach ($usuarios as $idUsuarioNotificacion) {
+        $idUsuarioNotificacion = (int)$idUsuarioNotificacion;
+        if ($idUsuarioNotificacion <= 0) {
+            continue;
+        }
+
+        // Evita duplicar notificaciones del mismo cliente/tipo para el mismo usuario en 24 horas.
+        $stmtExiste = $pdo->prepare("
+            SELECT 1
+            FROM notificaciones
+            WHERE id_usuario = ?
+              AND id_cliente = ?
+              AND tipo = ?
+              AND estado != 'descartado'
+              AND fecha_generacion > DATE_SUB(NOW(), INTERVAL 24 HOUR)
+            LIMIT 1
+        ");
+        $stmtExiste->execute([$idUsuarioNotificacion, $idCliente, $tipo]);
+        if ($stmtExiste->fetch()) {
+            continue;
+        }
+
+        $stmtInsert = $pdo->prepare("
+            INSERT INTO notificaciones (id_usuario, id_cliente, tipo, mensaje)
+            VALUES (?, ?, ?, ?)
+        ");
+        $stmtInsert->execute([$idUsuarioNotificacion, $idCliente, $tipo, $mensaje]);
+        $creadas++;
+    }
+
+    return $creadas;
 }
 
 function catalogValueExists(PDO $pdo, string $tableName, string $keyColumn, int $idValue): bool {
@@ -275,31 +357,43 @@ if ($kycAntiguedadAnios < 0 || $kycAntiguedadAnios > 120) {
 
 if ((int)$personaType['es_fisica'] > 0) {
     if ($data['kyc_empleo_actual'] === '') {
-        http_response_code(400);
-        echo json_encode(['status' => 'error', 'message' => 'El empleo actual es obligatorio para persona física.']);
-        exit;
+        if (!$esPreRegistro) {
+            http_response_code(400);
+            echo json_encode(['status' => 'error', 'message' => 'El empleo actual es obligatorio para persona física.']);
+            exit;
+        }
     }
-    if (!$kycOcupacionId || !catalogValueExists($pdo, 'cat_ocupacion', 'id_ocupacion', $kycOcupacionId)) {
+    if ((!$kycOcupacionId || !catalogValueExists($pdo, 'cat_ocupacion', 'id_ocupacion', $kycOcupacionId)) && !$esPreRegistro) {
         http_response_code(400);
         echo json_encode(['status' => 'error', 'message' => 'Debe seleccionar una ocupación válida para persona física.']);
         exit;
     }
     if ($data['kyc_nivel_estudios'] === '') {
-        http_response_code(400);
-        echo json_encode(['status' => 'error', 'message' => 'El nivel de estudios es obligatorio para persona física.']);
-        exit;
+        if (!$esPreRegistro) {
+            http_response_code(400);
+            echo json_encode(['status' => 'error', 'message' => 'El nivel de estudios es obligatorio para persona física.']);
+            exit;
+        }
     }
-    if ($kycTieneFamiliarPepRaw !== '0' && $kycTieneFamiliarPepRaw !== '1') {
+    if ($kycTieneFamiliarPepRaw !== '0' && $kycTieneFamiliarPepRaw !== '1' && !$esPreRegistro) {
         http_response_code(400);
         echo json_encode(['status' => 'error', 'message' => 'Indique si existe familiar directo políticamente expuesto.']);
         exit;
     }
-    if ($kycTieneFamiliarPep === 1) {
+    if ($kycTieneFamiliarPep === 1 && !$esPreRegistro) {
         if ($data['kyc_parentesco_familiar_pep'] === '' || $data['kyc_nombre_familiar_pep'] === '' || $data['kyc_puesto_familiar_pep'] === '' || !isValidDateYmd($data['kyc_fecha_ingreso_pep']) || isFutureDateYmd($data['kyc_fecha_ingreso_pep'])) {
             http_response_code(400);
             echo json_encode(['status' => 'error', 'message' => 'Complete parentesco, nombre, puesto y fecha válida de ingreso del familiar PEP.']);
             exit;
         }
+    }
+    if ($esPreRegistro) {
+        $kycOcupacionId = ($kycOcupacionId && catalogValueExists($pdo, 'cat_ocupacion', 'id_ocupacion', $kycOcupacionId)) ? $kycOcupacionId : null;
+        $kycTieneFamiliarPep = 0;
+        $data['kyc_nombre_familiar_pep'] = '';
+        $data['kyc_parentesco_familiar_pep'] = '';
+        $data['kyc_puesto_familiar_pep'] = '';
+        $data['kyc_fecha_ingreso_pep'] = '';
     }
 } else {
     $kycOcupacionId = null;
@@ -318,21 +412,23 @@ if ($kycProfesionId !== null && !catalogValueExists($pdo, 'cat_profesion', 'id_p
     exit;
 }
 
-// Paso 3 obligatorio: al menos una nacionalidad, identificación y dirección
-if (empty($data['nacionalidad_id']) || !is_array($data['nacionalidad_id'])) {
-    http_response_code(400);
-    echo json_encode(['status' => 'error', 'message' => 'Debe capturar al menos una nacionalidad']);
-    exit;
-}
-if (empty($data['ident_tipo']) || !is_array($data['ident_tipo']) || empty($data['ident_numero']) || !is_array($data['ident_numero'])) {
-    http_response_code(400);
-    echo json_encode(['status' => 'error', 'message' => 'Debe capturar al menos una identificación']);
-    exit;
-}
-if (empty($data['dir_calle']) || !is_array($data['dir_calle']) || empty($data['dir_colonia']) || !is_array($data['dir_colonia']) || empty($data['dir_cp']) || !is_array($data['dir_cp'])) {
-    http_response_code(400);
-    echo json_encode(['status' => 'error', 'message' => 'Debe capturar al menos una dirección']);
-    exit;
+// Paso 3 obligatorio (solo para alta completa)
+if (!$esPreRegistro) {
+    if (empty($data['nacionalidad_id']) || !is_array($data['nacionalidad_id'])) {
+        http_response_code(400);
+        echo json_encode(['status' => 'error', 'message' => 'Debe capturar al menos una nacionalidad']);
+        exit;
+    }
+    if (empty($data['ident_tipo']) || !is_array($data['ident_tipo']) || empty($data['ident_numero']) || !is_array($data['ident_numero'])) {
+        http_response_code(400);
+        echo json_encode(['status' => 'error', 'message' => 'Debe capturar al menos una identificación']);
+        exit;
+    }
+    if (empty($data['dir_calle']) || !is_array($data['dir_calle']) || empty($data['dir_colonia']) || !is_array($data['dir_colonia']) || empty($data['dir_cp']) || !is_array($data['dir_cp'])) {
+        http_response_code(400);
+        echo json_encode(['status' => 'error', 'message' => 'Debe capturar al menos una dirección']);
+        exit;
+    }
 }
 
 // Start Transaction
@@ -372,7 +468,8 @@ try {
         "INSERT INTO clientes (id_tipo_persona, no_contrato, alias, fecha_apertura, id_usuario, id_status, fecha_baja)
          VALUES (?, ?, ?, ?, ?, ?, ?)"
     );
-    $fecha_baja = ($data['id_status'] == '3') ? $data['fecha_baja'] : null;
+    $idStatusCliente = $esPreRegistro ? '2' : (string)$data['id_status'];
+    $fecha_baja = ($idStatusCliente == '3') ? $data['fecha_baja'] : null;
     
     $stmt->execute([
         $data['id_tipo_persona'],
@@ -380,7 +477,7 @@ try {
         $data['alias'],
         $data['fecha_apertura'],
         $id_usuario_actual,
-        $data['id_status'],
+        $idStatusCliente,
         $fecha_baja
     ]);
     $id_cliente = $pdo->lastInsertId();
@@ -412,7 +509,7 @@ try {
     $newDataClientes = [
         'id_cliente' => $id_cliente, 'id_tipo_persona' => $data['id_tipo_persona'], 'no_contrato' => $data['no_contrato'],
         'alias' => $data['alias'], 'fecha_apertura' => $data['fecha_apertura'], 'id_usuario' => $id_usuario_actual,
-        'id_status' => $data['id_status'], 'fecha_baja' => $fecha_baja
+        'id_status' => $idStatusCliente, 'fecha_baja' => $fecha_baja, 'es_preregistro' => $esPreRegistro ? 1 : 0
     ];
     logChange($pdo, $id_usuario_actual, "CREAR", "clientes", $id_cliente, null, $newDataClientes);
     // --- End Log ---
@@ -827,13 +924,28 @@ try {
     validateExpedienteCompleto($pdo, $id_cliente);
     actualizarFechaExpediente($pdo, $id_cliente);
 
+    // Notificación inmediata al crear cliente.
+    try {
+        $tipoPersonaNombre = trim((string)($personaType['nombre'] ?? 'No especificado'));
+        $mensajeNotificacion = sprintf(
+            '%s registrado. Contrato: %s. Tipo: %s.',
+            $esPreRegistro ? 'Nuevo pre-registro de cliente' : 'Nuevo cliente',
+            (string)$data['no_contrato'],
+            $tipoPersonaNombre
+        );
+        registrarNotificacionesAltaCliente($pdo, (int)$id_cliente, (int)$id_usuario_actual, $mensajeNotificacion);
+    } catch (Exception $e) {
+        // No detener el alta por una falla de notificación.
+        error_log('save_client.php notificacion alta cliente: ' . $e->getMessage());
+    }
+
     // NO bloquear guardado por expediente incompleto: el usuario debe poder registrar
     // y completar datos del cliente. El bloqueo aplica solo en operaciones PLD (pld_middleware).
 
     // Si todo fue correcto (incluyendo validaciones), confirmar la transacción
     $pdo->commit();
 
-    echo json_encode(['status' => 'success', 'id_cliente' => $id_cliente]);
+    echo json_encode(['status' => 'success', 'id_cliente' => $id_cliente, 'es_preregistro' => $esPreRegistro ? 1 : 0]);
     exit;
 
 } catch (PDOException $e) {

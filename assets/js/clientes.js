@@ -239,6 +239,19 @@ function isExpedienteCompleto(client) {
     return completo && !incompleto;
 }
 
+function isPreRegistro(client) {
+    const statusId = Number(client.id_status);
+    const incompleto = Number(client.identificacion_incompleta) === 1;
+    const expedienteCompleto = Number(client.expediente_completo) === 1;
+    return statusId === 2 && (incompleto || !expedienteCompleto);
+}
+
+function getPreRegistroBadge(client) {
+    return isPreRegistro(client)
+        ? '<span class="badge bg-warning text-dark ms-2">Pre-registro</span>'
+        : '';
+}
+
 function getExpedienteBadge(client) {
     return isExpedienteCompleto(client)
         ? '<span class="badge bg-success"><i class="fa-solid fa-check-circle me-1"></i>Completo</span>'
@@ -327,12 +340,13 @@ function renderClients() {
         const rfc = escapeHtml(client.rfc || 'N/A');
         const fechaApertura = escapeHtml(client.fecha_apertura || '-');
         const idCliente = Number(client.id_cliente) || 0;
+        const preRegistroBadge = getPreRegistroBadge(client);
 
         return `
             <tr>
                 <td class="ps-4 fw-bold text-primary">${contrato}</td>
                 <td>
-                    <div class="fw-medium">${clienteNombre}</div>
+                    <div class="fw-medium d-flex align-items-center flex-wrap">${clienteNombre}${preRegistroBadge}</div>
                     <small class="text-muted">ID: ${idCliente} | Tipo: ${tipoPersona}</small>
                 </td>
                 <td>${getRiskBadge(client)}</td>
@@ -427,6 +441,7 @@ let globalUma = 0;
 let globalRules = [];
 let globalActivities = [];
 let globalSelectedActivityId = 0;
+const MXN_FORMATTER = new Intl.NumberFormat('es-MX', { style: 'currency', currency: 'MXN', maximumFractionDigits: 2 });
 // Initialize modal safely (check if element exists first)
 let modal; 
 
@@ -459,6 +474,45 @@ function resetThresholdUI() {
     const footer = document.getElementById('modalFooter');
     if (warning) warning.classList.add('d-none');
     if (footer) footer.style.display = 'flex';
+
+    const activityEl = document.getElementById('thresholdActivity');
+    const amountEl = document.getElementById('thresholdAmount');
+    const umaEl = document.getElementById('thresholdUma');
+    const mxnEl = document.getElementById('thresholdMxn');
+    const diffEl = document.getElementById('thresholdDifference');
+    if (activityEl) activityEl.textContent = '-';
+    if (amountEl) amountEl.textContent = '-';
+    if (umaEl) umaEl.textContent = '-';
+    if (mxnEl) mxnEl.textContent = '-';
+    if (diffEl) diffEl.textContent = '-';
+}
+
+function formatMxn(value) {
+    const amount = Number.parseFloat(value);
+    if (!Number.isFinite(amount)) return '$0.00';
+    return MXN_FORMATTER.format(amount);
+}
+
+function updateThresholdWarningSummary(amount, thresholdUma, thresholdMXN, rule) {
+    const activityName = (() => {
+        const selectedActivity = globalActivities.find((activity) => Number(activity.id_vulnerable) === Number(globalSelectedActivityId));
+        const activityLabel = selectedActivity?.nombre || 'Actividad vulnerable';
+        const serviceLabel = (rule?.subactividad || '').toString().trim();
+        return serviceLabel ? `${activityLabel} / ${serviceLabel}` : activityLabel;
+    })();
+
+    const faltante = Math.max(0, Number(thresholdMXN || 0) - Number(amount || 0));
+    const activityEl = document.getElementById('thresholdActivity');
+    const amountEl = document.getElementById('thresholdAmount');
+    const umaEl = document.getElementById('thresholdUma');
+    const mxnEl = document.getElementById('thresholdMxn');
+    const diffEl = document.getElementById('thresholdDifference');
+
+    if (activityEl) activityEl.textContent = activityName;
+    if (amountEl) amountEl.textContent = formatMxn(amount);
+    if (umaEl) umaEl.textContent = Number(thresholdUma || 0).toFixed(2);
+    if (mxnEl) mxnEl.textContent = formatMxn(thresholdMXN);
+    if (diffEl) diffEl.textContent = formatMxn(faltante);
 }
 
 function isAlwaysIdentificationRule(rule) {
@@ -659,11 +713,20 @@ function validateThreshold() {
     } else {
         const warning = document.getElementById('thresholdWarning');
         const footer = document.getElementById('modalFooter');
+        updateThresholdWarningSummary(amount, thresholdUma, thresholdMXN, rule);
         if (warning) warning.classList.remove('d-none');
         if (footer) footer.style.display = 'none';
     }
 }
 
-function proceedToCreate() {
-    window.location.href = 'cliente_nuevo.php';
+function proceedToPreRegistro() {
+    proceedToCreate({ preRegistro: true, fromAccumulation: true });
+}
+
+function proceedToCreate(options = {}) {
+    const params = new URLSearchParams();
+    if (options.preRegistro) params.set('preregistro', '1');
+    if (options.fromAccumulation) params.set('origen', 'acumulacion');
+    const queryString = params.toString();
+    window.location.href = queryString ? `cliente_nuevo.php?${queryString}` : 'cliente_nuevo.php';
 }

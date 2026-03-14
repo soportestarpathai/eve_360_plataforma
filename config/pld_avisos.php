@@ -62,14 +62,16 @@ if (!function_exists('validateAvisoUmbralIndividual')) {
                 $stmt = $pdo->prepare("SELECT umbral_aviso_uma FROM cat_vulnerables WHERE id_vulnerable = ?");
                 $stmt->execute([$id_fraccion]);
                 $fraccion = $stmt->fetch(PDO::FETCH_ASSOC);
-                $umbralUMA = $fraccion ? floatval($fraccion['umbral_aviso_uma']) : null;
+                $rawUmbral = $fraccion['umbral_aviso_uma'] ?? null;
+                $umbralUMA = ($rawUmbral === null || $rawUmbral === '') ? null : floatval($rawUmbral);
             }
             
             // Si no hay umbral específico, usar umbral general (configurable)
             if ($umbralUMA === null) {
                 $stmt = $pdo->query("SELECT umbral_aviso_uma FROM config_empresa WHERE id_config = 1");
                 $config = $stmt->fetch(PDO::FETCH_ASSOC);
-                $umbralUMA = $config ? floatval($config['umbral_aviso_uma']) : 1000.0; // Default
+                $rawConfigUmbral = $config['umbral_aviso_uma'] ?? null;
+                $umbralUMA = ($rawConfigUmbral === null || $rawConfigUmbral === '') ? 1000.0 : floatval($rawConfigUmbral); // Default
             }
             
             $umbralMXN = $umbralUMA * $valorUMA;
@@ -138,14 +140,16 @@ if (!function_exists('validateAvisoAcumulacion')) {
                 $stmt = $pdo->prepare("SELECT umbral_acumulacion_uma FROM cat_vulnerables WHERE id_vulnerable = ?");
                 $stmt->execute([$id_fraccion]);
                 $fraccion = $stmt->fetch(PDO::FETCH_ASSOC);
-                $umbralUMA = $fraccion ? floatval($fraccion['umbral_acumulacion_uma']) : null;
+                $rawUmbral = $fraccion['umbral_acumulacion_uma'] ?? null;
+                $umbralUMA = ($rawUmbral === null || $rawUmbral === '') ? null : floatval($rawUmbral);
             }
             
             // Si no hay umbral específico, usar umbral general (configurable)
             if ($umbralUMA === null) {
                 $stmt = $pdo->query("SELECT umbral_acumulacion_uma FROM config_empresa WHERE id_config = 1");
                 $config = $stmt->fetch(PDO::FETCH_ASSOC);
-                $umbralUMA = $config ? floatval($config['umbral_acumulacion_uma']) : 1000.0; // Default: 1000 UMAs
+                $rawConfigUmbral = $config['umbral_acumulacion_uma'] ?? null;
+                $umbralUMA = ($rawConfigUmbral === null || $rawConfigUmbral === '') ? 1000.0 : floatval($rawConfigUmbral); // Default: 1000 UMAs
             }
             
             $umbralMXN = $umbralUMA * $valorUMA;
@@ -745,6 +749,26 @@ if (!function_exists('registrarOperacionPLD')) {
                 ];
             }
 
+            // Bloqueo operativo PLD: no permitir operaciones con expediente incompleto/vencido
+            // o con beneficiario controlador pendiente (cuando aplique).
+            try {
+                if (function_exists('requireExpedienteCompleto')) {
+                    requireExpedienteCompleto($pdo, (int)$id_cliente, false);
+                }
+                if (function_exists('requireBeneficiarioControlador')) {
+                    requireBeneficiarioControlador($pdo, (int)$id_cliente, false);
+                }
+                if (function_exists('requireNoNegativaIdentificacion')) {
+                    requireNoNegativaIdentificacion($pdo, (int)$id_cliente, false);
+                }
+            } catch (Exception $e) {
+                return [
+                    'success' => false,
+                    'code' => 'OPERACION_BLOQUEADA_EXPEDIENTE',
+                    'message' => $e->getMessage()
+                ];
+            }
+
             // Validar duplicado: misma operación ya registrada (DIN, TSC, SPR)
             $stmtDup = $pdo->prepare("SELECT COUNT(*) FROM operaciones_pld
                 WHERE id_cliente = ?
@@ -1208,4 +1232,3 @@ if (!function_exists('requireAvisoAcumulacion')) {
         return null;
     }
 }
-

@@ -50,6 +50,7 @@ include 'templates/top_bar.php';
                     <option value="inactivos">Inactivo</option>
                     <option value="cancelados">Cancelado</option>
                     <option value="pendientes">Pendiente</option>
+                    <option value="preregistros">Pre-registro</option>
                 </select>
 
                 <button id="clearFiltersBtn" class="btn btn-sm btn-outline-secondary" type="button">
@@ -109,54 +110,70 @@ include 'templates/top_bar.php';
     </div>
 </div>
 
-<div class="modal fade" id="analysisModal" tabindex="-1" data-bs-backdrop="static">
-    <div class="modal-dialog modal-dialog-centered modal-dialog-scrollable">
-        <div class="modal-content">
-            <div class="modal-header bg-primary text-white">
-                <h5 class="modal-title"><i class="fa-solid fa-calculator me-2"></i>Análisis de Umbral PLD</h5>
+<div class="modal fade" id="analysisModal" tabindex="-1" data-bs-backdrop="static" aria-labelledby="analysisModalLabel" aria-hidden="true">
+    <div class="modal-dialog modal-dialog-centered modal-dialog-scrollable analysis-modal-dialog">
+        <div class="modal-content analysis-modal-content">
+            <div class="modal-header analysis-modal-header">
+                <h5 class="modal-title analysis-modal-title" id="analysisModalLabel">
+                    <i class="fa-solid fa-calculator me-2"></i>Análisis de Umbral PLD
+                </h5>
                 <button type="button" class="btn-close btn-close-white" data-bs-dismiss="modal"></button>
             </div>
-            <div class="modal-body">
-                <p class="small text-muted mb-3">
-                    Ingrese los datos de la transacción para determinar si es obligatorio identificar al cliente según las reglas de la actividad vulnerable.
+            <div class="modal-body analysis-modal-body">
+                <p class="analysis-helper mb-3">
+                    Evalúa rápidamente si la operación requiere identificación inmediata o si conviene iniciar como pre-registro para control por acumulación.
                 </p>
                 
                 <form id="analysisForm">
-                    <div class="mb-3" id="activityContainer" style="display:none;">
-                        <label class="form-label fw-bold">Actividad Vulnerable</label>
+                    <div class="mb-3 analysis-field" id="activityContainer" style="display:none;">
+                        <label class="form-label fw-bold">
+                            <i class="fa-solid fa-layer-group me-2 text-primary"></i>Actividad Vulnerable
+                        </label>
                         <select class="form-select" id="activitySelect"></select>
                     </div>
 
-                    <div class="mb-3" id="subactivityContainer" style="display:none;">
-                        <label class="form-label fw-bold">Tipo de Servicio</label>
+                    <div class="mb-3 analysis-field" id="subactivityContainer" style="display:none;">
+                        <label class="form-label fw-bold">
+                            <i class="fa-solid fa-briefcase me-2 text-primary"></i>Tipo de Servicio
+                        </label>
                         <select class="form-select" id="ruleSelect"></select>
                     </div>
 
-                    <div class="mb-3">
-                        <label class="form-label fw-bold">Monto de la Transacción (MXN)</label>
-                        <div class="input-group">
+                    <div class="mb-3 analysis-field">
+                        <label class="form-label fw-bold">
+                            <i class="fa-solid fa-coins me-2 text-primary"></i>Monto de la Transacción (MXN)
+                        </label>
+                        <div class="input-group analysis-input-group">
                             <span class="input-group-text">$</span>
                             <input type="number" class="form-control" id="transactionAmount" placeholder="0.00" min="0" step="0.01">
                         </div>
-                        <div class="form-text">Valor UMA actual: <span id="umaDisplay" class="fw-bold text-dark">-</span></div>
+                        <div class="form-text analysis-uma-note">
+                            Valor UMA actual: <span id="umaDisplay" class="fw-bold text-dark">-</span>
+                        </div>
                     </div>
 
-                    <div id="thresholdWarning" class="alert alert-warning border-warning d-none">
-                        <div class="d-flex">
-                            <i class="fa-solid fa-circle-exclamation fs-4 me-3"></i>
+                    <div id="thresholdWarning" class="alert alert-warning border-warning d-none analysis-warning">
+                        <div class="d-flex align-items-start">
+                            <i class="fa-solid fa-circle-exclamation fs-4 me-3 mt-1"></i>
                             <div>
-                                <strong>Atención:</strong> Para este cliente/transacción no se requiere la identificación del cliente.
-                                <br><span class="small text-dark mt-1 d-block">¿Aún así quiere darlo de alta?</span>
+                                <strong>Atención:</strong> Esta operación está por debajo del umbral de identificación para aviso.
+                                <span class="small text-dark mt-1 d-block">Puedes iniciar como pre-registro (recomendado) o darlo de alta para seguimiento por acumulación futura.</span>
+                                <div class="small mt-2 analysis-summary-grid">
+                                    <div class="analysis-summary-item"><strong>Actividad:</strong> <span id="thresholdActivity">-</span></div>
+                                    <div class="analysis-summary-item"><strong>Monto capturado:</strong> <span id="thresholdAmount">-</span></div>
+                                    <div class="analysis-summary-item"><strong>Umbral:</strong> <span id="thresholdUma">-</span> UMA (<span id="thresholdMxn">-</span>)</div>
+                                    <div class="analysis-summary-item"><strong>Faltante para umbral:</strong> <span id="thresholdDifference">-</span></div>
+                                </div>
                             </div>
                         </div>
-                        <div class="mt-3 text-end">
-                            <button type="button" class="btn btn-sm btn-outline-dark" data-bs-dismiss="modal">No, Cancelar</button>
-                            <button type="button" class="btn btn-sm btn-warning fw-bold" onclick="proceedToCreate()">Sí, Continuar</button>
+                        <div class="mt-3 analysis-warning-actions">
+                            <button type="button" class="btn btn-outline-dark" onclick="proceedToPreRegistro()">Iniciar pre-registro</button>
+                            <button type="button" class="btn btn-warning fw-bold" onclick="proceedToCreate({ fromAccumulation: true })">Dar de alta por acumulación</button>
                         </div>
                     </div>
                 </form>
             </div>
-            <div class="modal-footer" id="modalFooter">
+            <div class="modal-footer analysis-modal-footer" id="modalFooter">
                 <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Cancelar</button>
                 <button type="button" class="btn btn-primary" onclick="validateThreshold()">Analizar</button>
             </div>

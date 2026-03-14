@@ -44,6 +44,9 @@ function normalizeTextValue($value): string
         }
     }
 
+    // Remove UTF-8 BOM if present.
+    $text = preg_replace('/^\xEF\xBB\xBF/', '', $text);
+
     return trim($text);
 }
 
@@ -111,38 +114,51 @@ try {
         exit(1);
     }
 
-    $sampleLine = fgets($handle);
-    if ($sampleLine === false) {
-        fclose($handle);
-        fwrite(STDERR, "Archivo vacío.\n");
-        exit(1);
-    }
-    rewind($handle);
-
-    $delimiter = $forcedDelimiter !== null && $forcedDelimiter !== '' ? $forcedDelimiter : detectDelimiter($sampleLine);
-    $header = fgetcsv($handle, 0, $delimiter);
-    if (!is_array($header) || empty($header)) {
-        fclose($handle);
-        fwrite(STDERR, "No se pudo leer el encabezado del archivo.\n");
-        exit(1);
-    }
-
-    $normalizedHeader = [];
-    foreach ($header as $index => $name) {
-        $cleanName = strtolower(normalizeTextValue((string)$name));
-        $normalizedHeader[$cleanName] = $index;
-    }
-
     $requiredCols = ['d_codigo', 'd_asenta', 'd_mnpio', 'd_estado'];
-    $missing = [];
-    foreach ($requiredCols as $column) {
-        if (!array_key_exists($column, $normalizedHeader)) {
-            $missing[] = $column;
+    $delimiter = $forcedDelimiter !== null && $forcedDelimiter !== '' ? $forcedDelimiter : null;
+    $normalizedHeader = [];
+    $headerFound = false;
+
+    // Buscar encabezado real (algunos CPdescarga incluyen líneas introductorias).
+    rewind($handle);
+    for ($i = 0; $i < 40; $i++) {
+        $line = fgets($handle);
+        if ($line === false) break;
+
+        $lineTrim = trim($line);
+        if ($lineTrim === '') continue;
+
+        $lineDelimiter = $delimiter ?: detectDelimiter($lineTrim);
+        $candidateHeader = str_getcsv($lineTrim, $lineDelimiter);
+        if (!is_array($candidateHeader) || empty($candidateHeader)) {
+            continue;
+        }
+
+        $candidateMap = [];
+        foreach ($candidateHeader as $index => $name) {
+            $cleanName = strtolower(normalizeTextValue((string)$name));
+            $candidateMap[$cleanName] = $index;
+        }
+
+        $hasAllRequired = true;
+        foreach ($requiredCols as $column) {
+            if (!array_key_exists($column, $candidateMap)) {
+                $hasAllRequired = false;
+                break;
+            }
+        }
+
+        if ($hasAllRequired) {
+            $delimiter = $lineDelimiter;
+            $normalizedHeader = $candidateMap;
+            $headerFound = true;
+            break;
         }
     }
-    if (!empty($missing)) {
+
+    if (!$headerFound) {
         fclose($handle);
-        fwrite(STDERR, 'Faltan columnas requeridas: ' . implode(', ', $missing) . "\n");
+        fwrite(STDERR, "No se encontró un encabezado válido con columnas SEPOMEX requeridas.\n");
         exit(1);
     }
 
