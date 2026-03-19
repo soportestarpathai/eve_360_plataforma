@@ -188,10 +188,11 @@ try {
             exit;
     }
 } catch (Throwable $e) {
+    error_log('get_sepomex_catalog: ' . $e->getMessage());
     http_response_code(500);
     echo json_encode([
         'status' => 'error',
-        'message' => 'Error al consultar SEPOMEX: ' . $e->getMessage()
+        'message' => 'Error al consultar SEPOMEX.'
     ]);
 }
 ?>

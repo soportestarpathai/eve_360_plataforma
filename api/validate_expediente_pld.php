@@ -3,7 +3,9 @@ ob_start();
 error_reporting(E_ALL);
 ini_set('display_errors', 0);
 ini_set('log_errors', 1);
-session_start();
+if (session_status() !== PHP_SESSION_ACTIVE) {
+    session_start();
+}
 require_once '../config/db.php';
 require_once '../config/pld_expediente.php';
 require_once '../config/expediente_documentos_por_anexo.php';
@@ -90,18 +92,14 @@ try {
     http_response_code(500);
     error_log("Error en validate_expediente_pld.php: " . $e->getMessage() . " en " . $e->getFile() . ":" . $e->getLine());
     echo json_encode([
-        'status' => 'error', 
-        'message' => 'Error al validar expediente: ' . $e->getMessage(),
-        'file' => basename($e->getFile()),
-        'line' => $e->getLine()
+        'status' => 'error',
+        'message' => 'Error interno al validar expediente.'
     ]);
 } catch (Error $e) {
     http_response_code(500);
     error_log("Error fatal en validate_expediente_pld.php: " . $e->getMessage() . " en " . $e->getFile() . ":" . $e->getLine());
     echo json_encode([
-        'status' => 'error', 
-        'message' => 'Error fatal al validar expediente: ' . $e->getMessage(),
-        'file' => basename($e->getFile()),
-        'line' => $e->getLine()
+        'status' => 'error',
+        'message' => 'Error interno al validar expediente.'
     ]);
 }

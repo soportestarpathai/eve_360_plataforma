@@ -22,6 +22,7 @@ try {
     require_once __DIR__ . '/../config/pld_avisos.php';
     require_once __DIR__ . '/../config/bitacora.php';
     require_once __DIR__ . '/../config/pld_middleware.php';
+    require_once __DIR__ . '/../config/pld_permisos.php';
     require_once __DIR__ . '/../config/pld_fraccion_ii.php';
 } catch (Throwable $e) {
     error_log('registrar_aviso_tsc init: ' . $e->getMessage() . ' in ' . $e->getFile() . ':' . $e->getLine());
@@ -33,6 +34,13 @@ header('Content-Type: application/json; charset=utf-8');
 if (!isset($_SESSION['user_id'])) {
     http_response_code(401);
     echo json_encode(['status' => 'error', 'message' => 'No autorizado']);
+    exit;
+}
+
+$userId = (int)($_SESSION['user_id'] ?? 0);
+if (!function_exists('userCanAccessTSC') || !userCanAccessTSC($pdo, $userId)) {
+    http_response_code(403);
+    echo json_encode(['status' => 'error', 'message' => 'Sin permiso para registrar avisos TSC']);
     exit;
 }
 

@@ -634,7 +634,7 @@ $subfraccionesTexto = !empty($subfraccionesActivasLabels) ? implode(', ', $subfr
                                 <option value="NO">No</option>
                             </select>
                         </div>
-                        <div class="col-12 mb-2" id="wrap_tipo_persona_admon" style="display:none;">
+                        <div class="col-12 mb-2" id="wrap_tipo_persona_admon" style="display:block;">
                             <label class="form-label">Datos persona moral (opcional)</label>
                             <div class="row g-3">
                                 <div class="col-md-6"><label class="form-label">Tipo</label>
@@ -708,6 +708,527 @@ $subfraccionesTexto = !empty($subfraccionesActivasLabels) ? implode(', ', $subfr
                     </div>
                     <button type="button" class="btn btn-outline-primary btn-sm mb-3" onclick="agregarAccionistaCSM()"><i class="fa-solid fa-plus me-1"></i>Agregar accionista/socio</button>
                 </div>
+                <div id="organizacion_aportaciones_section" style="display:none;">
+                    <hr class="my-3">
+                    <h6 class="fw-bold mb-2">Organización de aportaciones de capital u otros recursos</h6>
+                    <div class="row g-3">
+                        <div class="col-md-6 mb-2">
+                            <label class="form-label">Motivo de aportación *</label>
+                            <select class="form-select" id="oa_motivo_aportacion">
+                                <?= sprCatalogoOptions('motivo_aportacion', '1') ?>
+                            </select>
+                        </div>
+                    </div>
+
+                    <h6 class="fw-bold mt-3 mb-2">Persona(s) que aportan</h6>
+                    <div id="oa_aportaciones_container">
+                        <div class="nested-card mb-3 oa-aportacion-item" data-idx="0">
+                            <div class="row g-3 mb-2">
+                                <div class="col-md-6">
+                                    <label class="form-label">Tipo persona que aporta</label>
+                                    <select class="form-select oa-aporta-tipo">
+                                        <option value="persona_fisica">Persona Física</option>
+                                        <option value="persona_moral">Persona Moral</option>
+                                        <option value="fideicomiso">Fideicomiso</option>
+                                    </select>
+                                </div>
+                            </div>
+
+                            <div class="oa-aporta-pf">
+                                <div class="row g-3">
+                                    <div class="col-md-4 mb-2"><label class="form-label">Nombre(s) *</label><input type="text" class="form-control text-uppercase oa-pf-nombre" maxlength="200"></div>
+                                    <div class="col-md-4 mb-2"><label class="form-label">Ap. Paterno *</label><input type="text" class="form-control text-uppercase oa-pf-ap" maxlength="200"></div>
+                                    <div class="col-md-4 mb-2"><label class="form-label">Ap. Materno *</label><input type="text" class="form-control text-uppercase oa-pf-am" maxlength="200"></div>
+                                    <div class="col-md-4 mb-2"><label class="form-label">Fecha Nac.</label><input type="date" class="form-control oa-pf-fnac"></div>
+                                    <div class="col-md-4 mb-2"><label class="form-label">RFC</label><input type="text" class="form-control oa-pf-rfc" maxlength="13"></div>
+                                    <div class="col-md-4 mb-2"><label class="form-label">CURP</label><input type="text" class="form-control oa-pf-curp" maxlength="18"></div>
+                                    <div class="col-md-6 mb-2"><label class="form-label">País</label><select class="form-select oa-pf-pais"><?= $paisOptions ?></select></div>
+                                    <div class="col-md-6 mb-2"><label class="form-label">Actividad económica</label><select class="form-select oa-pf-act"><?= tscCatalogoOptions('actividad_economica', '1000000') ?></select></div>
+                                </div>
+                            </div>
+
+                            <div class="oa-aporta-pm" style="display:none;">
+                                <div class="row g-3">
+                                    <div class="col-md-6 mb-2"><label class="form-label">Denominación *</label><input type="text" class="form-control text-uppercase oa-pm-denom" maxlength="254"></div>
+                                    <div class="col-md-6 mb-2"><label class="form-label">RFC</label><input type="text" class="form-control oa-pm-rfc" maxlength="12"></div>
+                                    <div class="col-md-6 mb-2"><label class="form-label">Fecha Const.</label><input type="date" class="form-control oa-pm-fconst"></div>
+                                    <div class="col-md-6 mb-2"><label class="form-label">País</label><select class="form-select oa-pm-pais"><?= $paisOptions ?></select></div>
+                                    <div class="col-md-6 mb-2"><label class="form-label">Giro mercantil</label><select class="form-select oa-pm-giro"><?= tscCatalogoOptions('giro_mercantil', '0000000') ?></select></div>
+                                </div>
+                            </div>
+
+                            <div class="oa-aporta-fid" style="display:none;">
+                                <div class="row g-3">
+                                    <div class="col-md-6 mb-2"><label class="form-label">Denominación *</label><input type="text" class="form-control text-uppercase oa-fid-denom" maxlength="254"></div>
+                                    <div class="col-md-6 mb-2"><label class="form-label">RFC</label><input type="text" class="form-control oa-fid-rfc" maxlength="12"></div>
+                                    <div class="col-md-6 mb-2"><label class="form-label">Identificador fideicomiso</label><input type="text" class="form-control oa-fid-id" maxlength="40"></div>
+                                </div>
+                            </div>
+
+                            <div class="mt-3">
+                                <h6 class="fw-bold mb-2">Tipo(s) de aportación</h6>
+                                <div class="oa-tipos-aportacion-container">
+                                    <div class="nested-card mb-2 oa-tipo-item" data-idx="0">
+                                        <div class="row g-3">
+                                            <div class="col-md-6 mb-2">
+                                                <label class="form-label">Tipo *</label>
+                                                <select class="form-select oa-tipo-select">
+                                                    <option value="aportacion_monetaria">Aportación monetaria</option>
+                                                    <option value="aportacion_inmueble">Aportación de inmueble</option>
+                                                    <option value="aportacion_otro_bien">Aportación de otro bien</option>
+                                                </select>
+                                            </div>
+                                        </div>
+                                        <div class="oa-monetaria-fields">
+                                            <div class="row g-3">
+                                                <div class="col-md-4 mb-2"><label class="form-label">Instrumento monetario *</label><select class="form-select oa-mon-instr"><?= sprCatalogoOptions('instrumento_monetario', '1') ?></select></div>
+                                                <div class="col-md-4 mb-2"><label class="form-label">Moneda</label><select class="form-select oa-mon-moneda"><?= sprCatalogoOptions('moneda', '1') ?></select></div>
+                                                <div class="col-md-4 mb-2"><label class="form-label">Monto operación *</label><input type="number" class="form-control oa-mon-monto" step="0.01" min="0" placeholder="0.00"></div>
+                                            </div>
+                                        </div>
+                                        <div class="oa-inmueble-fields" style="display:none;">
+                                            <div class="row g-3">
+                                                <div class="col-md-4 mb-2"><label class="form-label">Tipo inmueble *</label><select class="form-select oa-inm-tipo"><?= sprCatalogoOptions('tipo_inmueble', '1') ?></select></div>
+                                                <div class="col-md-4 mb-2"><label class="form-label">Código postal *</label><input type="text" class="form-control oa-inm-cp" maxlength="10"></div>
+                                                <div class="col-md-4 mb-2"><label class="form-label">Folio real *</label><input type="text" class="form-control oa-inm-folio" maxlength="200"></div>
+                                                <div class="col-md-6 mb-2"><label class="form-label">Valor aportación *</label><input type="number" class="form-control oa-inm-valor" step="0.01" min="0" placeholder="0.00"></div>
+                                            </div>
+                                        </div>
+                                        <div class="oa-otro-fields" style="display:none;">
+                                            <div class="row g-3">
+                                                <div class="col-12 mb-2"><label class="form-label">Descripción *</label><textarea class="form-control oa-otro-desc" rows="2" maxlength="500"></textarea></div>
+                                                <div class="col-md-6 mb-2"><label class="form-label">Valor aportación *</label><input type="number" class="form-control oa-otro-valor" step="0.01" min="0" placeholder="0.00"></div>
+                                            </div>
+                                        </div>
+                                    </div>
+                                </div>
+                                <button type="button" class="btn btn-outline-secondary btn-sm" onclick="agregarOaTipoAportacion(this)"><i class="fa-solid fa-plus me-1"></i>Agregar tipo de aportación</button>
+                            </div>
+                        </div>
+                    </div>
+                    <button type="button" class="btn btn-outline-primary btn-sm mb-3" onclick="agregarOaAportacion()"><i class="fa-solid fa-plus me-1"></i>Agregar persona que aporta</button>
+                </div>
+                <div id="fusion_section" style="display:none;">
+                    <hr class="my-3">
+                    <h6 class="fw-bold mb-2">Fusión</h6>
+                    <div class="row g-3">
+                        <div class="col-md-6 mb-2">
+                            <label class="form-label">Tipo de fusión *</label>
+                            <select class="form-select" id="fus_tipo_fusion">
+                                <?= sprCatalogoOptions('tipo_fusion', '1') ?>
+                            </select>
+                        </div>
+                    </div>
+
+                    <h6 class="fw-bold mt-3 mb-2">Sociedades fusionadas</h6>
+                    <div id="fus_fusionadas_container">
+                        <div class="nested-card mb-3 fus-fusionada-item" data-idx="0">
+                            <div class="row g-3">
+                                <div class="col-md-6 mb-2"><label class="form-label">Denominación/Razón social *</label><input type="text" class="form-control text-uppercase fus-fusionada-denom" maxlength="254"></div>
+                                <div class="col-md-3 mb-2"><label class="form-label">Fecha constitución</label><input type="date" class="form-control fus-fusionada-fconst"></div>
+                                <div class="col-md-3 mb-2"><label class="form-label">RFC</label><input type="text" class="form-control fus-fusionada-rfc" maxlength="12"></div>
+                                <div class="col-md-4 mb-2"><label class="form-label">País nacionalidad</label><select class="form-select fus-fusionada-pais"><?= $paisOptions ?></select></div>
+                                <div class="col-md-4 mb-2"><label class="form-label">Giro mercantil</label><select class="form-select fus-fusionada-giro"><?= tscCatalogoOptions('giro_mercantil', '0000000') ?></select></div>
+                                <div class="col-md-4 mb-2"><label class="form-label">Folio mercantil</label><input type="text" class="form-control fus-fusionada-folio" maxlength="50"></div>
+                                <div class="col-md-6 mb-2"><label class="form-label">Capital social fijo</label><input type="number" class="form-control fus-fusionada-cap-fijo" step="0.01" min="0" placeholder="0.00"></div>
+                                <div class="col-md-6 mb-2"><label class="form-label">Capital social variable</label><input type="number" class="form-control fus-fusionada-cap-variable" step="0.01" min="0" placeholder="0.00"></div>
+                            </div>
+                        </div>
+                    </div>
+                    <button type="button" class="btn btn-outline-primary btn-sm mb-3" onclick="agregarFusionada()"><i class="fa-solid fa-plus me-1"></i>Agregar sociedad fusionada</button>
+
+                    <h6 class="fw-bold mt-3 mb-2">Sociedad fusionante</h6>
+                    <div class="row g-3">
+                        <div class="col-md-6 mb-2">
+                            <label class="form-label">¿Fusionante determinada? *</label>
+                            <select class="form-select" id="fus_fusionante_determinadas">
+                                <?= sprCatalogoOptions('fusionante_determinadas', 'SI') ?>
+                            </select>
+                        </div>
+                    </div>
+
+                    <div id="fus_fusionante_wrapper">
+                        <div class="nested-card mb-3">
+                            <div class="row g-3">
+                                <div class="col-md-6 mb-2"><label class="form-label">Denominación/Razón social *</label><input type="text" class="form-control text-uppercase" id="fus_denominacion" maxlength="254"></div>
+                                <div class="col-md-3 mb-2"><label class="form-label">Fecha constitución</label><input type="date" class="form-control" id="fus_fecha_constitucion"></div>
+                                <div class="col-md-3 mb-2"><label class="form-label">RFC</label><input type="text" class="form-control" id="fus_rfc" maxlength="12"></div>
+                                <div class="col-md-4 mb-2"><label class="form-label">País nacionalidad</label><select class="form-select" id="fus_pais_nacionalidad"><?= $paisOptions ?></select></div>
+                                <div class="col-md-4 mb-2"><label class="form-label">Giro mercantil</label><select class="form-select" id="fus_giro_mercantil"><?= tscCatalogoOptions('giro_mercantil', '0000000') ?></select></div>
+                                <div class="col-md-4 mb-2"><label class="form-label">Folio mercantil</label><input type="text" class="form-control" id="fus_folio_mercantil" maxlength="50"></div>
+                                <div class="col-md-4 mb-2"><label class="form-label">Capital social fijo</label><input type="number" class="form-control" id="fus_capital_fijo" step="0.01" min="0" placeholder="0.00"></div>
+                                <div class="col-md-4 mb-2"><label class="form-label">Capital social variable</label><input type="number" class="form-control" id="fus_capital_variable" step="0.01" min="0" placeholder="0.00"></div>
+                                <div class="col-md-4 mb-2"><label class="form-label">Número total acciones</label><input type="number" class="form-control" id="fus_numero_total_acciones" step="0.01" min="0" placeholder="0.00"></div>
+                            </div>
+                        </div>
+
+                        <h6 class="fw-bold mt-3 mb-2">Accionistas de la fusionante</h6>
+                        <div id="fus_accionistas_container">
+                            <div class="nested-card mb-3 fus-acc-item" data-idx="0">
+                                <div class="row g-3 mb-2">
+                                    <div class="col-md-4"><label class="form-label">Tipo persona</label><select class="form-select fus-acc-tipo"><option value="persona_fisica">Persona Física</option><option value="persona_moral">Persona Moral</option><option value="fideicomiso">Fideicomiso</option></select></div>
+                                    <div class="col-md-4"><label class="form-label">Número acciones *</label><input type="number" class="form-control fus-acc-num" step="0.01" min="0" placeholder="0.00"></div>
+                                </div>
+                                <div class="fus-acc-pf">
+                                    <div class="row g-3">
+                                        <div class="col-md-4 mb-2"><label class="form-label">Nombre(s) *</label><input type="text" class="form-control text-uppercase fus-acc-pf-nombre" maxlength="200"></div>
+                                        <div class="col-md-4 mb-2"><label class="form-label">Ap. paterno *</label><input type="text" class="form-control text-uppercase fus-acc-pf-ap" maxlength="200"></div>
+                                        <div class="col-md-4 mb-2"><label class="form-label">Ap. materno *</label><input type="text" class="form-control text-uppercase fus-acc-pf-am" maxlength="200"></div>
+                                        <div class="col-md-4 mb-2"><label class="form-label">Fecha nac.</label><input type="date" class="form-control fus-acc-pf-fnac"></div>
+                                        <div class="col-md-4 mb-2"><label class="form-label">RFC</label><input type="text" class="form-control fus-acc-pf-rfc" maxlength="13"></div>
+                                        <div class="col-md-4 mb-2"><label class="form-label">CURP</label><input type="text" class="form-control fus-acc-pf-curp" maxlength="18"></div>
+                                        <div class="col-md-4 mb-2"><label class="form-label">País</label><select class="form-select fus-acc-pf-pais"><?= $paisOptions ?></select></div>
+                                    </div>
+                                </div>
+                                <div class="fus-acc-pm" style="display:none;">
+                                    <div class="row g-3">
+                                        <div class="col-md-6 mb-2"><label class="form-label">Denominación *</label><input type="text" class="form-control text-uppercase fus-acc-pm-denom" maxlength="254"></div>
+                                        <div class="col-md-6 mb-2"><label class="form-label">RFC</label><input type="text" class="form-control fus-acc-pm-rfc" maxlength="12"></div>
+                                        <div class="col-md-6 mb-2"><label class="form-label">Fecha const.</label><input type="date" class="form-control fus-acc-pm-fconst"></div>
+                                        <div class="col-md-6 mb-2"><label class="form-label">País</label><select class="form-select fus-acc-pm-pais"><?= $paisOptions ?></select></div>
+                                    </div>
+                                </div>
+                                <div class="fus-acc-fid" style="display:none;">
+                                    <div class="row g-3">
+                                        <div class="col-md-6 mb-2"><label class="form-label">Denominación *</label><input type="text" class="form-control text-uppercase fus-acc-fid-denom" maxlength="254"></div>
+                                        <div class="col-md-6 mb-2"><label class="form-label">RFC</label><input type="text" class="form-control fus-acc-fid-rfc" maxlength="12"></div>
+                                        <div class="col-md-6 mb-2"><label class="form-label">Identificador fideicomiso</label><input type="text" class="form-control fus-acc-fid-id" maxlength="40"></div>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+                        <button type="button" class="btn btn-outline-secondary btn-sm mb-3" onclick="agregarFusionAccionista()"><i class="fa-solid fa-plus me-1"></i>Agregar accionista</button>
+                    </div>
+                </div>
+                <div id="escision_section" style="display:none;">
+                    <hr class="my-3">
+                    <h6 class="fw-bold mb-2">Escisión</h6>
+
+                    <h6 class="fw-bold mt-3 mb-2">Datos de la escindente</h6>
+                    <div class="nested-card mb-3">
+                        <div class="row g-3">
+                            <div class="col-md-6 mb-2"><label class="form-label">Denominación/Razón social *</label><input type="text" class="form-control text-uppercase" id="esc_escindente_denominacion" maxlength="254"></div>
+                            <div class="col-md-3 mb-2"><label class="form-label">Fecha constitución</label><input type="date" class="form-control" id="esc_escindente_fecha_constitucion"></div>
+                            <div class="col-md-3 mb-2"><label class="form-label">RFC</label><input type="text" class="form-control" id="esc_escindente_rfc" maxlength="12"></div>
+                            <div class="col-md-4 mb-2"><label class="form-label">País nacionalidad</label><select class="form-select" id="esc_escindente_pais"><?= $paisOptions ?></select></div>
+                            <div class="col-md-4 mb-2"><label class="form-label">Giro mercantil</label><select class="form-select" id="esc_escindente_giro"><?= tscCatalogoOptions('giro_mercantil', '0000000') ?></select></div>
+                            <div class="col-md-4 mb-2"><label class="form-label">Folio mercantil</label><input type="text" class="form-control" id="esc_escindente_folio" maxlength="50"></div>
+                            <div class="col-md-4 mb-2"><label class="form-label">Capital social fijo</label><input type="number" class="form-control" id="esc_escindente_capital_fijo" step="0.01" min="0" placeholder="0.00"></div>
+                            <div class="col-md-4 mb-2"><label class="form-label">Capital social variable</label><input type="number" class="form-control" id="esc_escindente_capital_variable" step="0.01" min="0" placeholder="0.00"></div>
+                            <div class="col-md-4 mb-2">
+                                <label class="form-label">¿La escindente subsiste? *</label>
+                                <select class="form-select" id="esc_escindente_subsiste"><?= sprCatalogoOptions('escindente_subsiste', 'SI') ?></select>
+                            </div>
+                        </div>
+                    </div>
+
+                    <h6 class="fw-bold mt-3 mb-2">Accionistas de la escindente</h6>
+                    <div id="esc_escindente_acc_container">
+                        <div class="nested-card mb-3 esc-escindente-acc-item esc-acc-item" data-idx="0">
+                            <div class="row g-3 mb-2">
+                                <div class="col-md-4"><label class="form-label">Tipo persona</label><select class="form-select esc-acc-tipo"><option value="persona_fisica">Persona Física</option><option value="persona_moral">Persona Moral</option><option value="fideicomiso">Fideicomiso</option></select></div>
+                                <div class="col-md-4"><label class="form-label">Número acciones *</label><input type="number" class="form-control esc-acc-num" step="0.01" min="0" placeholder="0.00"></div>
+                            </div>
+                            <div class="esc-acc-pf">
+                                <div class="row g-3">
+                                    <div class="col-md-4 mb-2"><label class="form-label">Nombre(s) *</label><input type="text" class="form-control text-uppercase esc-acc-pf-nombre" maxlength="200"></div>
+                                    <div class="col-md-4 mb-2"><label class="form-label">Ap. paterno *</label><input type="text" class="form-control text-uppercase esc-acc-pf-ap" maxlength="200"></div>
+                                    <div class="col-md-4 mb-2"><label class="form-label">Ap. materno *</label><input type="text" class="form-control text-uppercase esc-acc-pf-am" maxlength="200"></div>
+                                    <div class="col-md-4 mb-2"><label class="form-label">Fecha nac.</label><input type="date" class="form-control esc-acc-pf-fnac"></div>
+                                    <div class="col-md-4 mb-2"><label class="form-label">RFC</label><input type="text" class="form-control esc-acc-pf-rfc" maxlength="13"></div>
+                                    <div class="col-md-4 mb-2"><label class="form-label">CURP</label><input type="text" class="form-control esc-acc-pf-curp" maxlength="18"></div>
+                                    <div class="col-md-4 mb-2"><label class="form-label">País</label><select class="form-select esc-acc-pf-pais"><?= $paisOptions ?></select></div>
+                                </div>
+                            </div>
+                            <div class="esc-acc-pm" style="display:none;">
+                                <div class="row g-3">
+                                    <div class="col-md-6 mb-2"><label class="form-label">Denominación *</label><input type="text" class="form-control text-uppercase esc-acc-pm-denom" maxlength="254"></div>
+                                    <div class="col-md-6 mb-2"><label class="form-label">RFC</label><input type="text" class="form-control esc-acc-pm-rfc" maxlength="12"></div>
+                                    <div class="col-md-6 mb-2"><label class="form-label">Fecha const.</label><input type="date" class="form-control esc-acc-pm-fconst"></div>
+                                    <div class="col-md-6 mb-2"><label class="form-label">País</label><select class="form-select esc-acc-pm-pais"><?= $paisOptions ?></select></div>
+                                </div>
+                            </div>
+                            <div class="esc-acc-fid" style="display:none;">
+                                <div class="row g-3">
+                                    <div class="col-md-6 mb-2"><label class="form-label">Denominación *</label><input type="text" class="form-control text-uppercase esc-acc-fid-denom" maxlength="254"></div>
+                                    <div class="col-md-6 mb-2"><label class="form-label">RFC</label><input type="text" class="form-control esc-acc-fid-rfc" maxlength="12"></div>
+                                    <div class="col-md-6 mb-2"><label class="form-label">Identificador fideicomiso</label><input type="text" class="form-control esc-acc-fid-id" maxlength="40"></div>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                    <button type="button" class="btn btn-outline-secondary btn-sm mb-3" onclick="agregarEscAccionistaEscindente()"><i class="fa-solid fa-plus me-1"></i>Agregar accionista escindente</button>
+
+                    <h6 class="fw-bold mt-3 mb-2">Datos de las escindidas</h6>
+                    <div class="row g-3">
+                        <div class="col-md-6 mb-2">
+                            <label class="form-label">¿Escindidas determinadas? *</label>
+                            <select class="form-select" id="esc_escindidas_determinadas"><?= sprCatalogoOptions('escindidas_determinadas', 'SI') ?></select>
+                        </div>
+                    </div>
+
+                    <div id="esc_escindidas_wrapper">
+                        <div id="esc_escindidas_container">
+                            <div class="nested-card mb-3 esc-escindida-item" data-idx="0">
+                                <div class="row g-3">
+                                    <div class="col-md-6 mb-2"><label class="form-label">Denominación/Razón social *</label><input type="text" class="form-control text-uppercase esc-escindida-denom" maxlength="254"></div>
+                                    <div class="col-md-3 mb-2"><label class="form-label">Fecha constitución</label><input type="date" class="form-control esc-escindida-fconst"></div>
+                                    <div class="col-md-3 mb-2"><label class="form-label">RFC</label><input type="text" class="form-control esc-escindida-rfc" maxlength="12"></div>
+                                    <div class="col-md-4 mb-2"><label class="form-label">País nacionalidad</label><select class="form-select esc-escindida-pais"><?= $paisOptions ?></select></div>
+                                    <div class="col-md-4 mb-2"><label class="form-label">Giro mercantil</label><select class="form-select esc-escindida-giro"><?= tscCatalogoOptions('giro_mercantil', '0000000') ?></select></div>
+                                    <div class="col-md-4 mb-2"><label class="form-label">Folio mercantil</label><input type="text" class="form-control esc-escindida-folio" maxlength="50"></div>
+                                    <div class="col-md-4 mb-2"><label class="form-label">Capital social fijo</label><input type="number" class="form-control esc-escindida-cap-fijo" step="0.01" min="0" placeholder="0.00"></div>
+                                    <div class="col-md-4 mb-2"><label class="form-label">Capital social variable</label><input type="number" class="form-control esc-escindida-cap-variable" step="0.01" min="0" placeholder="0.00"></div>
+                                    <div class="col-md-4 mb-2"><label class="form-label">Número total acciones</label><input type="number" class="form-control esc-escindida-total-acciones" step="0.01" min="0" placeholder="0.00"></div>
+                                </div>
+
+                                <h6 class="fw-bold mt-3 mb-2">Accionistas de la escindida</h6>
+                                <div class="esc-escindida-acc-container">
+                                    <div class="nested-card mb-2 esc-escindida-acc-item esc-acc-item" data-idx="0">
+                                        <div class="row g-3 mb-2">
+                                            <div class="col-md-4"><label class="form-label">Tipo persona</label><select class="form-select esc-acc-tipo"><option value="persona_fisica">Persona Física</option><option value="persona_moral">Persona Moral</option><option value="fideicomiso">Fideicomiso</option></select></div>
+                                            <div class="col-md-4"><label class="form-label">Número acciones *</label><input type="number" class="form-control esc-acc-num" step="0.01" min="0" placeholder="0.00"></div>
+                                        </div>
+                                        <div class="esc-acc-pf">
+                                            <div class="row g-3">
+                                                <div class="col-md-4 mb-2"><label class="form-label">Nombre(s) *</label><input type="text" class="form-control text-uppercase esc-acc-pf-nombre" maxlength="200"></div>
+                                                <div class="col-md-4 mb-2"><label class="form-label">Ap. paterno *</label><input type="text" class="form-control text-uppercase esc-acc-pf-ap" maxlength="200"></div>
+                                                <div class="col-md-4 mb-2"><label class="form-label">Ap. materno *</label><input type="text" class="form-control text-uppercase esc-acc-pf-am" maxlength="200"></div>
+                                                <div class="col-md-4 mb-2"><label class="form-label">Fecha nac.</label><input type="date" class="form-control esc-acc-pf-fnac"></div>
+                                                <div class="col-md-4 mb-2"><label class="form-label">RFC</label><input type="text" class="form-control esc-acc-pf-rfc" maxlength="13"></div>
+                                                <div class="col-md-4 mb-2"><label class="form-label">CURP</label><input type="text" class="form-control esc-acc-pf-curp" maxlength="18"></div>
+                                                <div class="col-md-4 mb-2"><label class="form-label">País</label><select class="form-select esc-acc-pf-pais"><?= $paisOptions ?></select></div>
+                                            </div>
+                                        </div>
+                                        <div class="esc-acc-pm" style="display:none;">
+                                            <div class="row g-3">
+                                                <div class="col-md-6 mb-2"><label class="form-label">Denominación *</label><input type="text" class="form-control text-uppercase esc-acc-pm-denom" maxlength="254"></div>
+                                                <div class="col-md-6 mb-2"><label class="form-label">RFC</label><input type="text" class="form-control esc-acc-pm-rfc" maxlength="12"></div>
+                                                <div class="col-md-6 mb-2"><label class="form-label">Fecha const.</label><input type="date" class="form-control esc-acc-pm-fconst"></div>
+                                                <div class="col-md-6 mb-2"><label class="form-label">País</label><select class="form-select esc-acc-pm-pais"><?= $paisOptions ?></select></div>
+                                            </div>
+                                        </div>
+                                        <div class="esc-acc-fid" style="display:none;">
+                                            <div class="row g-3">
+                                                <div class="col-md-6 mb-2"><label class="form-label">Denominación *</label><input type="text" class="form-control text-uppercase esc-acc-fid-denom" maxlength="254"></div>
+                                                <div class="col-md-6 mb-2"><label class="form-label">RFC</label><input type="text" class="form-control esc-acc-fid-rfc" maxlength="12"></div>
+                                                <div class="col-md-6 mb-2"><label class="form-label">Identificador fideicomiso</label><input type="text" class="form-control esc-acc-fid-id" maxlength="40"></div>
+                                            </div>
+                                        </div>
+                                    </div>
+                                </div>
+                                <button type="button" class="btn btn-outline-secondary btn-sm" onclick="agregarEscAccionistaEscindida(this)"><i class="fa-solid fa-plus me-1"></i>Agregar accionista de escindida</button>
+                            </div>
+                        </div>
+                        <button type="button" class="btn btn-outline-primary btn-sm mb-3" onclick="agregarEscEscindida()"><i class="fa-solid fa-plus me-1"></i>Agregar escindida</button>
+                    </div>
+                </div>
+                <div id="constitucion_fideicomiso_section" style="display:none;">
+                    <hr class="my-3">
+                    <h6 class="fw-bold mb-2">Constitución de fideicomiso</h6>
+                    <div class="row g-3">
+                        <div class="col-md-4 mb-2"><label class="form-label">RFC fideicomiso *</label><input type="text" class="form-control" id="cf_rfc" maxlength="13" placeholder="RFC010101XX1"></div>
+                        <div class="col-md-4 mb-2"><label class="form-label">Identificador fideicomiso *</label><input type="text" class="form-control" id="cf_identificador_fideicomiso" maxlength="40" placeholder="F-123456"></div>
+                        <div class="col-md-4 mb-2"><label class="form-label">Denominación/Razón social *</label><input type="text" class="form-control text-uppercase" id="cf_denominacion_razon" maxlength="254"></div>
+                        <div class="col-md-6 mb-2"><label class="form-label">Objeto fideicomiso *</label><select class="form-select" id="cf_objeto_fideicomiso"><?= tscCatalogoOptions('giro_mercantil', '0000000') ?></select></div>
+                        <div class="col-md-6 mb-2"><label class="form-label">Monto total patrimonio *</label><input type="number" class="form-control" id="cf_monto_total_patrimonio" step="0.01" min="0" placeholder="0.00"></div>
+                    </div>
+
+                    <h6 class="fw-bold mt-3 mb-2">Fideicomitentes</h6>
+                    <div id="cf_fideicomitentes_container">
+                        <div class="nested-card mb-3 cf-fideicomitente-item" data-idx="0">
+                            <div class="row g-3 mb-2">
+                                <div class="col-md-6">
+                                    <label class="form-label">Tipo persona</label>
+                                    <select class="form-select cf-fidte-tipo">
+                                        <option value="persona_fisica">Persona Física</option>
+                                        <option value="persona_moral">Persona Moral</option>
+                                        <option value="fideicomiso">Fideicomiso</option>
+                                    </select>
+                                </div>
+                            </div>
+
+                            <div class="cf-fidte-pf">
+                                <div class="row g-3">
+                                    <div class="col-md-4 mb-2"><label class="form-label">Nombre(s) *</label><input type="text" class="form-control text-uppercase cf-fidte-pf-nombre" maxlength="200"></div>
+                                    <div class="col-md-4 mb-2"><label class="form-label">Ap. paterno *</label><input type="text" class="form-control text-uppercase cf-fidte-pf-ap" maxlength="200"></div>
+                                    <div class="col-md-4 mb-2"><label class="form-label">Ap. materno *</label><input type="text" class="form-control text-uppercase cf-fidte-pf-am" maxlength="200"></div>
+                                    <div class="col-md-4 mb-2"><label class="form-label">Fecha nacimiento</label><input type="date" class="form-control cf-fidte-pf-fnac"></div>
+                                    <div class="col-md-4 mb-2"><label class="form-label">RFC</label><input type="text" class="form-control cf-fidte-pf-rfc" maxlength="13"></div>
+                                    <div class="col-md-4 mb-2"><label class="form-label">CURP</label><input type="text" class="form-control cf-fidte-pf-curp" maxlength="18"></div>
+                                    <div class="col-md-4 mb-2"><label class="form-label">País nacionalidad</label><select class="form-select cf-fidte-pf-pais"><?= $paisOptions ?></select></div>
+                                </div>
+                            </div>
+
+                            <div class="cf-fidte-pm" style="display:none;">
+                                <div class="row g-3">
+                                    <div class="col-md-6 mb-2"><label class="form-label">Denominación *</label><input type="text" class="form-control text-uppercase cf-fidte-pm-denom" maxlength="254"></div>
+                                    <div class="col-md-6 mb-2"><label class="form-label">RFC</label><input type="text" class="form-control cf-fidte-pm-rfc" maxlength="12"></div>
+                                    <div class="col-md-6 mb-2"><label class="form-label">Fecha constitución</label><input type="date" class="form-control cf-fidte-pm-fconst"></div>
+                                    <div class="col-md-6 mb-2"><label class="form-label">País nacionalidad</label><select class="form-select cf-fidte-pm-pais"><?= $paisOptions ?></select></div>
+                                </div>
+                            </div>
+
+                            <div class="cf-fidte-fid" style="display:none;">
+                                <div class="row g-3">
+                                    <div class="col-md-6 mb-2"><label class="form-label">Denominación *</label><input type="text" class="form-control text-uppercase cf-fidte-fid-denom" maxlength="254"></div>
+                                    <div class="col-md-6 mb-2"><label class="form-label">RFC</label><input type="text" class="form-control cf-fidte-fid-rfc" maxlength="12"></div>
+                                    <div class="col-md-6 mb-2"><label class="form-label">Identificador fideicomiso</label><input type="text" class="form-control cf-fidte-fid-id" maxlength="40"></div>
+                                </div>
+                            </div>
+
+                            <div class="mt-3">
+                                <h6 class="fw-bold mb-2">Tipo(s) de patrimonio</h6>
+                                <div class="cf-patrimonios-container">
+                                    <div class="nested-card mb-2 cf-patrimonio-item" data-idx="0">
+                                        <div class="row g-3">
+                                            <div class="col-md-6 mb-2">
+                                                <label class="form-label">Tipo *</label>
+                                                <select class="form-select cf-patrimonio-tipo">
+                                                    <option value="patrimonio_monetario">Patrimonio monetario</option>
+                                                    <option value="patrimonio_inmueble">Patrimonio inmueble</option>
+                                                    <option value="patrimonio_otro_bien">Patrimonio otro bien</option>
+                                                </select>
+                                            </div>
+                                        </div>
+                                        <div class="cf-mon-fields">
+                                            <div class="row g-3">
+                                                <div class="col-md-4 mb-2"><label class="form-label">Moneda</label><select class="form-select cf-mon-moneda"><?= sprCatalogoOptions('moneda', '1') ?></select></div>
+                                                <div class="col-md-4 mb-2"><label class="form-label">Monto operación *</label><input type="number" class="form-control cf-mon-monto" step="0.01" min="0" placeholder="0.00"></div>
+                                            </div>
+                                        </div>
+                                        <div class="cf-inm-fields" style="display:none;">
+                                            <div class="row g-3">
+                                                <div class="col-md-4 mb-2"><label class="form-label">Tipo inmueble *</label><select class="form-select cf-inm-tipo"><?= sprCatalogoOptions('tipo_inmueble', '1') ?></select></div>
+                                                <div class="col-md-4 mb-2"><label class="form-label">Código postal *</label><input type="text" class="form-control cf-inm-cp" maxlength="10"></div>
+                                                <div class="col-md-4 mb-2"><label class="form-label">Folio real *</label><input type="text" class="form-control cf-inm-folio" maxlength="200"></div>
+                                                <div class="col-md-6 mb-2"><label class="form-label">Importe garantía *</label><input type="number" class="form-control cf-inm-garantia" step="0.01" min="0" placeholder="0.00"></div>
+                                            </div>
+                                        </div>
+                                        <div class="cf-otro-fields" style="display:none;">
+                                            <div class="row g-3">
+                                                <div class="col-12 mb-2"><label class="form-label">Descripción *</label><textarea class="form-control cf-otro-desc" rows="2" maxlength="500"></textarea></div>
+                                                <div class="col-md-6 mb-2"><label class="form-label">Valor bien *</label><input type="number" class="form-control cf-otro-valor" step="0.01" min="0" placeholder="0.00"></div>
+                                            </div>
+                                        </div>
+                                    </div>
+                                </div>
+                                <button type="button" class="btn btn-outline-secondary btn-sm" onclick="agregarCfPatrimonio(this)"><i class="fa-solid fa-plus me-1"></i>Agregar tipo patrimonio</button>
+                            </div>
+                        </div>
+                    </div>
+                    <button type="button" class="btn btn-outline-primary btn-sm mb-3" onclick="agregarCfFideicomitente()"><i class="fa-solid fa-plus me-1"></i>Agregar fideicomitente</button>
+
+                    <h6 class="fw-bold mt-3 mb-2">Fideicomisarios</h6>
+                    <div id="cf_fideicomisarios_container">
+                        <div class="nested-card mb-3 cf-fideicomisario-item" data-idx="0">
+                            <div class="row g-3 mb-2">
+                                <div class="col-md-4">
+                                    <label class="form-label">¿Determinados?</label>
+                                    <select class="form-select cf-fis-determinados"><?= sprCatalogoOptions('escindidas_determinadas', 'SI') ?></select>
+                                </div>
+                                <div class="col-md-4">
+                                    <label class="form-label">Tipo persona</label>
+                                    <select class="form-select cf-fis-tipo">
+                                        <option value="persona_fisica">Persona Física</option>
+                                        <option value="persona_moral">Persona Moral</option>
+                                        <option value="fideicomiso">Fideicomiso</option>
+                                    </select>
+                                </div>
+                            </div>
+                            <div class="cf-fis-pf">
+                                <div class="row g-3">
+                                    <div class="col-md-4 mb-2"><label class="form-label">Nombre(s) *</label><input type="text" class="form-control text-uppercase cf-fis-pf-nombre" maxlength="200"></div>
+                                    <div class="col-md-4 mb-2"><label class="form-label">Ap. paterno *</label><input type="text" class="form-control text-uppercase cf-fis-pf-ap" maxlength="200"></div>
+                                    <div class="col-md-4 mb-2"><label class="form-label">Ap. materno *</label><input type="text" class="form-control text-uppercase cf-fis-pf-am" maxlength="200"></div>
+                                    <div class="col-md-4 mb-2"><label class="form-label">Fecha nacimiento</label><input type="date" class="form-control cf-fis-pf-fnac"></div>
+                                    <div class="col-md-4 mb-2"><label class="form-label">RFC</label><input type="text" class="form-control cf-fis-pf-rfc" maxlength="13"></div>
+                                    <div class="col-md-4 mb-2"><label class="form-label">CURP</label><input type="text" class="form-control cf-fis-pf-curp" maxlength="18"></div>
+                                    <div class="col-md-4 mb-2"><label class="form-label">País nacionalidad</label><select class="form-select cf-fis-pf-pais"><?= $paisOptions ?></select></div>
+                                </div>
+                            </div>
+                            <div class="cf-fis-pm" style="display:none;">
+                                <div class="row g-3">
+                                    <div class="col-md-6 mb-2"><label class="form-label">Denominación *</label><input type="text" class="form-control text-uppercase cf-fis-pm-denom" maxlength="254"></div>
+                                    <div class="col-md-6 mb-2"><label class="form-label">RFC</label><input type="text" class="form-control cf-fis-pm-rfc" maxlength="12"></div>
+                                    <div class="col-md-6 mb-2"><label class="form-label">Fecha constitución</label><input type="date" class="form-control cf-fis-pm-fconst"></div>
+                                    <div class="col-md-6 mb-2"><label class="form-label">País nacionalidad</label><select class="form-select cf-fis-pm-pais"><?= $paisOptions ?></select></div>
+                                </div>
+                            </div>
+                            <div class="cf-fis-fid" style="display:none;">
+                                <div class="row g-3">
+                                    <div class="col-md-6 mb-2"><label class="form-label">Denominación *</label><input type="text" class="form-control text-uppercase cf-fis-fid-denom" maxlength="254"></div>
+                                    <div class="col-md-6 mb-2"><label class="form-label">RFC</label><input type="text" class="form-control cf-fis-fid-rfc" maxlength="12"></div>
+                                    <div class="col-md-6 mb-2"><label class="form-label">Identificador fideicomiso</label><input type="text" class="form-control cf-fis-fid-id" maxlength="40"></div>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                    <button type="button" class="btn btn-outline-primary btn-sm mb-3" onclick="agregarCfFideicomisario()"><i class="fa-solid fa-plus me-1"></i>Agregar fideicomisario</button>
+
+                    <h6 class="fw-bold mt-3 mb-2">Miembro comité técnico</h6>
+                    <div class="row g-3">
+                        <div class="col-md-4 mb-2"><label class="form-label">Comité técnico *</label><select class="form-select" id="cf_comite_tecnico"><?= sprCatalogoOptions('escindidas_determinadas', 'SI') ?></select></div>
+                    </div>
+                </div>
+                <div id="compra_venta_entidades_section" style="display:none;">
+                    <hr class="my-3">
+                    <h6 class="fw-bold mb-2">Compra o venta de entidades mercantiles</h6>
+                    <div class="row g-3">
+                        <div class="col-md-4 mb-2">
+                            <label class="form-label">Tipo operación *</label>
+                            <select class="form-select" id="cvem_tipo_operacion">
+                                <?= sprCatalogoOptions('tipo_operacion_compraventa', '1') ?>
+                            </select>
+                        </div>
+                    </div>
+                    <h6 class="fw-bold mt-3 mb-2">Sociedades mercantiles</h6>
+                    <div id="cvem_sociedades_container">
+                        <div class="nested-card mb-3 cvem-sociedad-item" data-idx="0">
+                            <div class="row g-3">
+                                <div class="col-md-6 mb-2"><label class="form-label">Denominación/Razón social *</label><input type="text" class="form-control text-uppercase cvem-denom" maxlength="254"></div>
+                                <div class="col-md-6 mb-2"><label class="form-label">Giro mercantil *</label><select class="form-select cvem-giro"><?= tscCatalogoOptions('giro_mercantil', '0000000') ?></select></div>
+                                <div class="col-md-3 mb-2"><label class="form-label">Fecha constitución</label><input type="date" class="form-control cvem-fconst"></div>
+                                <div class="col-md-3 mb-2"><label class="form-label">RFC</label><input type="text" class="form-control cvem-rfc" maxlength="12"></div>
+                                <div class="col-md-3 mb-2"><label class="form-label">País nacionalidad</label><select class="form-select cvem-pais"><?= $paisOptions ?></select></div>
+                                <div class="col-md-3 mb-2"><label class="form-label">Folio mercantil</label><input type="text" class="form-control cvem-folio" maxlength="50"></div>
+                                <div class="col-md-3 mb-2"><label class="form-label">Acciones adquiridas *</label><input type="number" class="form-control cvem-acciones-adq" step="0.01" min="0" placeholder="0.00"></div>
+                                <div class="col-md-3 mb-2"><label class="form-label">Acciones totales *</label><input type="number" class="form-control cvem-acciones-tot" step="0.01" min="0" placeholder="0.00"></div>
+                            </div>
+                            <h6 class="fw-bold mt-3 mb-2">Datos contraparte</h6>
+                            <div class="row g-3 mb-2">
+                                <div class="col-md-4"><label class="form-label">Tipo persona</label><select class="form-select cvem-ct-tipo"><option value="persona_fisica">Persona Física</option><option value="persona_moral">Persona Moral</option><option value="fideicomiso">Fideicomiso</option></select></div>
+                            </div>
+                            <div class="cvem-ct-pf">
+                                <div class="row g-3">
+                                    <div class="col-md-4 mb-2"><label class="form-label">Nombre(s) *</label><input type="text" class="form-control text-uppercase cvem-ct-pf-nombre" maxlength="200"></div>
+                                    <div class="col-md-4 mb-2"><label class="form-label">Ap. paterno *</label><input type="text" class="form-control text-uppercase cvem-ct-pf-ap" maxlength="200"></div>
+                                    <div class="col-md-4 mb-2"><label class="form-label">Ap. materno *</label><input type="text" class="form-control text-uppercase cvem-ct-pf-am" maxlength="200"></div>
+                                    <div class="col-md-4 mb-2"><label class="form-label">Fecha nacimiento</label><input type="date" class="form-control cvem-ct-pf-fnac"></div>
+                                    <div class="col-md-4 mb-2"><label class="form-label">RFC</label><input type="text" class="form-control cvem-ct-pf-rfc" maxlength="13"></div>
+                                    <div class="col-md-4 mb-2"><label class="form-label">CURP</label><input type="text" class="form-control cvem-ct-pf-curp" maxlength="18"></div>
+                                    <div class="col-md-4 mb-2"><label class="form-label">País nacionalidad</label><select class="form-select cvem-ct-pf-pais"><?= $paisOptions ?></select></div>
+                                </div>
+                            </div>
+                            <div class="cvem-ct-pm" style="display:none;">
+                                <div class="row g-3">
+                                    <div class="col-md-6 mb-2"><label class="form-label">Denominación *</label><input type="text" class="form-control text-uppercase cvem-ct-pm-denom" maxlength="254"></div>
+                                    <div class="col-md-6 mb-2"><label class="form-label">RFC</label><input type="text" class="form-control cvem-ct-pm-rfc" maxlength="12"></div>
+                                    <div class="col-md-6 mb-2"><label class="form-label">Fecha constitución</label><input type="date" class="form-control cvem-ct-pm-fconst"></div>
+                                    <div class="col-md-6 mb-2"><label class="form-label">País nacionalidad</label><select class="form-select cvem-ct-pm-pais"><?= $paisOptions ?></select></div>
+                                </div>
+                            </div>
+                            <div class="cvem-ct-fid" style="display:none;">
+                                <div class="row g-3">
+                                    <div class="col-md-6 mb-2"><label class="form-label">Denominación *</label><input type="text" class="form-control text-uppercase cvem-ct-fid-denom" maxlength="254"></div>
+                                    <div class="col-md-6 mb-2"><label class="form-label">RFC</label><input type="text" class="form-control cvem-ct-fid-rfc" maxlength="12"></div>
+                                    <div class="col-md-6 mb-2"><label class="form-label">Identificador fideicomiso</label><input type="text" class="form-control cvem-ct-fid-id" maxlength="40"></div>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                    <button type="button" class="btn btn-outline-primary btn-sm mb-3" onclick="agregarCvemSociedad()"><i class="fa-solid fa-plus me-1"></i>Agregar sociedad mercantil</button>
+                </div>
                 <hr class="my-3">
                 <h6 class="fw-bold mb-2">Datos operación financiera *</h6>
                 <div id="datos_fin_container">
@@ -779,19 +1300,40 @@ document.addEventListener('DOMContentLoaded', function() {
     document.getElementById('db_tipo_persona').addEventListener('change', toggleDuenoTipoPersona);
     document.getElementById('persona_moral_aviso').addEventListener('change', function() {
         const wrap = document.getElementById('wrap_tipo_persona_admon');
-        wrap.style.display = this.value === 'SI' ? 'block' : 'none';
+        wrap.style.display = 'block';
     });
     document.getElementById('admon_tipo_persona').addEventListener('change', function() {
         document.querySelectorAll('.admon-pm').forEach(e => e.style.display = this.value === 'persona_moral' ? '' : 'none');
         document.querySelectorAll('.admon-fid').forEach(e => e.style.display = this.value === 'fideicomiso' ? '' : 'none');
     });
+    document.getElementById('admon_tipo_persona').dispatchEvent(new Event('change'));
     document.getElementById('tipo_actividad').addEventListener('change', toggleTipoActividad);
+    document.getElementById('fus_fusionante_determinadas').addEventListener('change', toggleFusionanteFields);
+    document.getElementById('esc_escindidas_determinadas').addEventListener('change', toggleEscindidasFields);
     toggleTipoActividad();
+    document.querySelectorAll('.oa-aportacion-item').forEach(toggleOaAportaTipo);
+    document.querySelectorAll('.oa-tipo-item').forEach(toggleOaTipoAportacion);
+    document.querySelectorAll('.cf-fideicomitente-item').forEach(toggleCfFideicomitenteTipo);
+    document.querySelectorAll('.cf-patrimonio-item').forEach(toggleCfTipoPatrimonio);
+    document.querySelectorAll('.cf-fideicomisario-item').forEach(toggleCfFideicomisarioTipo);
+    document.querySelectorAll('.cvem-sociedad-item').forEach(toggleCvemContraparteTipo);
+    document.querySelectorAll('.fus-acc-item').forEach(toggleFusionAccionistaTipo);
+    document.querySelectorAll('.esc-acc-item').forEach(toggleEscAccionistaTipo);
+    toggleFusionanteFields();
+    toggleEscindidasFields();
     toggleTipoDomicilio();
     document.getElementById('formSPR').addEventListener('submit', guardarAvisoSPR);
     document.getElementById('formSPR').addEventListener('change', function(e) {
         if (e.target.matches('.contraparte-tipo')) toggleContraparteTipo(e.target.closest('.contraparte-item, .cdi-contraparte'));
         if (e.target.matches('.csm-acc-tipo')) toggleCsmAccionistaTipo(e.target.closest('.csm-accionista-item'));
+        if (e.target.matches('.fus-acc-tipo')) toggleFusionAccionistaTipo(e.target.closest('.fus-acc-item'));
+        if (e.target.matches('.esc-acc-tipo')) toggleEscAccionistaTipo(e.target.closest('.esc-acc-item'));
+        if (e.target.matches('.oa-aporta-tipo')) toggleOaAportaTipo(e.target.closest('.oa-aportacion-item'));
+        if (e.target.matches('.oa-tipo-select')) toggleOaTipoAportacion(e.target.closest('.oa-tipo-item'));
+        if (e.target.matches('.cf-fidte-tipo')) toggleCfFideicomitenteTipo(e.target.closest('.cf-fideicomitente-item'));
+        if (e.target.matches('.cf-patrimonio-tipo')) toggleCfTipoPatrimonio(e.target.closest('.cf-patrimonio-item'));
+        if (e.target.matches('.cf-fis-tipo')) toggleCfFideicomisarioTipo(e.target.closest('.cf-fideicomisario-item'));
+        if (e.target.matches('.cvem-ct-tipo')) toggleCvemContraparteTipo(e.target.closest('.cvem-sociedad-item'));
         if (e.target.matches('.ar-out-area') || e.target.matches('.ar-out-activo')) {
             const item = e.target.closest('.ar-out-item');
             if (item) {
@@ -820,6 +1362,11 @@ function toggleTipoActividad() {
     document.getElementById('compra_venta_inmuebles_section').style.display = t === 'compra_venta_inmuebles' ? 'block' : 'none';
     document.getElementById('admin_personas_morales_section').style.display = t === 'administracion_personas_morales' ? 'block' : 'none';
     document.getElementById('constitucion_sociedades_section').style.display = t === 'constitucion_sociedades_mercantiles' ? 'block' : 'none';
+    document.getElementById('organizacion_aportaciones_section').style.display = t === 'organizacion_aportaciones' ? 'block' : 'none';
+    document.getElementById('fusion_section').style.display = t === 'fusion' ? 'block' : 'none';
+    document.getElementById('escision_section').style.display = t === 'escision' ? 'block' : 'none';
+    document.getElementById('constitucion_fideicomiso_section').style.display = t === 'constitucion_fideicomiso' ? 'block' : 'none';
+    document.getElementById('compra_venta_entidades_section').style.display = t === 'compra_venta_entidades_mercantiles' ? 'block' : 'none';
     ['cvi_tipo_operacion','cvi_valor_pactado'].forEach(id => {
         const el = document.getElementById(id);
         if (el) el.required = t === 'compra_venta_inmuebles';
@@ -837,6 +1384,28 @@ function toggleTipoActividad() {
         const el = document.getElementById(id);
         if (el) el.required = t === 'constitucion_sociedades_mercantiles';
     });
+    const oaMotivo = document.getElementById('oa_motivo_aportacion');
+    if (oaMotivo) oaMotivo.required = t === 'organizacion_aportaciones';
+    const fusTipo = document.getElementById('fus_tipo_fusion');
+    if (fusTipo) fusTipo.required = t === 'fusion';
+    const fusDet = document.getElementById('fus_fusionante_determinadas');
+    if (fusDet) fusDet.required = t === 'fusion';
+    const escDen = document.getElementById('esc_escindente_denominacion');
+    if (escDen) escDen.required = t === 'escision';
+    const escSubsiste = document.getElementById('esc_escindente_subsiste');
+    if (escSubsiste) escSubsiste.required = t === 'escision';
+    const escDet = document.getElementById('esc_escindidas_determinadas');
+    if (escDet) escDet.required = t === 'escision';
+    ['cf_rfc','cf_identificador_fideicomiso','cf_denominacion_razon','cf_objeto_fideicomiso','cf_monto_total_patrimonio','cf_comite_tecnico'].forEach(id => {
+        const el = document.getElementById(id);
+        if (el) el.required = t === 'constitucion_fideicomiso';
+    });
+    ['cvem_tipo_operacion'].forEach(id => {
+        const el = document.getElementById(id);
+        if (el) el.required = t === 'compra_venta_entidades_mercantiles';
+    });
+    toggleFusionanteFields();
+    toggleEscindidasFields();
 }
 function toggleContraparteTipo(item) {
     if (!item) return;
@@ -863,6 +1432,38 @@ function toggleCsmAccionistaTipo(item) {
     item.querySelector('.csm-acc-pm').style.display = t === 'persona_moral' ? 'block' : 'none';
     item.querySelector('.csm-acc-fid').style.display = t === 'fideicomiso' ? 'block' : 'none';
 }
+function toggleFusionAccionistaTipo(item) {
+    if (!item) return;
+    const t = item.querySelector('.fus-acc-tipo')?.value || 'persona_fisica';
+    item.querySelector('.fus-acc-pf').style.display = t === 'persona_fisica' ? 'block' : 'none';
+    item.querySelector('.fus-acc-pm').style.display = t === 'persona_moral' ? 'block' : 'none';
+    item.querySelector('.fus-acc-fid').style.display = t === 'fideicomiso' ? 'block' : 'none';
+}
+function toggleFusionanteFields() {
+    const isFusion = document.getElementById('tipo_actividad')?.value === 'fusion';
+    const determinada = v('fus_fusionante_determinadas') || 'SI';
+    const show = isFusion && determinada === 'SI';
+    const wrapper = document.getElementById('fus_fusionante_wrapper');
+    if (wrapper) wrapper.style.display = show ? 'block' : 'none';
+    ['fus_denominacion', 'fus_numero_total_acciones'].forEach(id => {
+        const el = document.getElementById(id);
+        if (el) el.required = show;
+    });
+}
+function toggleEscAccionistaTipo(item) {
+    if (!item) return;
+    const t = item.querySelector('.esc-acc-tipo')?.value || 'persona_fisica';
+    item.querySelector('.esc-acc-pf').style.display = t === 'persona_fisica' ? 'block' : 'none';
+    item.querySelector('.esc-acc-pm').style.display = t === 'persona_moral' ? 'block' : 'none';
+    item.querySelector('.esc-acc-fid').style.display = t === 'fideicomiso' ? 'block' : 'none';
+}
+function toggleEscindidasFields() {
+    const isEscision = document.getElementById('tipo_actividad')?.value === 'escision';
+    const determinadas = v('esc_escindidas_determinadas') || 'SI';
+    const show = isEscision && determinadas === 'SI';
+    const wrapper = document.getElementById('esc_escindidas_wrapper');
+    if (wrapper) wrapper.style.display = show ? 'block' : 'none';
+}
 let csmAccionistaIdx = 1;
 function agregarAccionistaCSM() {
     const tpl = document.querySelector('.csm-accionista-item').cloneNode(true);
@@ -873,6 +1474,192 @@ function agregarAccionistaCSM() {
     tpl.querySelector('.csm-acc-tipo').value = 'persona_fisica';
     document.getElementById('csm_accionistas_container').appendChild(tpl);
     toggleCsmAccionistaTipo(tpl);
+}
+let fusFusionadaIdx = 1, fusAccionistaIdx = 1;
+function agregarFusionada() {
+    const base = document.querySelector('#fus_fusionadas_container .fus-fusionada-item');
+    if (!base) return;
+    const tpl = base.cloneNode(true);
+    tpl.dataset.idx = fusFusionadaIdx++;
+    tpl.querySelectorAll('input').forEach(el => { el.value = ''; });
+    tpl.querySelectorAll('select').forEach(el => { el.selectedIndex = 0; });
+    document.getElementById('fus_fusionadas_container').appendChild(tpl);
+}
+function agregarFusionAccionista() {
+    const base = document.querySelector('#fus_accionistas_container .fus-acc-item');
+    if (!base) return;
+    const tpl = base.cloneNode(true);
+    tpl.dataset.idx = fusAccionistaIdx++;
+    tpl.querySelectorAll('input').forEach(el => { el.value = ''; });
+    tpl.querySelectorAll('select').forEach(el => { el.selectedIndex = 0; });
+    tpl.querySelector('.fus-acc-tipo').value = 'persona_fisica';
+    document.getElementById('fus_accionistas_container').appendChild(tpl);
+    toggleFusionAccionistaTipo(tpl);
+}
+let escEscindenteAccIdx = 1, escEscindidaIdx = 1, escEscindidaAccIdx = 1;
+function agregarEscAccionistaEscindente() {
+    const base = document.querySelector('#esc_escindente_acc_container .esc-escindente-acc-item');
+    if (!base) return;
+    const tpl = base.cloneNode(true);
+    tpl.dataset.idx = escEscindenteAccIdx++;
+    tpl.querySelectorAll('input').forEach(el => { el.value = ''; });
+    tpl.querySelectorAll('select').forEach(el => { el.selectedIndex = 0; });
+    document.getElementById('esc_escindente_acc_container').appendChild(tpl);
+    toggleEscAccionistaTipo(tpl);
+}
+function agregarEscAccionistaEscindida(btn) {
+    const escindida = btn?.closest('.esc-escindida-item');
+    if (!escindida) return;
+    const container = escindida.querySelector('.esc-escindida-acc-container');
+    const base = container?.querySelector('.esc-acc-item');
+    if (!base) return;
+    const tpl = base.cloneNode(true);
+    tpl.dataset.idx = escEscindidaAccIdx++;
+    tpl.querySelectorAll('input').forEach(el => { el.value = ''; });
+    tpl.querySelectorAll('select').forEach(el => { el.selectedIndex = 0; });
+    container.appendChild(tpl);
+    toggleEscAccionistaTipo(tpl);
+}
+function agregarEscEscindida() {
+    const base = document.querySelector('#esc_escindidas_container .esc-escindida-item');
+    if (!base) return;
+    const tpl = base.cloneNode(true);
+    tpl.dataset.idx = escEscindidaIdx++;
+    tpl.querySelectorAll('input').forEach(el => { el.value = ''; });
+    tpl.querySelectorAll('select').forEach(el => { el.selectedIndex = 0; });
+    const accContainer = tpl.querySelector('.esc-escindida-acc-container');
+    if (accContainer) {
+        const accItems = accContainer.querySelectorAll('.esc-acc-item');
+        accItems.forEach((item, index) => { if (index > 0) item.remove(); });
+        const primerAcc = accContainer.querySelector('.esc-acc-item');
+        if (primerAcc) toggleEscAccionistaTipo(primerAcc);
+    }
+    document.getElementById('esc_escindidas_container').appendChild(tpl);
+}
+let oaAportacionIdx = 1, oaTipoIdx = 1;
+function toggleOaAportaTipo(item) {
+    if (!item) return;
+    const t = item.querySelector('.oa-aporta-tipo')?.value || 'persona_fisica';
+    item.querySelector('.oa-aporta-pf').style.display = t === 'persona_fisica' ? 'block' : 'none';
+    item.querySelector('.oa-aporta-pm').style.display = t === 'persona_moral' ? 'block' : 'none';
+    item.querySelector('.oa-aporta-fid').style.display = t === 'fideicomiso' ? 'block' : 'none';
+}
+function toggleOaTipoAportacion(item) {
+    if (!item) return;
+    const t = item.querySelector('.oa-tipo-select')?.value || 'aportacion_monetaria';
+    item.querySelector('.oa-monetaria-fields').style.display = t === 'aportacion_monetaria' ? 'block' : 'none';
+    item.querySelector('.oa-inmueble-fields').style.display = t === 'aportacion_inmueble' ? 'block' : 'none';
+    item.querySelector('.oa-otro-fields').style.display = t === 'aportacion_otro_bien' ? 'block' : 'none';
+}
+function agregarOaTipoAportacion(btn) {
+    const aportacionItem = btn?.closest('.oa-aportacion-item');
+    if (!aportacionItem) return;
+    const container = aportacionItem.querySelector('.oa-tipos-aportacion-container');
+    const base = container.querySelector('.oa-tipo-item');
+    if (!base) return;
+    const tpl = base.cloneNode(true);
+    tpl.dataset.idx = oaTipoIdx++;
+    tpl.querySelectorAll('input, textarea').forEach(el => { el.value = ''; });
+    tpl.querySelectorAll('select').forEach(el => { el.selectedIndex = 0; });
+    container.appendChild(tpl);
+    toggleOaTipoAportacion(tpl);
+}
+function agregarOaAportacion() {
+    const base = document.querySelector('#oa_aportaciones_container .oa-aportacion-item');
+    if (!base) return;
+    const tpl = base.cloneNode(true);
+    tpl.dataset.idx = oaAportacionIdx++;
+    tpl.querySelectorAll('input, textarea').forEach(el => { el.value = ''; });
+    tpl.querySelectorAll('select').forEach(el => { el.selectedIndex = 0; });
+    const tiposContainer = tpl.querySelector('.oa-tipos-aportacion-container');
+    if (tiposContainer) {
+        const tipoItems = tiposContainer.querySelectorAll('.oa-tipo-item');
+        tipoItems.forEach((item, index) => { if (index > 0) item.remove(); });
+        const primerTipo = tiposContainer.querySelector('.oa-tipo-item');
+        if (primerTipo) toggleOaTipoAportacion(primerTipo);
+    }
+    document.getElementById('oa_aportaciones_container').appendChild(tpl);
+    toggleOaAportaTipo(tpl);
+}
+let cfFideicomitenteIdx = 1, cfPatrimonioIdx = 1, cfFideicomisarioIdx = 1;
+function toggleCfFideicomitenteTipo(item) {
+    if (!item) return;
+    const t = item.querySelector('.cf-fidte-tipo')?.value || 'persona_fisica';
+    item.querySelector('.cf-fidte-pf').style.display = t === 'persona_fisica' ? 'block' : 'none';
+    item.querySelector('.cf-fidte-pm').style.display = t === 'persona_moral' ? 'block' : 'none';
+    item.querySelector('.cf-fidte-fid').style.display = t === 'fideicomiso' ? 'block' : 'none';
+}
+function toggleCfTipoPatrimonio(item) {
+    if (!item) return;
+    const t = item.querySelector('.cf-patrimonio-tipo')?.value || 'patrimonio_monetario';
+    item.querySelector('.cf-mon-fields').style.display = t === 'patrimonio_monetario' ? 'block' : 'none';
+    item.querySelector('.cf-inm-fields').style.display = t === 'patrimonio_inmueble' ? 'block' : 'none';
+    item.querySelector('.cf-otro-fields').style.display = t === 'patrimonio_otro_bien' ? 'block' : 'none';
+}
+function toggleCfFideicomisarioTipo(item) {
+    if (!item) return;
+    const t = item.querySelector('.cf-fis-tipo')?.value || 'persona_fisica';
+    item.querySelector('.cf-fis-pf').style.display = t === 'persona_fisica' ? 'block' : 'none';
+    item.querySelector('.cf-fis-pm').style.display = t === 'persona_moral' ? 'block' : 'none';
+    item.querySelector('.cf-fis-fid').style.display = t === 'fideicomiso' ? 'block' : 'none';
+}
+function toggleCvemContraparteTipo(item) {
+    if (!item) return;
+    const t = item.querySelector('.cvem-ct-tipo')?.value || 'persona_fisica';
+    item.querySelector('.cvem-ct-pf').style.display = t === 'persona_fisica' ? 'block' : 'none';
+    item.querySelector('.cvem-ct-pm').style.display = t === 'persona_moral' ? 'block' : 'none';
+    item.querySelector('.cvem-ct-fid').style.display = t === 'fideicomiso' ? 'block' : 'none';
+}
+function agregarCfPatrimonio(btn) {
+    const fideicomitenteItem = btn?.closest('.cf-fideicomitente-item');
+    if (!fideicomitenteItem) return;
+    const container = fideicomitenteItem.querySelector('.cf-patrimonios-container');
+    const base = container?.querySelector('.cf-patrimonio-item');
+    if (!base) return;
+    const tpl = base.cloneNode(true);
+    tpl.dataset.idx = cfPatrimonioIdx++;
+    tpl.querySelectorAll('input, textarea').forEach(el => { el.value = ''; });
+    tpl.querySelectorAll('select').forEach(el => { el.selectedIndex = 0; });
+    container.appendChild(tpl);
+    toggleCfTipoPatrimonio(tpl);
+}
+function agregarCfFideicomitente() {
+    const base = document.querySelector('#cf_fideicomitentes_container .cf-fideicomitente-item');
+    if (!base) return;
+    const tpl = base.cloneNode(true);
+    tpl.dataset.idx = cfFideicomitenteIdx++;
+    tpl.querySelectorAll('input, textarea').forEach(el => { el.value = ''; });
+    tpl.querySelectorAll('select').forEach(el => { el.selectedIndex = 0; });
+    const patrimonios = tpl.querySelector('.cf-patrimonios-container');
+    if (patrimonios) {
+        const items = patrimonios.querySelectorAll('.cf-patrimonio-item');
+        items.forEach((item, idx) => { if (idx > 0) item.remove(); });
+        const basePatrimonio = patrimonios.querySelector('.cf-patrimonio-item');
+        if (basePatrimonio) toggleCfTipoPatrimonio(basePatrimonio);
+    }
+    document.getElementById('cf_fideicomitentes_container').appendChild(tpl);
+    toggleCfFideicomitenteTipo(tpl);
+}
+function agregarCfFideicomisario() {
+    const base = document.querySelector('#cf_fideicomisarios_container .cf-fideicomisario-item');
+    if (!base) return;
+    const tpl = base.cloneNode(true);
+    tpl.dataset.idx = cfFideicomisarioIdx++;
+    tpl.querySelectorAll('input').forEach(el => { el.value = ''; });
+    tpl.querySelectorAll('select').forEach(el => { el.selectedIndex = 0; });
+    document.getElementById('cf_fideicomisarios_container').appendChild(tpl);
+    toggleCfFideicomisarioTipo(tpl);
+}
+let cvemSociedadIdx = 1;
+function agregarCvemSociedad() {
+    const base = document.querySelector('#cvem_sociedades_container .cvem-sociedad-item');
+    if (!base) return;
+    const tpl = base.cloneNode(true);
+    tpl.dataset.idx = cvemSociedadIdx++;
+    tpl.querySelectorAll('input').forEach(el => { el.value = ''; });
+    tpl.querySelectorAll('select').forEach(el => { el.selectedIndex = 0; });
+    document.getElementById('cvem_sociedades_container').appendChild(tpl);
+    toggleCvemContraparteTipo(tpl);
 }
 let contraparteIdx = 1, inmuebleIdx = 1, datosFinIdx = 1;
 function agregarContraparte() {
@@ -1128,6 +1915,532 @@ function leerAccionistasCSM() {
     });
     return out;
 }
+function leerPersonaAportaOA(item) {
+    if (!item) return null;
+    const tipo = item.querySelector('.oa-aporta-tipo')?.value || 'persona_fisica';
+    if (tipo === 'persona_fisica') {
+        const nombre = item.querySelector('.oa-pf-nombre')?.value?.trim() || '';
+        if (!nombre) return null;
+        return { persona_fisica: {
+            nombre,
+            apellido_paterno: item.querySelector('.oa-pf-ap')?.value?.trim() || '',
+            apellido_materno: item.querySelector('.oa-pf-am')?.value?.trim() || '',
+            fecha_nacimiento: (item.querySelector('.oa-pf-fnac')?.value || '').replace(/-/g, ''),
+            rfc: item.querySelector('.oa-pf-rfc')?.value?.trim() || '',
+            curp: item.querySelector('.oa-pf-curp')?.value?.trim() || '',
+            pais_nacionalidad: item.querySelector('.oa-pf-pais')?.value || '',
+            actividad_economica: item.querySelector('.oa-pf-act')?.value || ''
+        }};
+    }
+    if (tipo === 'persona_moral') {
+        const denominacion = item.querySelector('.oa-pm-denom')?.value?.trim() || '';
+        if (!denominacion) return null;
+        return { persona_moral: {
+            denominacion_razon: denominacion,
+            fecha_constitucion: (item.querySelector('.oa-pm-fconst')?.value || '').replace(/-/g, ''),
+            rfc: item.querySelector('.oa-pm-rfc')?.value?.trim() || '',
+            pais_nacionalidad: item.querySelector('.oa-pm-pais')?.value || '',
+            giro_mercantil: item.querySelector('.oa-pm-giro')?.value || ''
+        }};
+    }
+    const denominacion = item.querySelector('.oa-fid-denom')?.value?.trim() || '';
+    if (!denominacion) return null;
+    return { fideicomiso: {
+        denominacion_razon: denominacion,
+        rfc: item.querySelector('.oa-fid-rfc')?.value?.trim() || '',
+        identificador_fideicomiso: item.querySelector('.oa-fid-id')?.value?.trim() || ''
+    }};
+}
+function leerTiposAportacionOA(item) {
+    const out = [];
+    if (!item) return out;
+    item.querySelectorAll('.oa-tipo-item').forEach(t => {
+        const tipo = t.querySelector('.oa-tipo-select')?.value || 'aportacion_monetaria';
+        if (tipo === 'aportacion_monetaria') {
+            const instr = t.querySelector('.oa-mon-instr')?.value || '';
+            const moneda = t.querySelector('.oa-mon-moneda')?.value || '';
+            const montoRaw = t.querySelector('.oa-mon-monto')?.value?.trim() || '';
+            if (montoRaw === '') return;
+            const montoNum = parseFloat(montoRaw);
+            if (isNaN(montoNum)) return;
+            out.push({ aportacion_monetaria: {
+                instrumento_monetario: instr || '1',
+                moneda: moneda || '1',
+                monto_operacion: montoNum.toFixed(2)
+            }});
+            return;
+        }
+        if (tipo === 'aportacion_inmueble') {
+            const cp = t.querySelector('.oa-inm-cp')?.value?.trim() || '';
+            const folio = t.querySelector('.oa-inm-folio')?.value?.trim() || '';
+            const valorRaw = t.querySelector('.oa-inm-valor')?.value?.trim() || '';
+            if (!cp && !folio && valorRaw === '') return;
+            const valorNum = parseFloat(valorRaw || '0');
+            if (isNaN(valorNum)) return;
+            out.push({ aportacion_inmueble: {
+                tipo_inmueble: t.querySelector('.oa-inm-tipo')?.value || '1',
+                codigo_postal: cp,
+                folio_real: folio,
+                valor_aportacion: valorNum.toFixed(2)
+            }});
+            return;
+        }
+        const desc = t.querySelector('.oa-otro-desc')?.value?.trim() || '';
+        const valorRaw = t.querySelector('.oa-otro-valor')?.value?.trim() || '';
+        if (!desc && valorRaw === '') return;
+        const valorNum = parseFloat(valorRaw || '0');
+        if (isNaN(valorNum)) return;
+        out.push({ aportacion_otro_bien: {
+            descripcion: desc,
+            valor_aportacion: valorNum.toFixed(2)
+        }});
+    });
+    return out;
+}
+function leerOrganizacionAportaciones() {
+    const datosAportacion = [];
+    document.querySelectorAll('#oa_aportaciones_container .oa-aportacion-item').forEach(item => {
+        const persona = leerPersonaAportaOA(item);
+        const tipos = leerTiposAportacionOA(item);
+        if (!persona || tipos.length === 0) return;
+        datosAportacion.push({
+            datos_persona_aporta: persona,
+            datos_tipo_aportacion: tipos
+        });
+    });
+    return {
+        motivo_aportacion: v('oa_motivo_aportacion') || '1',
+        datos_aportacion: datosAportacion
+    };
+}
+function leerPersonaCfFideicomitente(item) {
+    if (!item) return null;
+    const tipo = item.querySelector('.cf-fidte-tipo')?.value || 'persona_fisica';
+    if (tipo === 'persona_fisica') {
+        const nombre = item.querySelector('.cf-fidte-pf-nombre')?.value?.trim() || '';
+        if (!nombre) return null;
+        return { persona_fisica: {
+            nombre,
+            apellido_paterno: item.querySelector('.cf-fidte-pf-ap')?.value?.trim() || '',
+            apellido_materno: item.querySelector('.cf-fidte-pf-am')?.value?.trim() || '',
+            fecha_nacimiento: (item.querySelector('.cf-fidte-pf-fnac')?.value || '').replace(/-/g, ''),
+            rfc: item.querySelector('.cf-fidte-pf-rfc')?.value?.trim() || '',
+            curp: item.querySelector('.cf-fidte-pf-curp')?.value?.trim() || '',
+            pais_nacionalidad: item.querySelector('.cf-fidte-pf-pais')?.value || ''
+        }};
+    }
+    if (tipo === 'persona_moral') {
+        const denominacion = item.querySelector('.cf-fidte-pm-denom')?.value?.trim() || '';
+        if (!denominacion) return null;
+        return { persona_moral: {
+            denominacion_razon: denominacion,
+            fecha_constitucion: (item.querySelector('.cf-fidte-pm-fconst')?.value || '').replace(/-/g, ''),
+            rfc: item.querySelector('.cf-fidte-pm-rfc')?.value?.trim() || '',
+            pais_nacionalidad: item.querySelector('.cf-fidte-pm-pais')?.value || ''
+        }};
+    }
+    const denominacion = item.querySelector('.cf-fidte-fid-denom')?.value?.trim() || '';
+    if (!denominacion) return null;
+    return { fideicomiso: {
+        denominacion_razon: denominacion,
+        rfc: item.querySelector('.cf-fidte-fid-rfc')?.value?.trim() || '',
+        identificador_fideicomiso: item.querySelector('.cf-fidte-fid-id')?.value?.trim() || ''
+    }};
+}
+function leerPatrimoniosCf(item) {
+    const out = [];
+    if (!item) return out;
+    item.querySelectorAll('.cf-patrimonio-item').forEach(p => {
+        const tipo = p.querySelector('.cf-patrimonio-tipo')?.value || 'patrimonio_monetario';
+        if (tipo === 'patrimonio_monetario') {
+            const montoRaw = p.querySelector('.cf-mon-monto')?.value?.trim() || '';
+            if (montoRaw === '') return;
+            const monto = parseFloat(montoRaw);
+            if (isNaN(monto)) return;
+            out.push({ patrimonio_monetario: {
+                moneda: p.querySelector('.cf-mon-moneda')?.value || '1',
+                monto_operacion: monto.toFixed(2)
+            }});
+            return;
+        }
+        if (tipo === 'patrimonio_inmueble') {
+            const cp = p.querySelector('.cf-inm-cp')?.value?.trim() || '';
+            const folio = p.querySelector('.cf-inm-folio')?.value?.trim() || '';
+            const impRaw = p.querySelector('.cf-inm-garantia')?.value?.trim() || '';
+            if (!cp && !folio && impRaw === '') return;
+            const imp = parseFloat(impRaw || '0');
+            if (isNaN(imp)) return;
+            out.push({ patrimonio_inmueble: {
+                tipo_inmueble: p.querySelector('.cf-inm-tipo')?.value || '1',
+                codigo_postal: cp,
+                folio_real: folio,
+                importe_garantia: imp.toFixed(2)
+            }});
+            return;
+        }
+        const desc = p.querySelector('.cf-otro-desc')?.value?.trim() || '';
+        const valorRaw = p.querySelector('.cf-otro-valor')?.value?.trim() || '';
+        if (!desc && valorRaw === '') return;
+        const valor = parseFloat(valorRaw || '0');
+        if (isNaN(valor)) return;
+        out.push({ patrimonio_otro_bien: {
+            descripcion: desc,
+            valor_bien: valor.toFixed(2)
+        }});
+    });
+    return out;
+}
+function leerFideicomisarioCf(item) {
+    if (!item) return null;
+    const determinado = item.querySelector('.cf-fis-determinados')?.value || 'SI';
+    const tipo = item.querySelector('.cf-fis-tipo')?.value || 'persona_fisica';
+    let tp = null;
+    if (tipo === 'persona_fisica') {
+        const nombre = item.querySelector('.cf-fis-pf-nombre')?.value?.trim() || '';
+        if (!nombre) return null;
+        tp = { persona_fisica: {
+            nombre,
+            apellido_paterno: item.querySelector('.cf-fis-pf-ap')?.value?.trim() || '',
+            apellido_materno: item.querySelector('.cf-fis-pf-am')?.value?.trim() || '',
+            fecha_nacimiento: (item.querySelector('.cf-fis-pf-fnac')?.value || '').replace(/-/g, ''),
+            rfc: item.querySelector('.cf-fis-pf-rfc')?.value?.trim() || '',
+            curp: item.querySelector('.cf-fis-pf-curp')?.value?.trim() || '',
+            pais_nacionalidad: item.querySelector('.cf-fis-pf-pais')?.value || ''
+        }};
+    } else if (tipo === 'persona_moral') {
+        const denominacion = item.querySelector('.cf-fis-pm-denom')?.value?.trim() || '';
+        if (!denominacion) return null;
+        tp = { persona_moral: {
+            denominacion_razon: denominacion,
+            fecha_constitucion: (item.querySelector('.cf-fis-pm-fconst')?.value || '').replace(/-/g, ''),
+            rfc: item.querySelector('.cf-fis-pm-rfc')?.value?.trim() || '',
+            pais_nacionalidad: item.querySelector('.cf-fis-pm-pais')?.value || ''
+        }};
+    } else {
+        const denominacion = item.querySelector('.cf-fis-fid-denom')?.value?.trim() || '';
+        if (!denominacion) return null;
+        tp = { fideicomiso: {
+            denominacion_razon: denominacion,
+            rfc: item.querySelector('.cf-fis-fid-rfc')?.value?.trim() || '',
+            identificador_fideicomiso: item.querySelector('.cf-fis-fid-id')?.value?.trim() || ''
+        }};
+    }
+    return {
+        datos_fideicomisarios_determinados: determinado,
+        tipo_persona: tp
+    };
+}
+function leerConstitucionFideicomiso() {
+    const fideicomitentes = [];
+    document.querySelectorAll('#cf_fideicomitentes_container .cf-fideicomitente-item').forEach(item => {
+        const persona = leerPersonaCfFideicomitente(item);
+        const patrimonios = leerPatrimoniosCf(item);
+        if (!persona || patrimonios.length === 0) return;
+        fideicomitentes.push({
+            tipo_persona: persona,
+            datos_tipo_patrimonio: patrimonios
+        });
+    });
+
+    const fideicomisarios = [];
+    document.querySelectorAll('#cf_fideicomisarios_container .cf-fideicomisario-item').forEach(item => {
+        const fis = leerFideicomisarioCf(item);
+        if (fis) fideicomisarios.push(fis);
+    });
+
+    const montoTotal = parseFloat(v('cf_monto_total_patrimonio') || '0');
+    return {
+        rfc: v('cf_rfc'),
+        identificador_fideicomiso: v('cf_identificador_fideicomiso'),
+        denominacion_razon: v('cf_denominacion_razon'),
+        objeto_fideicomiso: v('cf_objeto_fideicomiso'),
+        monto_total_patrimonio: isNaN(montoTotal) ? '0.00' : montoTotal.toFixed(2),
+        datos_fideicomitente: fideicomitentes,
+        datos_fideicomisario: fideicomisarios,
+        datos_miembro_comite_tecnico: {
+            comite_tecnico: v('cf_comite_tecnico') || 'SI'
+        }
+    };
+}
+function leerCvemContraparte(item) {
+    if (!item) return null;
+    const tipo = item.querySelector('.cvem-ct-tipo')?.value || 'persona_fisica';
+    if (tipo === 'persona_fisica') {
+        const nombre = item.querySelector('.cvem-ct-pf-nombre')?.value?.trim() || '';
+        if (!nombre) return null;
+        return {
+            persona_fisica: {
+                nombre,
+                apellido_paterno: item.querySelector('.cvem-ct-pf-ap')?.value?.trim() || '',
+                apellido_materno: item.querySelector('.cvem-ct-pf-am')?.value?.trim() || '',
+                fecha_nacimiento: (item.querySelector('.cvem-ct-pf-fnac')?.value || '').replace(/-/g, ''),
+                rfc: item.querySelector('.cvem-ct-pf-rfc')?.value?.trim() || '',
+                curp: item.querySelector('.cvem-ct-pf-curp')?.value?.trim() || '',
+                pais_nacionalidad: item.querySelector('.cvem-ct-pf-pais')?.value || ''
+            }
+        };
+    }
+    if (tipo === 'persona_moral') {
+        const denominacion = item.querySelector('.cvem-ct-pm-denom')?.value?.trim() || '';
+        if (!denominacion) return null;
+        return {
+            persona_moral: {
+                denominacion_razon: denominacion,
+                fecha_constitucion: (item.querySelector('.cvem-ct-pm-fconst')?.value || '').replace(/-/g, ''),
+                rfc: item.querySelector('.cvem-ct-pm-rfc')?.value?.trim() || '',
+                pais_nacionalidad: item.querySelector('.cvem-ct-pm-pais')?.value || ''
+            }
+        };
+    }
+    const denominacion = item.querySelector('.cvem-ct-fid-denom')?.value?.trim() || '';
+    if (!denominacion) return null;
+    return {
+        fideicomiso: {
+            denominacion_razon: denominacion,
+            rfc: item.querySelector('.cvem-ct-fid-rfc')?.value?.trim() || '',
+            identificador_fideicomiso: item.querySelector('.cvem-ct-fid-id')?.value?.trim() || ''
+        }
+    };
+}
+function leerCompraVentaEntidadesMercantiles() {
+    const sociedades = [];
+    document.querySelectorAll('#cvem_sociedades_container .cvem-sociedad-item').forEach(item => {
+        const denominacion = item.querySelector('.cvem-denom')?.value?.trim() || '';
+        if (!denominacion) return;
+        const accionesAdq = parseFloat(item.querySelector('.cvem-acciones-adq')?.value || '0');
+        const accionesTot = parseFloat(item.querySelector('.cvem-acciones-tot')?.value || '0');
+        const contraparte = leerCvemContraparte(item);
+        if (!contraparte) return;
+        sociedades.push({
+            denominacion_razon: denominacion,
+            giro_mercantil: item.querySelector('.cvem-giro')?.value || '',
+            fecha_constitucion: (item.querySelector('.cvem-fconst')?.value || '').replace(/-/g, ''),
+            rfc: item.querySelector('.cvem-rfc')?.value?.trim() || '',
+            pais_nacionalidad: item.querySelector('.cvem-pais')?.value || '',
+            folio_mercantil: item.querySelector('.cvem-folio')?.value?.trim() || '',
+            acciones_adquiridas: isNaN(accionesAdq) ? '0.00' : accionesAdq.toFixed(2),
+            acciones_totales: isNaN(accionesTot) ? '0.00' : accionesTot.toFixed(2),
+            datos_contraparte: contraparte
+        });
+    });
+    return {
+        tipo_operacion: v('cvem_tipo_operacion') || '1',
+        datos_sociedad_mercantil: sociedades
+    };
+}
+function leerFusionadas() {
+    const out = [];
+    document.querySelectorAll('#fus_fusionadas_container .fus-fusionada-item').forEach(item => {
+        const denominacion = item.querySelector('.fus-fusionada-denom')?.value?.trim() || '';
+        if (!denominacion) return;
+        const capFijo = parseFloat(item.querySelector('.fus-fusionada-cap-fijo')?.value || '0');
+        const capVariable = parseFloat(item.querySelector('.fus-fusionada-cap-variable')?.value || '0');
+        out.push({
+            denominacion_razon: denominacion,
+            fecha_constitucion: (item.querySelector('.fus-fusionada-fconst')?.value || '').replace(/-/g, ''),
+            rfc: item.querySelector('.fus-fusionada-rfc')?.value?.trim() || '',
+            pais_nacionalidad: item.querySelector('.fus-fusionada-pais')?.value || '',
+            giro_mercantil: item.querySelector('.fus-fusionada-giro')?.value || '',
+            capital_social_fijo: isNaN(capFijo) ? '0.00' : capFijo.toFixed(2),
+            capital_social_variable: isNaN(capVariable) ? '0.00' : capVariable.toFixed(2),
+            folio_mercantil: item.querySelector('.fus-fusionada-folio')?.value?.trim() || ''
+        });
+    });
+    return out;
+}
+function leerFusionAccionistas() {
+    const out = [];
+    document.querySelectorAll('#fus_accionistas_container .fus-acc-item').forEach(item => {
+        const tipo = item.querySelector('.fus-acc-tipo')?.value || 'persona_fisica';
+        const numAccRaw = item.querySelector('.fus-acc-num')?.value || '0';
+        const numAcc = parseFloat(numAccRaw);
+        let tp = {};
+        if (tipo === 'persona_fisica') {
+            const nombre = item.querySelector('.fus-acc-pf-nombre')?.value?.trim() || '';
+            if (!nombre) return;
+            tp = { persona_fisica: {
+                nombre,
+                apellido_paterno: item.querySelector('.fus-acc-pf-ap')?.value?.trim() || '',
+                apellido_materno: item.querySelector('.fus-acc-pf-am')?.value?.trim() || '',
+                fecha_nacimiento: (item.querySelector('.fus-acc-pf-fnac')?.value || '').replace(/-/g, ''),
+                rfc: item.querySelector('.fus-acc-pf-rfc')?.value?.trim() || '',
+                curp: item.querySelector('.fus-acc-pf-curp')?.value?.trim() || '',
+                pais_nacionalidad: item.querySelector('.fus-acc-pf-pais')?.value || ''
+            }};
+        } else if (tipo === 'persona_moral') {
+            const denominacion = item.querySelector('.fus-acc-pm-denom')?.value?.trim() || '';
+            if (!denominacion) return;
+            tp = { persona_moral: {
+                denominacion_razon: denominacion,
+                fecha_constitucion: (item.querySelector('.fus-acc-pm-fconst')?.value || '').replace(/-/g, ''),
+                rfc: item.querySelector('.fus-acc-pm-rfc')?.value?.trim() || '',
+                pais_nacionalidad: item.querySelector('.fus-acc-pm-pais')?.value || ''
+            }};
+        } else {
+            const denominacion = item.querySelector('.fus-acc-fid-denom')?.value?.trim() || '';
+            if (!denominacion) return;
+            tp = { fideicomiso: {
+                denominacion_razon: denominacion,
+                rfc: item.querySelector('.fus-acc-fid-rfc')?.value?.trim() || '',
+                identificador_fideicomiso: item.querySelector('.fus-acc-fid-id')?.value?.trim() || ''
+            }};
+        }
+        out.push({
+            tipo_persona: tp,
+            numero_acciones: isNaN(numAcc) ? '0.00' : numAcc.toFixed(2)
+        });
+    });
+    return out;
+}
+function leerFusionData() {
+    const fusionadas = leerFusionadas();
+    const determinada = v('fus_fusionante_determinadas') || 'SI';
+    const data = {
+        tipo_fusion: v('fus_tipo_fusion') || '1',
+        datos_fusionadas: { datos_fusionada: fusionadas },
+        datos_fusionante: { fusionante_determinadas: determinada }
+    };
+    if (determinada === 'SI') {
+        const capFijo = parseFloat(v('fus_capital_fijo') || '0');
+        const capVariable = parseFloat(v('fus_capital_variable') || '0');
+        const totalAcc = parseFloat(v('fus_numero_total_acciones') || '0');
+        data.datos_fusionante.fusionante = {
+            denominacion_razon: v('fus_denominacion'),
+            fecha_constitucion: (v('fus_fecha_constitucion') || '').replace(/-/g, ''),
+            rfc: v('fus_rfc'),
+            pais_nacionalidad: v('fus_pais_nacionalidad'),
+            giro_mercantil: v('fus_giro_mercantil'),
+            capital_social_fijo: isNaN(capFijo) ? '0.00' : capFijo.toFixed(2),
+            capital_social_variable: isNaN(capVariable) ? '0.00' : capVariable.toFixed(2),
+            folio_mercantil: v('fus_folio_mercantil'),
+            numero_total_acciones: isNaN(totalAcc) ? '0.00' : totalAcc.toFixed(2),
+            datos_accionista: leerFusionAccionistas()
+        };
+    }
+    return data;
+}
+function leerEscAccionistaItem(item) {
+    if (!item) return null;
+    const tipo = item.querySelector('.esc-acc-tipo')?.value || 'persona_fisica';
+    const numAccRaw = item.querySelector('.esc-acc-num')?.value || '0';
+    const numAcc = parseFloat(numAccRaw);
+    let tp = {};
+    if (tipo === 'persona_fisica') {
+        const nombre = item.querySelector('.esc-acc-pf-nombre')?.value?.trim() || '';
+        if (!nombre) return null;
+        tp = { persona_fisica: {
+            nombre,
+            apellido_paterno: item.querySelector('.esc-acc-pf-ap')?.value?.trim() || '',
+            apellido_materno: item.querySelector('.esc-acc-pf-am')?.value?.trim() || '',
+            fecha_nacimiento: (item.querySelector('.esc-acc-pf-fnac')?.value || '').replace(/-/g, ''),
+            rfc: item.querySelector('.esc-acc-pf-rfc')?.value?.trim() || '',
+            curp: item.querySelector('.esc-acc-pf-curp')?.value?.trim() || '',
+            pais_nacionalidad: item.querySelector('.esc-acc-pf-pais')?.value || ''
+        }};
+    } else if (tipo === 'persona_moral') {
+        const denominacion = item.querySelector('.esc-acc-pm-denom')?.value?.trim() || '';
+        if (!denominacion) return null;
+        tp = { persona_moral: {
+            denominacion_razon: denominacion,
+            fecha_constitucion: (item.querySelector('.esc-acc-pm-fconst')?.value || '').replace(/-/g, ''),
+            rfc: item.querySelector('.esc-acc-pm-rfc')?.value?.trim() || '',
+            pais_nacionalidad: item.querySelector('.esc-acc-pm-pais')?.value || ''
+        }};
+    } else {
+        const denominacion = item.querySelector('.esc-acc-fid-denom')?.value?.trim() || '';
+        if (!denominacion) return null;
+        tp = { fideicomiso: {
+            denominacion_razon: denominacion,
+            rfc: item.querySelector('.esc-acc-fid-rfc')?.value?.trim() || '',
+            identificador_fideicomiso: item.querySelector('.esc-acc-fid-id')?.value?.trim() || ''
+        }};
+    }
+    return {
+        tipo_persona: tp,
+        numero_acciones: isNaN(numAcc) ? '0.00' : numAcc.toFixed(2)
+    };
+}
+function leerEscAccionistas(container) {
+    const out = [];
+    if (!container) return out;
+    container.querySelectorAll('.esc-acc-item').forEach(item => {
+        const acc = leerEscAccionistaItem(item);
+        if (acc) out.push(acc);
+    });
+    return out;
+}
+function leerEscisionEscindidas() {
+    const determinadas = v('esc_escindidas_determinadas') || 'SI';
+    const out = { escindidas_determinadas: determinadas };
+    if (determinadas !== 'SI') {
+        return out;
+    }
+    const escindidas = [];
+    document.querySelectorAll('#esc_escindidas_container .esc-escindida-item').forEach(item => {
+        const denominacion = item.querySelector('.esc-escindida-denom')?.value?.trim() || '';
+        if (!denominacion) return;
+        const capFijo = parseFloat(item.querySelector('.esc-escindida-cap-fijo')?.value || '0');
+        const capVariable = parseFloat(item.querySelector('.esc-escindida-cap-variable')?.value || '0');
+        const totalAcc = parseFloat(item.querySelector('.esc-escindida-total-acciones')?.value || '0');
+        escindidas.push({
+            denominacion_razon: denominacion,
+            fecha_constitucion: (item.querySelector('.esc-escindida-fconst')?.value || '').replace(/-/g, ''),
+            rfc: item.querySelector('.esc-escindida-rfc')?.value?.trim() || '',
+            pais_nacionalidad: item.querySelector('.esc-escindida-pais')?.value || '',
+            giro_mercantil: item.querySelector('.esc-escindida-giro')?.value || '',
+            capital_social_fijo: isNaN(capFijo) ? '0.00' : capFijo.toFixed(2),
+            capital_social_variable: isNaN(capVariable) ? '0.00' : capVariable.toFixed(2),
+            folio_mercantil: item.querySelector('.esc-escindida-folio')?.value?.trim() || '',
+            numero_total_acciones: isNaN(totalAcc) ? '0.00' : totalAcc.toFixed(2),
+            datos_accionista: leerEscAccionistas(item.querySelector('.esc-escindida-acc-container'))
+        });
+    });
+    out.dato_escindida = escindidas;
+    return out;
+}
+function leerEscisionData() {
+    const capFijo = parseFloat(v('esc_escindente_capital_fijo') || '0');
+    const capVariable = parseFloat(v('esc_escindente_capital_variable') || '0');
+    return {
+        datos_escindente: {
+            denominacion_razon: v('esc_escindente_denominacion'),
+            fecha_constitucion: (v('esc_escindente_fecha_constitucion') || '').replace(/-/g, ''),
+            rfc: v('esc_escindente_rfc'),
+            pais_nacionalidad: v('esc_escindente_pais'),
+            giro_mercantil: v('esc_escindente_giro'),
+            capital_social_fijo: isNaN(capFijo) ? '0.00' : capFijo.toFixed(2),
+            capital_social_variable: isNaN(capVariable) ? '0.00' : capVariable.toFixed(2),
+            folio_mercantil: v('esc_escindente_folio'),
+            escindente_subsiste: v('esc_escindente_subsiste') || 'SI',
+            datos_accionista_escindente: leerEscAccionistas(document.getElementById('esc_escindente_acc_container'))
+        },
+        datos_escindidas: leerEscisionEscindidas()
+    };
+}
+function leerTipoPersonaAdminMoral() {
+    const tipo = v('admon_tipo_persona') || 'persona_moral';
+    if (tipo === 'fideicomiso') {
+        const denominacion = v('admon_fid_denominacion');
+        if (!denominacion) return null;
+        return {
+            fideicomiso: {
+                denominacion_razon: denominacion,
+                rfc: v('admon_fid_rfc'),
+                identificador_fideicomiso: v('admon_fid_identificador')
+            }
+        };
+    }
+    const denominacion = v('admon_pm_denominacion');
+    if (!denominacion) return null;
+    return {
+        persona_moral: {
+            denominacion_razon: denominacion,
+            fecha_constitucion: (v('admon_pm_fecha_constitucion') || '').replace(/-/g, ''),
+            rfc: v('admon_pm_rfc'),
+            pais_nacionalidad: v('admon_pm_pais')
+        }
+    };
+}
 function leerAdministracionRecursos() {
     const tipoActivo = [];
     document.querySelectorAll('#ar_inmuebles_container .ar-inmueble-item').forEach(item => {
@@ -1282,12 +2595,57 @@ function guardarAvisoSPR(e) {
         const arData = leerAdministracionRecursos();
         if (arData.tipo_activo.length === 0) { Swal.fire('Error', 'Agregue al menos un tipo de activo (inmueble, banco, outsourcing u otro)', 'error'); return; }
         if (!v('ar_numero_operaciones') || !/^\d+$/.test(v('ar_numero_operaciones'))) { Swal.fire('Error', 'Número de operaciones requerido (solo dígitos)', 'error'); return; }
+    } else if (tipoAct === 'organizacion_aportaciones') {
+        const oa = leerOrganizacionAportaciones();
+        if (!v('oa_motivo_aportacion')) { Swal.fire('Error', 'Seleccione motivo de aportación', 'error'); return; }
+        if (!Array.isArray(oa.datos_aportacion) || oa.datos_aportacion.length === 0) { Swal.fire('Error', 'Agregue al menos una persona que aporta con tipo de aportación', 'error'); return; }
+    } else if (tipoAct === 'fusion') {
+        const fusion = leerFusionData();
+        const fusionadas = fusion.datos_fusionadas?.datos_fusionada || [];
+        if (!v('fus_tipo_fusion')) { Swal.fire('Error', 'Seleccione el tipo de fusión', 'error'); return; }
+        if (!Array.isArray(fusionadas) || fusionadas.length === 0) { Swal.fire('Error', 'Agregue al menos una sociedad fusionada', 'error'); return; }
+        if ((fusion.datos_fusionante?.fusionante_determinadas || 'SI') === 'SI') {
+            if (!v('fus_denominacion')) { Swal.fire('Error', 'Capture la denominación de la sociedad fusionante', 'error'); return; }
+            const accionistas = fusion.datos_fusionante?.fusionante?.datos_accionista || [];
+            if (!Array.isArray(accionistas) || accionistas.length === 0) { Swal.fire('Error', 'Agregue al menos un accionista de la fusionante', 'error'); return; }
+        }
+    } else if (tipoAct === 'escision') {
+        const esc = leerEscisionData();
+        const escindente = esc.datos_escindente || {};
+        const accionistasEscindente = escindente.datos_accionista_escindente || [];
+        if (!escindente.denominacion_razon) { Swal.fire('Error', 'Capture la denominación de la escindente', 'error'); return; }
+        if (!Array.isArray(accionistasEscindente) || accionistasEscindente.length === 0) { Swal.fire('Error', 'Agregue al menos un accionista de la escindente', 'error'); return; }
+        const escindidas = esc.datos_escindidas || {};
+        if ((escindidas.escindidas_determinadas || 'SI') === 'SI') {
+            const listaEscindidas = escindidas.dato_escindida || [];
+            if (!Array.isArray(listaEscindidas) || listaEscindidas.length === 0) { Swal.fire('Error', 'Agregue al menos una escindida', 'error'); return; }
+            const sinAccionistas = listaEscindidas.find(item => !Array.isArray(item?.datos_accionista) || item.datos_accionista.length === 0);
+            if (sinAccionistas) { Swal.fire('Error', 'Cada escindida debe tener al menos un accionista', 'error'); return; }
+        }
     } else if (tipoAct === 'administracion_personas_morales') {
         if (!v('tipo_administracion') || !v('tipo_operacion_text')) { Swal.fire('Error', 'Complete tipo de administración y operación', 'error'); return; }
     } else if (tipoAct === 'constitucion_sociedades_mercantiles') {
         const accs = leerAccionistasCSM();
         if (accs.length === 0) { Swal.fire('Error', 'Agregue al menos un accionista/socio', 'error'); return; }
         if (!v('csm_denominacion') || !v('csm_giro_mercantil') || !v('csm_instrumento_publico')) { Swal.fire('Error', 'Complete denominación, giro mercantil e instrumento público', 'error'); return; }
+    } else if (tipoAct === 'constitucion_fideicomiso') {
+        const cf = leerConstitucionFideicomiso();
+        if (!cf.rfc || !cf.identificador_fideicomiso || !cf.denominacion_razon || !cf.objeto_fideicomiso) {
+            Swal.fire('Error', 'Complete RFC, identificador, denominación y objeto del fideicomiso', 'error'); return;
+        }
+        if (!Array.isArray(cf.datos_fideicomitente) || cf.datos_fideicomitente.length === 0) {
+            Swal.fire('Error', 'Agregue al menos un fideicomitente con patrimonio', 'error'); return;
+        }
+        if (!Array.isArray(cf.datos_fideicomisario) || cf.datos_fideicomisario.length === 0) {
+            Swal.fire('Error', 'Agregue al menos un fideicomisario', 'error'); return;
+        }
+    } else if (tipoAct === 'compra_venta_entidades_mercantiles') {
+        const cvem = leerCompraVentaEntidadesMercantiles();
+        const sociedades = cvem.datos_sociedad_mercantil || [];
+        if (!v('cvem_tipo_operacion')) { Swal.fire('Error', 'Seleccione tipo de operación', 'error'); return; }
+        if (!Array.isArray(sociedades) || sociedades.length === 0) {
+            Swal.fire('Error', 'Agregue al menos una sociedad mercantil con datos de contraparte', 'error'); return;
+        }
     }
     const datosFin = leerDatosFinancieros();
     if (datosFin.length === 0) { Swal.fire('Error', 'Agregue al menos un dato de operación financiera (instrumento y monto)', 'error'); return; }
@@ -1316,6 +2674,12 @@ function guardarAvisoSPR(e) {
             tipo_activo: ar.tipo_activo,
             numero_operaciones: v('ar_numero_operaciones') || '0'
         }};
+    } else if (tipoAct === 'organizacion_aportaciones') {
+        tipoActividadData = { organizacion_aportaciones: leerOrganizacionAportaciones() };
+    } else if (tipoAct === 'fusion') {
+        tipoActividadData = { fusion: leerFusionData() };
+    } else if (tipoAct === 'escision') {
+        tipoActividadData = { escision: leerEscisionData() };
     } else if (tipoAct === 'constitucion_sociedades_mercantiles') {
         tipoActividadData = { constitucion_sociedades_mercantiles: {
             tipo_persona_moral: v('csm_tipo_persona_moral') || '6',
@@ -1330,11 +2694,17 @@ function guardarAvisoSPR(e) {
             datos_accionista: leerAccionistasCSM(),
             capital_social: { capital_fijo: v('csm_capital_fijo') || '0', capital_variable: v('csm_capital_variable') || '0' }
         }};
+    } else if (tipoAct === 'constitucion_fideicomiso') {
+        tipoActividadData = { constitucion_fideicomiso: leerConstitucionFideicomiso() };
+    } else if (tipoAct === 'compra_venta_entidades_mercantiles') {
+        tipoActividadData = { compra_venta_entidades_mercantiles: leerCompraVentaEntidadesMercantiles() };
     } else if (tipoAct === 'administracion_personas_morales') {
+        const tipoPersonaAdmin = leerTipoPersonaAdminMoral();
         tipoActividadData = { administracion_personas_morales: {
             tipo_administracion: v('tipo_administracion'),
             tipo_operacion: v('tipo_operacion_text'),
-            persona_moral_aviso: v('persona_moral_aviso')
+            persona_moral_aviso: v('persona_moral_aviso'),
+            tipo_persona: tipoPersonaAdmin || undefined
         }};
     } else {
         tipoActividadData = {};

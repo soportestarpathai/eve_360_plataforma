@@ -221,9 +221,10 @@ try {
     $pdo->prepare("INSERT INTO `search_usage` (`year_month`, `search_count`) VALUES (?, 1) ON DUPLICATE KEY UPDATE `search_count` = `search_count` + 1")->execute([$currentMonth]);
     $currentCount++;
 } catch (Exception $e) {
+    error_log("validate_person usage update failed: " . $e->getMessage());
     echo json_encode([
         'status' => 'error',
-        'message' => 'DB Error (Usage): ' . $e->getMessage(),
+        'message' => 'No fue posible actualizar la cuota de búsquedas.',
         'quota' => buildQuotaPayload($limit, $currentCount, $currentMonth)
     ]);
     exit;
@@ -276,9 +277,10 @@ if ($save_history) {
         $id_busqueda = $pdo->lastInsertId();
 
     } catch (Exception $e) {
+        error_log("validate_person history save failed: " . $e->getMessage());
         echo json_encode([
             'status' => 'error',
-            'message' => 'DB Error (History): ' . $e->getMessage(),
+            'message' => 'No fue posible guardar el historial de búsqueda.',
             'quota' => buildQuotaPayload($limit, $currentCount, $currentMonth)
         ]);
         exit;

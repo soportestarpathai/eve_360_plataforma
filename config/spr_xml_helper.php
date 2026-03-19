@@ -88,7 +88,7 @@ if (!function_exists('generateSPRXml')) {
             if ($value === null) return null;
             $value = trim((string)$value);
             if ($value === '') return null;
-            if (in_array($name, ['monto_operacion', 'valor_pactado', 'valor_referencia', 'dimension_terreno', 'dimension_construido'])) {
+            if (in_array($name, ['monto_operacion', 'valor_pactado', 'valor_referencia', 'valor_aportacion', 'dimension_terreno', 'dimension_construido', 'capital_social_fijo', 'capital_social_variable', 'numero_total_acciones', 'numero_acciones', 'monto_total_patrimonio', 'importe_garantia', 'valor_bien', 'acciones_adquiridas', 'acciones_totales'])) {
                 $value = sprFormatMonto($value);
             } elseif ($name === 'referencia_aviso') {
                 $value = sprSanitizeRef($value);
@@ -98,7 +98,7 @@ if (!function_exists('generateSPRXml')) {
                 $value = sprMapOcupacionToXml($value);
             } elseif ($name === 'correo_electronico') {
                 $value = sprToUpper($value);
-            } elseif (in_array($name, ['descripcion_alerta', 'descripcion_modificacion', 'tipo_administracion', 'descripcion_otro_area_servicio', 'descripcion_otro_activo_administrado', 'descripcion_activo_administrado'])) {
+            } elseif (in_array($name, ['descripcion_alerta', 'descripcion_modificacion', 'tipo_administracion', 'descripcion', 'descripcion_otro_area_servicio', 'descripcion_otro_activo_administrado', 'descripcion_activo_administrado'])) {
                 $value = sprSanitizeDesc($value);
             } elseif ($name === 'tipo_operacion' && strlen($value) > 2) {
                 $value = sprSanitizeDesc($value);
@@ -462,6 +462,265 @@ if (!function_exists('generateSPRXml')) {
                         $capEl = $mkEl($dom, $csmInnerEl, $NS, 'capital_social');
                         $addEl($dom, $capEl, $NS, 'capital_fijo', $cap['capital_fijo'] ?? '0');
                         $addEl($dom, $capEl, $NS, 'capital_variable', $cap['capital_variable'] ?? '0');
+                    } elseif (isset($tipoAct['organizacion_aportaciones']) && is_array($tipoAct['organizacion_aportaciones'])) {
+                        $oa = $tipoAct['organizacion_aportaciones'];
+                        $oaEl = $mkEl($dom, $opEl, $NS, 'tipo_actividad');
+                        $oaInnerEl = $mkEl($dom, $oaEl, $NS, 'organizacion_aportaciones');
+                        $addEl($dom, $oaInnerEl, $NS, 'motivo_aportacion', $oa['motivo_aportacion'] ?? null);
+
+                        $aportaciones = $oa['datos_aportacion'] ?? [];
+                        if (!is_array($aportaciones)) $aportaciones = [$aportaciones];
+                        foreach ($aportaciones as $ap) {
+                            if (!is_array($ap)) continue;
+                            $apEl = $mkEl($dom, $oaInnerEl, $NS, 'datos_aportacion');
+
+                            $personaAporta = $ap['datos_persona_aporta'] ?? [];
+                            if (is_array($personaAporta) && !empty($personaAporta)) {
+                                $paEl = $mkEl($dom, $apEl, $NS, 'datos_persona_aporta');
+                                $writePersona($dom, $paEl, $NS, $personaAporta);
+                            }
+
+                            $tiposAportacion = $ap['datos_tipo_aportacion'] ?? [];
+                            if (!is_array($tiposAportacion)) $tiposAportacion = [$tiposAportacion];
+                            foreach ($tiposAportacion as $ta) {
+                                if (!is_array($ta)) continue;
+                                $taEl = $mkEl($dom, $apEl, $NS, 'datos_tipo_aportacion');
+
+                                if (isset($ta['aportacion_monetaria']) && is_array($ta['aportacion_monetaria'])) {
+                                    $am = $ta['aportacion_monetaria'];
+                                    $amEl = $mkEl($dom, $taEl, $NS, 'aportacion_monetaria');
+                                    $addEl($dom, $amEl, $NS, 'instrumento_monetario', $am['instrumento_monetario'] ?? null);
+                                    $addEl($dom, $amEl, $NS, 'moneda', $am['moneda'] ?? null);
+                                    $addEl($dom, $amEl, $NS, 'monto_operacion', $am['monto_operacion'] ?? null);
+                                } elseif (isset($ta['aportacion_inmueble']) && is_array($ta['aportacion_inmueble'])) {
+                                    $ai = $ta['aportacion_inmueble'];
+                                    $aiEl = $mkEl($dom, $taEl, $NS, 'aportacion_inmueble');
+                                    $addEl($dom, $aiEl, $NS, 'tipo_inmueble', $ai['tipo_inmueble'] ?? null);
+                                    $addEl($dom, $aiEl, $NS, 'codigo_postal', $ai['codigo_postal'] ?? null);
+                                    $addEl($dom, $aiEl, $NS, 'folio_real', $ai['folio_real'] ?? null);
+                                    $addEl($dom, $aiEl, $NS, 'valor_aportacion', $ai['valor_aportacion'] ?? null);
+                                } elseif (isset($ta['aportacion_otro_bien']) && is_array($ta['aportacion_otro_bien'])) {
+                                    $aob = $ta['aportacion_otro_bien'];
+                                    $aobEl = $mkEl($dom, $taEl, $NS, 'aportacion_otro_bien');
+                                    $addEl($dom, $aobEl, $NS, 'descripcion', $aob['descripcion'] ?? null);
+                                    $addEl($dom, $aobEl, $NS, 'valor_aportacion', $aob['valor_aportacion'] ?? null);
+                                }
+                            }
+                        }
+                    } elseif (isset($tipoAct['fusion']) && is_array($tipoAct['fusion'])) {
+                        $fusion = $tipoAct['fusion'];
+                        $fusionEl = $mkEl($dom, $opEl, $NS, 'tipo_actividad');
+                        $fusionInnerEl = $mkEl($dom, $fusionEl, $NS, 'fusion');
+                        $addEl($dom, $fusionInnerEl, $NS, 'tipo_fusion', $fusion['tipo_fusion'] ?? null);
+
+                        $fusionadas = $fusion['datos_fusionadas']['datos_fusionada'] ?? [];
+                        if (!is_array($fusionadas)) $fusionadas = [$fusionadas];
+                        if (!empty($fusionadas)) {
+                            $fusionadasEl = $mkEl($dom, $fusionInnerEl, $NS, 'datos_fusionadas');
+                            foreach ($fusionadas as $fusionada) {
+                                if (!is_array($fusionada)) continue;
+                                if (empty(trim($fusionada['denominacion_razon'] ?? ''))) continue;
+                                $fusionadaEl = $mkEl($dom, $fusionadasEl, $NS, 'datos_fusionada');
+                                $addEl($dom, $fusionadaEl, $NS, 'denominacion_razon', $fusionada['denominacion_razon'] ?? null);
+                                if (!empty(trim($fusionada['fecha_constitucion'] ?? ''))) $addEl($dom, $fusionadaEl, $NS, 'fecha_constitucion', $fusionada['fecha_constitucion']);
+                                if (!empty(trim($fusionada['rfc'] ?? ''))) $addEl($dom, $fusionadaEl, $NS, 'rfc', $fusionada['rfc']);
+                                if (!empty(trim($fusionada['pais_nacionalidad'] ?? ''))) $addEl($dom, $fusionadaEl, $NS, 'pais_nacionalidad', $fusionada['pais_nacionalidad']);
+                                if (!empty(trim($fusionada['giro_mercantil'] ?? ''))) $addEl($dom, $fusionadaEl, $NS, 'giro_mercantil', $fusionada['giro_mercantil']);
+                                if (array_key_exists('capital_social_fijo', $fusionada)) $addEl($dom, $fusionadaEl, $NS, 'capital_social_fijo', $fusionada['capital_social_fijo']);
+                                if (array_key_exists('capital_social_variable', $fusionada)) $addEl($dom, $fusionadaEl, $NS, 'capital_social_variable', $fusionada['capital_social_variable']);
+                                if (!empty(trim($fusionada['folio_mercantil'] ?? ''))) $addEl($dom, $fusionadaEl, $NS, 'folio_mercantil', $fusionada['folio_mercantil']);
+                            }
+                        }
+
+                        $datosFusionante = $fusion['datos_fusionante'] ?? [];
+                        if (is_array($datosFusionante) && !empty($datosFusionante)) {
+                            $datosFusionanteEl = $mkEl($dom, $fusionInnerEl, $NS, 'datos_fusionante');
+                            $fusionanteDet = $datosFusionante['fusionante_determinadas'] ?? null;
+                            if (!empty(trim((string)$fusionanteDet))) {
+                                $addEl($dom, $datosFusionanteEl, $NS, 'fusionante_determinadas', $fusionanteDet);
+                            }
+
+                            $fusionante = $datosFusionante['fusionante'] ?? [];
+                            if (is_array($fusionante) && !empty(trim($fusionante['denominacion_razon'] ?? ''))) {
+                                $fusionanteEl = $mkEl($dom, $datosFusionanteEl, $NS, 'fusionante');
+                                $addEl($dom, $fusionanteEl, $NS, 'denominacion_razon', $fusionante['denominacion_razon'] ?? null);
+                                if (!empty(trim($fusionante['fecha_constitucion'] ?? ''))) $addEl($dom, $fusionanteEl, $NS, 'fecha_constitucion', $fusionante['fecha_constitucion']);
+                                if (!empty(trim($fusionante['rfc'] ?? ''))) $addEl($dom, $fusionanteEl, $NS, 'rfc', $fusionante['rfc']);
+                                if (!empty(trim($fusionante['pais_nacionalidad'] ?? ''))) $addEl($dom, $fusionanteEl, $NS, 'pais_nacionalidad', $fusionante['pais_nacionalidad']);
+                                if (!empty(trim($fusionante['giro_mercantil'] ?? ''))) $addEl($dom, $fusionanteEl, $NS, 'giro_mercantil', $fusionante['giro_mercantil']);
+                                if (array_key_exists('capital_social_fijo', $fusionante)) $addEl($dom, $fusionanteEl, $NS, 'capital_social_fijo', $fusionante['capital_social_fijo']);
+                                if (array_key_exists('capital_social_variable', $fusionante)) $addEl($dom, $fusionanteEl, $NS, 'capital_social_variable', $fusionante['capital_social_variable']);
+                                if (!empty(trim($fusionante['folio_mercantil'] ?? ''))) $addEl($dom, $fusionanteEl, $NS, 'folio_mercantil', $fusionante['folio_mercantil']);
+                                if (array_key_exists('numero_total_acciones', $fusionante)) $addEl($dom, $fusionanteEl, $NS, 'numero_total_acciones', $fusionante['numero_total_acciones']);
+
+                                $fusionAccionistas = $fusionante['datos_accionista'] ?? [];
+                                if (!is_array($fusionAccionistas)) $fusionAccionistas = [$fusionAccionistas];
+                                foreach ($fusionAccionistas as $acc) {
+                                    if (!is_array($acc)) continue;
+                                    $accEl = $mkEl($dom, $fusionanteEl, $NS, 'datos_accionista');
+                                    if (isset($acc['tipo_persona']) && is_array($acc['tipo_persona']) && !empty($acc['tipo_persona'])) {
+                                        $accTpEl = $mkEl($dom, $accEl, $NS, 'tipo_persona');
+                                        $writePersonaSimple($dom, $accTpEl, $NS, $acc['tipo_persona']);
+                                    }
+                                    if (array_key_exists('numero_acciones', $acc)) $addEl($dom, $accEl, $NS, 'numero_acciones', $acc['numero_acciones']);
+                                }
+                            }
+                        }
+                    } elseif (isset($tipoAct['escision']) && is_array($tipoAct['escision'])) {
+                        $escision = $tipoAct['escision'];
+                        $escisionEl = $mkEl($dom, $opEl, $NS, 'tipo_actividad');
+                        $escisionInnerEl = $mkEl($dom, $escisionEl, $NS, 'escision');
+
+                        $escindente = $escision['datos_escindente'] ?? [];
+                        if (is_array($escindente) && !empty($escindente)) {
+                            $escindenteEl = $mkEl($dom, $escisionInnerEl, $NS, 'datos_escindente');
+                            $addEl($dom, $escindenteEl, $NS, 'denominacion_razon', $escindente['denominacion_razon'] ?? null);
+                            if (!empty(trim($escindente['fecha_constitucion'] ?? ''))) $addEl($dom, $escindenteEl, $NS, 'fecha_constitucion', $escindente['fecha_constitucion']);
+                            if (!empty(trim($escindente['rfc'] ?? ''))) $addEl($dom, $escindenteEl, $NS, 'rfc', $escindente['rfc']);
+                            if (!empty(trim($escindente['pais_nacionalidad'] ?? ''))) $addEl($dom, $escindenteEl, $NS, 'pais_nacionalidad', $escindente['pais_nacionalidad']);
+                            if (!empty(trim($escindente['giro_mercantil'] ?? ''))) $addEl($dom, $escindenteEl, $NS, 'giro_mercantil', $escindente['giro_mercantil']);
+                            if (array_key_exists('capital_social_fijo', $escindente)) $addEl($dom, $escindenteEl, $NS, 'capital_social_fijo', $escindente['capital_social_fijo']);
+                            if (array_key_exists('capital_social_variable', $escindente)) $addEl($dom, $escindenteEl, $NS, 'capital_social_variable', $escindente['capital_social_variable']);
+                            if (!empty(trim($escindente['folio_mercantil'] ?? ''))) $addEl($dom, $escindenteEl, $NS, 'folio_mercantil', $escindente['folio_mercantil']);
+                            if (!empty(trim($escindente['escindente_subsiste'] ?? ''))) $addEl($dom, $escindenteEl, $NS, 'escindente_subsiste', $escindente['escindente_subsiste']);
+
+                            $accEscindente = $escindente['datos_accionista_escindente'] ?? [];
+                            if (!is_array($accEscindente)) $accEscindente = [$accEscindente];
+                            foreach ($accEscindente as $acc) {
+                                if (!is_array($acc)) continue;
+                                $accEl = $mkEl($dom, $escindenteEl, $NS, 'datos_accionista_escindente');
+                                if (isset($acc['tipo_persona']) && is_array($acc['tipo_persona']) && !empty($acc['tipo_persona'])) {
+                                    $accTpEl = $mkEl($dom, $accEl, $NS, 'tipo_persona');
+                                    $writePersonaSimple($dom, $accTpEl, $NS, $acc['tipo_persona']);
+                                }
+                                if (array_key_exists('numero_acciones', $acc)) $addEl($dom, $accEl, $NS, 'numero_acciones', $acc['numero_acciones']);
+                            }
+                        }
+
+                        $escindidas = $escision['datos_escindidas'] ?? [];
+                        if (is_array($escindidas) && !empty($escindidas)) {
+                            $escindidasEl = $mkEl($dom, $escisionInnerEl, $NS, 'datos_escindidas');
+                            if (!empty(trim((string)($escindidas['escindidas_determinadas'] ?? '')))) {
+                                $addEl($dom, $escindidasEl, $NS, 'escindidas_determinadas', $escindidas['escindidas_determinadas']);
+                            }
+
+                            $listaEscindidas = $escindidas['dato_escindida'] ?? [];
+                            if (!is_array($listaEscindidas)) $listaEscindidas = [$listaEscindidas];
+                            foreach ($listaEscindidas as $escindida) {
+                                if (!is_array($escindida)) continue;
+                                if (empty(trim($escindida['denominacion_razon'] ?? ''))) continue;
+                                $escindidaEl = $mkEl($dom, $escindidasEl, $NS, 'dato_escindida');
+                                $addEl($dom, $escindidaEl, $NS, 'denominacion_razon', $escindida['denominacion_razon'] ?? null);
+                                if (!empty(trim($escindida['fecha_constitucion'] ?? ''))) $addEl($dom, $escindidaEl, $NS, 'fecha_constitucion', $escindida['fecha_constitucion']);
+                                if (!empty(trim($escindida['rfc'] ?? ''))) $addEl($dom, $escindidaEl, $NS, 'rfc', $escindida['rfc']);
+                                if (!empty(trim($escindida['pais_nacionalidad'] ?? ''))) $addEl($dom, $escindidaEl, $NS, 'pais_nacionalidad', $escindida['pais_nacionalidad']);
+                                if (!empty(trim($escindida['giro_mercantil'] ?? ''))) $addEl($dom, $escindidaEl, $NS, 'giro_mercantil', $escindida['giro_mercantil']);
+                                if (array_key_exists('capital_social_fijo', $escindida)) $addEl($dom, $escindidaEl, $NS, 'capital_social_fijo', $escindida['capital_social_fijo']);
+                                if (array_key_exists('capital_social_variable', $escindida)) $addEl($dom, $escindidaEl, $NS, 'capital_social_variable', $escindida['capital_social_variable']);
+                                if (!empty(trim($escindida['folio_mercantil'] ?? ''))) $addEl($dom, $escindidaEl, $NS, 'folio_mercantil', $escindida['folio_mercantil']);
+                                if (array_key_exists('numero_total_acciones', $escindida)) $addEl($dom, $escindidaEl, $NS, 'numero_total_acciones', $escindida['numero_total_acciones']);
+
+                                $accEscindida = $escindida['datos_accionista'] ?? [];
+                                if (!is_array($accEscindida)) $accEscindida = [$accEscindida];
+                                foreach ($accEscindida as $acc) {
+                                    if (!is_array($acc)) continue;
+                                    $accEl = $mkEl($dom, $escindidaEl, $NS, 'datos_accionista');
+                                    if (isset($acc['tipo_persona']) && is_array($acc['tipo_persona']) && !empty($acc['tipo_persona'])) {
+                                        $accTpEl = $mkEl($dom, $accEl, $NS, 'tipo_persona');
+                                        $writePersonaSimple($dom, $accTpEl, $NS, $acc['tipo_persona']);
+                                    }
+                                    if (array_key_exists('numero_acciones', $acc)) $addEl($dom, $accEl, $NS, 'numero_acciones', $acc['numero_acciones']);
+                                }
+                            }
+                        }
+                    } elseif (isset($tipoAct['constitucion_fideicomiso']) && is_array($tipoAct['constitucion_fideicomiso'])) {
+                        $cf = $tipoAct['constitucion_fideicomiso'];
+                        $cfEl = $mkEl($dom, $opEl, $NS, 'tipo_actividad');
+                        $cfInnerEl = $mkEl($dom, $cfEl, $NS, 'constitucion_fideicomiso');
+                        $addEl($dom, $cfInnerEl, $NS, 'rfc', $cf['rfc'] ?? null);
+                        $addEl($dom, $cfInnerEl, $NS, 'identificador_fideicomiso', $cf['identificador_fideicomiso'] ?? null);
+                        $addEl($dom, $cfInnerEl, $NS, 'denominacion_razon', $cf['denominacion_razon'] ?? null);
+                        $addEl($dom, $cfInnerEl, $NS, 'objeto_fideicomiso', $cf['objeto_fideicomiso'] ?? null);
+                        $addEl($dom, $cfInnerEl, $NS, 'monto_total_patrimonio', $cf['monto_total_patrimonio'] ?? null);
+
+                        $fideicomitentes = $cf['datos_fideicomitente'] ?? [];
+                        if (!is_array($fideicomitentes)) $fideicomitentes = [$fideicomitentes];
+                        foreach ($fideicomitentes as $fideicomitente) {
+                            if (!is_array($fideicomitente)) continue;
+                            $dfEl = $mkEl($dom, $cfInnerEl, $NS, 'datos_fideicomitente');
+                            if (isset($fideicomitente['tipo_persona']) && is_array($fideicomitente['tipo_persona']) && !empty($fideicomitente['tipo_persona'])) {
+                                $tpEl = $mkEl($dom, $dfEl, $NS, 'tipo_persona');
+                                $writePersonaSimple($dom, $tpEl, $NS, $fideicomitente['tipo_persona']);
+                            }
+                            $patrimonios = $fideicomitente['datos_tipo_patrimonio'] ?? [];
+                            if (!is_array($patrimonios)) $patrimonios = [$patrimonios];
+                            foreach ($patrimonios as $patrimonio) {
+                                if (!is_array($patrimonio)) continue;
+                                $tpatrEl = $mkEl($dom, $dfEl, $NS, 'datos_tipo_patrimonio');
+                                if (isset($patrimonio['patrimonio_monetario']) && is_array($patrimonio['patrimonio_monetario'])) {
+                                    $pm = $patrimonio['patrimonio_monetario'];
+                                    $pmEl = $mkEl($dom, $tpatrEl, $NS, 'patrimonio_monetario');
+                                    $addEl($dom, $pmEl, $NS, 'moneda', $pm['moneda'] ?? null);
+                                    $addEl($dom, $pmEl, $NS, 'monto_operacion', $pm['monto_operacion'] ?? null);
+                                } elseif (isset($patrimonio['patrimonio_inmueble']) && is_array($patrimonio['patrimonio_inmueble'])) {
+                                    $pi = $patrimonio['patrimonio_inmueble'];
+                                    $piEl = $mkEl($dom, $tpatrEl, $NS, 'patrimonio_inmueble');
+                                    $addEl($dom, $piEl, $NS, 'tipo_inmueble', $pi['tipo_inmueble'] ?? null);
+                                    $addEl($dom, $piEl, $NS, 'codigo_postal', $pi['codigo_postal'] ?? null);
+                                    $addEl($dom, $piEl, $NS, 'folio_real', $pi['folio_real'] ?? null);
+                                    $addEl($dom, $piEl, $NS, 'importe_garantia', $pi['importe_garantia'] ?? null);
+                                } elseif (isset($patrimonio['patrimonio_otro_bien']) && is_array($patrimonio['patrimonio_otro_bien'])) {
+                                    $po = $patrimonio['patrimonio_otro_bien'];
+                                    $poEl = $mkEl($dom, $tpatrEl, $NS, 'patrimonio_otro_bien');
+                                    $addEl($dom, $poEl, $NS, 'descripcion', $po['descripcion'] ?? null);
+                                    $addEl($dom, $poEl, $NS, 'valor_bien', $po['valor_bien'] ?? null);
+                                }
+                            }
+                        }
+
+                        $fideicomisarios = $cf['datos_fideicomisario'] ?? [];
+                        if (!is_array($fideicomisarios)) $fideicomisarios = [$fideicomisarios];
+                        foreach ($fideicomisarios as $fideicomisario) {
+                            if (!is_array($fideicomisario)) continue;
+                            $fisEl = $mkEl($dom, $cfInnerEl, $NS, 'datos_fideicomisario');
+                            $addEl($dom, $fisEl, $NS, 'datos_fideicomisarios_determinados', $fideicomisario['datos_fideicomisarios_determinados'] ?? null);
+                            if (isset($fideicomisario['tipo_persona']) && is_array($fideicomisario['tipo_persona']) && !empty($fideicomisario['tipo_persona'])) {
+                                $tpEl = $mkEl($dom, $fisEl, $NS, 'tipo_persona');
+                                $writePersonaSimple($dom, $tpEl, $NS, $fideicomisario['tipo_persona']);
+                            }
+                        }
+
+                        $comite = $cf['datos_miembro_comite_tecnico'] ?? [];
+                        if (is_array($comite) && !empty($comite)) {
+                            $comiteEl = $mkEl($dom, $cfInnerEl, $NS, 'datos_miembro_comite_tecnico');
+                            $addEl($dom, $comiteEl, $NS, 'comite_tecnico', $comite['comite_tecnico'] ?? null);
+                        }
+                    } elseif (isset($tipoAct['compra_venta_entidades_mercantiles']) && is_array($tipoAct['compra_venta_entidades_mercantiles'])) {
+                        $cvem = $tipoAct['compra_venta_entidades_mercantiles'];
+                        $cvemEl = $mkEl($dom, $opEl, $NS, 'tipo_actividad');
+                        $cvemInnerEl = $mkEl($dom, $cvemEl, $NS, 'compra_venta_entidades_mercantiles');
+                        $addEl($dom, $cvemInnerEl, $NS, 'tipo_operacion', $cvem['tipo_operacion'] ?? null);
+                        $sociedades = $cvem['datos_sociedad_mercantil'] ?? [];
+                        if (!is_array($sociedades)) $sociedades = [$sociedades];
+                        foreach ($sociedades as $sociedad) {
+                            if (!is_array($sociedad)) continue;
+                            if (empty(trim($sociedad['denominacion_razon'] ?? ''))) continue;
+                            $socEl = $mkEl($dom, $cvemInnerEl, $NS, 'datos_sociedad_mercantil');
+                            $addEl($dom, $socEl, $NS, 'denominacion_razon', $sociedad['denominacion_razon'] ?? null);
+                            $addEl($dom, $socEl, $NS, 'giro_mercantil', $sociedad['giro_mercantil'] ?? null);
+                            $addEl($dom, $socEl, $NS, 'fecha_constitucion', $sociedad['fecha_constitucion'] ?? null);
+                            $addEl($dom, $socEl, $NS, 'rfc', $sociedad['rfc'] ?? null);
+                            $addEl($dom, $socEl, $NS, 'pais_nacionalidad', $sociedad['pais_nacionalidad'] ?? null);
+                            $addEl($dom, $socEl, $NS, 'folio_mercantil', $sociedad['folio_mercantil'] ?? null);
+                            $addEl($dom, $socEl, $NS, 'acciones_adquiridas', $sociedad['acciones_adquiridas'] ?? null);
+                            $addEl($dom, $socEl, $NS, 'acciones_totales', $sociedad['acciones_totales'] ?? null);
+
+                            $contraparte = $sociedad['datos_contraparte'] ?? [];
+                            if (is_array($contraparte) && !empty($contraparte)) {
+                                $dcEl = $mkEl($dom, $socEl, $NS, 'datos_contraparte');
+                                $writePersonaSimple($dom, $dcEl, $NS, $contraparte);
+                            }
+                        }
                     } elseif (isset($tipoAct['compra_venta_inmuebles']) && is_array($tipoAct['compra_venta_inmuebles'])) {
                         $cvi = $tipoAct['compra_venta_inmuebles'];
                         $cviEl = $mkEl($dom, $opEl, $NS, 'tipo_actividad');

@@ -15,6 +15,15 @@ if (PHP_SAPI !== 'cli') {
     exit(1);
 }
 
+// Evita warnings por permisos en session.save_path del entorno WAMP cuando se ejecuta por CLI.
+$localSessionPath = __DIR__ . '/../.tmp_sessions';
+if (!is_dir($localSessionPath)) {
+    @mkdir($localSessionPath, 0777, true);
+}
+if (is_dir($localSessionPath)) {
+    @session_save_path($localSessionPath);
+}
+
 $case = strtolower(trim((string)($argv[1] ?? '')));
 if ($case === '') {
     fwrite(STDERR, "Caso requerido.\n");

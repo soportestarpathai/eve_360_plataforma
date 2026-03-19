@@ -247,6 +247,45 @@ $SPR_CATALOGOS['motivo_constitucion'] = [
 ];
 
 /* ═══════════════════════════════════════════
+ * 5f. ORGANIZACIÓN DE APORTACIONES
+ *    motivo_aportacion (subfracción 5)
+ * ═══════════════════════════════════════════ */
+$SPR_CATALOGOS['motivo_aportacion'] = [
+    '1'  => 'Constitución',
+    '2'  => 'Incremento de capital',
+    '3'  => 'Aportación extraordinaria',
+    '4'  => 'Reestructuración',
+    '99' => 'Otro',
+];
+
+/* ═══════════════════════════════════════════
+ * 5g. FUSIÓN
+ *    tipo_fusion, fusionante_determinadas (subfracción 6)
+ * ═══════════════════════════════════════════ */
+$SPR_CATALOGOS['tipo_fusion'] = [
+    '1'  => 'Por absorción',
+    '2'  => 'Por integración',
+    '99' => 'Otra',
+];
+$SPR_CATALOGOS['fusionante_determinadas'] = [
+    'SI' => 'Sí',
+    'NO' => 'No',
+];
+
+/* ═══════════════════════════════════════════
+ * 5h. ESCISIÓN
+ *    escindente_subsiste, escindidas_determinadas (subfracción 7)
+ * ═══════════════════════════════════════════ */
+$SPR_CATALOGOS['escindente_subsiste'] = [
+    'SI' => 'Sí',
+    'NO' => 'No',
+];
+$SPR_CATALOGOS['escindidas_determinadas'] = [
+    'SI' => 'Sí',
+    'NO' => 'No',
+];
+
+/* ═══════════════════════════════════════════
  * 5. EXENTO (Art. 27 Bis)
  *    Campo: exento — exento_type
  * ═══════════════════════════════════════════ */

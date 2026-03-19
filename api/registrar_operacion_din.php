@@ -8,12 +8,20 @@ require_once __DIR__ . '/../config/db.php';
 require_once __DIR__ . '/../config/pld_avisos.php';
 require_once __DIR__ . '/../config/bitacora.php';
 require_once __DIR__ . '/../config/pld_middleware.php';
+require_once __DIR__ . '/../config/pld_permisos.php';
 require_once __DIR__ . '/../config/din_xml_helper.php';
 header('Content-Type: application/json');
 
 if (!isset($_SESSION['user_id'])) {
     http_response_code(401);
     echo json_encode(['status' => 'error', 'message' => 'No autorizado']);
+    exit;
+}
+
+$userId = (int)($_SESSION['user_id'] ?? 0);
+if (!function_exists('userCanAccessDIN') || !userCanAccessDIN($pdo, $userId)) {
+    http_response_code(403);
+    echo json_encode(['status' => 'error', 'message' => 'Sin permiso para registrar transacciones DIN']);
     exit;
 }
 
@@ -137,7 +145,7 @@ if ($xml) {
 
     // Notificación: XML generado y disponible para descarga.
     if (function_exists('pldTableExists') && pldTableExists($pdo, 'notificaciones') && function_exists('pldObtenerUsuariosNotificacion')) {
-        $usuarios = pldObtenerUsuariosNotificacion($pdo, $id_cliente);
+        $usuarios = pldObtenerUsuariosNotificacion($pdo, $id_cliente, (int)$_SESSION['user_id']);
         $tieneIdAviso = function_exists('pldColumnExists') && pldColumnExists($pdo, 'notificaciones', 'id_aviso');
         $tieneIdOperacion = function_exists('pldColumnExists') && pldColumnExists($pdo, 'notificaciones', 'id_operacion');
         $tipoNotif = 'xml_aviso_generado_pld';

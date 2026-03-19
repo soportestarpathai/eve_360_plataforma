@@ -9,6 +9,10 @@ require '../libs/PHPMailer/PHPMailer.php';
 require '../libs/PHPMailer/SMTP.php';
 require_once '../config/db.php';
 
+ini_set('display_errors', 0);
+ini_set('display_startup_errors', 0);
+error_reporting(E_ALL);
+
 header('Content-Type: application/json');
 
 try {
@@ -113,6 +117,7 @@ try {
     echo json_encode(['status' => 'success', 'message' => 'Si el correo existe, se han enviado las instrucciones.']);
 
 } catch (Exception $e) {
-    echo json_encode(['status' => 'error', 'message' => $e->getMessage()]);
+    error_log('auth_forgot error: ' . $e->getMessage());
+    echo json_encode(['status' => 'error', 'message' => 'No fue posible procesar la solicitud.']);
 }
 ?>

@@ -193,7 +193,8 @@ try {
     echo json_encode(['status' => 'success', 'data' => $details]);
 
 } catch (Exception $e) {
+    error_log('get_client_details: ' . $e->getMessage());
     http_response_code(500);
-    echo json_encode(['status' => 'error', 'message' => $e->getMessage()]);
+    echo json_encode(['status' => 'error', 'message' => 'Error interno al obtener el detalle del cliente.']);
 }
 ?>

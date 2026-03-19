@@ -108,7 +108,8 @@ try {
     echo json_encode(['status' => 'success', 'data' => $catalogs]);
 
 } catch (Exception $e) {
+    error_log('get_catalogos: ' . $e->getMessage());
     http_response_code(500);
-    echo json_encode(['status' => 'error', 'message' => $e->getMessage()]);
+    echo json_encode(['status' => 'error', 'message' => 'Error al cargar catálogos.']);
 }
 ?>

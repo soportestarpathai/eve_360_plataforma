@@ -11,7 +11,9 @@ ini_set('log_errors', 1);
 header('Content-Type: application/json; charset=utf-8');
 
 try {
-    session_start();
+    if (session_status() !== PHP_SESSION_ACTIVE) {
+        session_start();
+    }
     require_once '../config/db.php'; // Ensure DB connection is available
     require_once '../config/bitacora.php'; 
     require_once '../config/risk_engine.php'; // INCLUDE ENGINE
@@ -32,10 +34,8 @@ try {
     ob_end_clean(); // Clear any output
     http_response_code(500);
     echo json_encode([
-        'status' => 'error', 
-        'message' => 'Error al inicializar: ' . $e->getMessage(),
-        'file' => basename($e->getFile()),
-        'line' => $e->getLine()
+        'status' => 'error',
+        'message' => 'Error al inicializar la solicitud.'
     ]);
     error_log('Init Error in save_client.php: ' . $e->getMessage() . ' in ' . $e->getFile() . ':' . $e->getLine());
     exit;
@@ -43,10 +43,8 @@ try {
     ob_end_clean(); // Clear any output
     http_response_code(500);
     echo json_encode([
-        'status' => 'error', 
-        'message' => 'Error fatal al inicializar: ' . $e->getMessage(),
-        'file' => basename($e->getFile()),
-        'line' => $e->getLine()
+        'status' => 'error',
+        'message' => 'Error al inicializar la solicitud.'
     ]);
     error_log('Fatal Init Error in save_client.php: ' . $e->getMessage() . ' in ' . $e->getFile() . ':' . $e->getLine());
     exit;
@@ -117,35 +115,24 @@ function tableExists(PDO $pdo, string $tableName): bool {
 
 function getNotificacionUsuariosAltaCliente(PDO $pdo, int $idCliente, int $idUsuarioActual): array {
     $usuarios = [];
-    if ($idUsuarioActual > 0) {
-        $usuarios[$idUsuarioActual] = true;
-    }
-
-    if (tableExists($pdo, 'usuarios') && tableExists($pdo, 'usuarios_permisos')) {
-        $stmtAdmin = $pdo->query("
-            SELECT DISTINCT u.id_usuario
-            FROM usuarios u
-            INNER JOIN usuarios_permisos up ON u.id_usuario = up.id_usuario
-            WHERE u.id_status_usuario = 1
-              AND up.administracion > 0
-        ");
-        while ($row = $stmtAdmin->fetch(PDO::FETCH_ASSOC)) {
-            $usuarios[(int)$row['id_usuario']] = true;
-        }
-    }
-
-    if ($idCliente > 0 && tableExists($pdo, 'clientes_responsable_pld')) {
-        $stmtResp = $pdo->prepare("
-            SELECT id_usuario_responsable
-            FROM clientes_responsable_pld
+    if ($idCliente > 0 && tableExists($pdo, 'clientes')) {
+        $stmtOwner = $pdo->prepare("
+            SELECT id_usuario
+            FROM clientes
             WHERE id_cliente = ?
-              AND activo = 1
-              AND (fecha_baja IS NULL OR fecha_baja > CURDATE())
+              AND id_status != 4
+            LIMIT 1
         ");
-        $stmtResp->execute([$idCliente]);
-        while ($row = $stmtResp->fetch(PDO::FETCH_ASSOC)) {
-            $usuarios[(int)$row['id_usuario_responsable']] = true;
+        $stmtOwner->execute([$idCliente]);
+        $idOwner = (int)$stmtOwner->fetchColumn();
+        if ($idOwner > 0) {
+            $usuarios[$idOwner] = true;
         }
+    }
+
+    // Fallback defensivo: si no se pudo resolver dueño, usar usuario actual.
+    if (empty($usuarios) && $idUsuarioActual > 0) {
+        $usuarios[$idUsuarioActual] = true;
     }
 
     return array_keys($usuarios);
@@ -960,10 +947,8 @@ try {
     }
     http_response_code(500);
     echo json_encode([
-        'status' => 'error', 
-        'message' => 'Error de base de datos: ' . $e->getMessage(),
-        'file' => basename($e->getFile()),
-        'line' => $e->getLine()
+        'status' => 'error',
+        'message' => 'No se pudo guardar el cliente. Intente de nuevo.'
     ]);
     error_log('PDO Error in save_client.php: ' . $e->getMessage() . ' in ' . $e->getFile() . ':' . $e->getLine());
     exit;
@@ -978,10 +963,8 @@ try {
     }
     http_response_code(500);
     echo json_encode([
-        'status' => 'error', 
-        'message' => 'Error al guardar cliente: ' . $e->getMessage(),
-        'file' => basename($e->getFile()),
-        'line' => $e->getLine()
+        'status' => 'error',
+        'message' => 'No se pudo guardar el cliente. Intente de nuevo.'
     ]);
     error_log('Error in save_client.php: ' . $e->getMessage() . ' in ' . $e->getFile() . ':' . $e->getLine());
     exit;
@@ -996,10 +979,8 @@ try {
     }
     http_response_code(500);
     echo json_encode([
-        'status' => 'error', 
-        'message' => 'Error fatal: ' . $e->getMessage(),
-        'file' => basename($e->getFile()),
-        'line' => $e->getLine()
+        'status' => 'error',
+        'message' => 'No se pudo guardar el cliente. Intente de nuevo.'
     ]);
     error_log('Fatal Error in save_client.php: ' . $e->getMessage() . ' in ' . $e->getFile() . ':' . $e->getLine());
     exit;

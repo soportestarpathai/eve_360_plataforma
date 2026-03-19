@@ -101,8 +101,19 @@ try {
     // Notificaciones pendientes
     if (isset($_SESSION['user_id'])) {
         try {
-            $stmtNotif = $pdo->prepare("SELECT COUNT(*) FROM notificaciones WHERE id_usuario = ? AND estado != 'descartado' AND (snooze_until IS NULL OR snooze_until <= NOW())");
-            $stmtNotif->execute([$_SESSION['user_id']]);
+            $stmtNotif = $pdo->prepare("
+                SELECT COUNT(*)
+                FROM notificaciones n
+                LEFT JOIN clientes c ON n.id_cliente = c.id_cliente
+                WHERE n.id_usuario = ?
+                  AND (
+                        n.id_cliente IS NULL
+                        OR (c.id_usuario = ? AND COALESCE(c.id_status, 1) != 4)
+                      )
+                  AND n.estado != 'descartado'
+                  AND (n.snooze_until IS NULL OR n.snooze_until <= NOW())
+            ");
+            $stmtNotif->execute([$_SESSION['user_id'], $_SESSION['user_id']]);
             $statsData['notificaciones_pendientes'] = (int)$stmtNotif->fetchColumn();
         } catch (Exception $e) {
             $statsData['notificaciones_pendientes'] = 0;
@@ -458,11 +469,14 @@ if (isset($_SESSION['user_id'])) {
             LEFT JOIN clientes_fisicas cf ON c.id_cliente = cf.id_cliente
             LEFT JOIN clientes_morales cm ON c.id_cliente = cm.id_cliente
             WHERE n.id_usuario = ?
-              AND (n.id_cliente IS NULL OR COALESCE(c.id_status, 1) != 4)
+              AND (
+                    n.id_cliente IS NULL
+                    OR (c.id_usuario = ? AND COALESCE(c.id_status, 1) != 4)
+                  )
             ORDER BY n.fecha_generacion DESC
             LIMIT 5
         ");
-        $stmtNotif->execute([$_SESSION['user_id']]);
+        $stmtNotif->execute([$_SESSION['user_id'], $_SESSION['user_id']]);
         $recentNotifications = $stmtNotif->fetchAll(PDO::FETCH_ASSOC);
         
         $logger->debug('Recent Notifications: Datos obtenidos', ['count' => count($recentNotifications)]);
@@ -1095,7 +1109,7 @@ try {
                 return;
             }
 
-            fetch('api/get_notifications.php')
+            fetch('api/get_notifications.php', { cache: 'no-store', credentials: 'same-origin' })
                 .then((res) => res.json())
                 .then((json) => {
                     renderDashboardNotifications(Array.isArray(json.data) ? json.data : []);
@@ -1108,6 +1122,8 @@ try {
         const handleDashboardNotifAction = (id, action) => {
             fetch('api/notification_action.php', {
                 method: 'POST',
+                credentials: 'same-origin',
+                headers: { 'Content-Type': 'application/json' },
                 body: JSON.stringify({ id, action })
             })
             .then((res) => res.json())

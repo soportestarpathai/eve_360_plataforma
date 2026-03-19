@@ -30,6 +30,7 @@ try {
     // Avisos pendientes sin folio: por vencer (1-7 días) o vencidos
     $sqlAvisos = "
         SELECT a.id_aviso, a.id_cliente, a.tipo_aviso, a.fecha_deadline, a.fecha_operacion, a.monto,
+               c.id_usuario AS id_usuario_dueno,
                COALESCE(cf.nombre, cm.razon_social, c.alias, 'Sin nombre') as cliente_nombre
         FROM avisos_pld a
         LEFT JOIN clientes c ON a.id_cliente = c.id_cliente
@@ -48,18 +49,6 @@ try {
     $stmt->execute([DIAS_AVISO_POR_VENCER]);
     $avisos = $stmt->fetchAll(PDO::FETCH_ASSOC);
 
-    // Usuarios a notificar: administracion=1 + responsables PLD por cliente
-    $usuariosAdmin = [];
-    $stmt = $pdo->query("
-        SELECT DISTINCT u.id_usuario
-        FROM usuarios u
-        INNER JOIN usuarios_permisos up ON u.id_usuario = up.id_usuario
-        WHERE up.administracion > 0 AND u.id_status_usuario = 1
-    ");
-    while ($r = $stmt->fetch(PDO::FETCH_ASSOC)) {
-        $usuariosAdmin[$r['id_usuario']] = true;
-    }
-
     $generadas = 0;
     foreach ($avisos as $aviso) {
         $id_aviso = (int)$aviso['id_aviso'];
@@ -74,46 +63,42 @@ try {
             $aviso['fecha_deadline']
         );
 
-        $usuariosParaNotificar = $usuariosAdmin;
-        $stmtR = $pdo->prepare("
-            SELECT id_usuario_responsable FROM clientes_responsable_pld
-            WHERE id_cliente = ? AND activo = 1
-            AND (fecha_baja IS NULL OR fecha_baja > CURDATE())
-        ");
-        $stmtR->execute([$id_cliente]);
-        while ($r = $stmtR->fetch(PDO::FETCH_ASSOC)) {
-            $usuariosParaNotificar[$r['id_usuario_responsable']] = true;
+        $id_usuario = (int)($aviso['id_usuario_dueno'] ?? 0);
+        if ($id_usuario <= 0 && $id_usuario_actual) {
+            // Fallback defensivo cuando no viene dueño del cliente.
+            $id_usuario = (int)$id_usuario_actual;
+        }
+        if ($id_usuario <= 0) {
+            continue;
         }
 
-        foreach (array_keys($usuariosParaNotificar) as $id_usuario) {
-            // Evitar duplicados: misma notificación para este aviso+usuario+tipo en últimas 24h
-            $sqlExiste = $tieneIdAviso
-                ? "SELECT 1 FROM notificaciones WHERE id_aviso = ? AND id_usuario = ? AND tipo IN ('aviso_por_vencer','aviso_vencido') AND estado != 'descartado' AND fecha_generacion > DATE_SUB(NOW(), INTERVAL 24 HOUR)"
-                : "SELECT 1 FROM notificaciones WHERE id_usuario = ? AND tipo IN ('aviso_por_vencer','aviso_vencido') AND mensaje LIKE ? AND estado != 'descartado' AND fecha_generacion > DATE_SUB(NOW(), INTERVAL 24 HOUR)";
-            $stmtEx = $pdo->prepare($sqlExiste);
-            if ($tieneIdAviso) {
-                $stmtEx->execute([$id_aviso, $id_usuario]);
-            } else {
-                $stmtEx->execute([$id_usuario, '%' . $aviso['cliente_nombre'] . '%']);
-            }
-            if ($stmtEx->fetch()) {
-                continue;
-            }
-
-            $cols = $tieneIdAviso
-                ? 'id_usuario, id_cliente, id_aviso, tipo, mensaje'
-                : 'id_usuario, id_cliente, tipo, mensaje';
-            $placeholders = $tieneIdAviso
-                ? '?, ?, ?, ?, ?'
-                : '?, ?, ?, ?';
-            $stmtIns = $pdo->prepare("INSERT INTO notificaciones ($cols) VALUES ($placeholders)");
-            if ($tieneIdAviso) {
-                $stmtIns->execute([$id_usuario, $id_cliente, $id_aviso, $tipo, $mensaje]);
-            } else {
-                $stmtIns->execute([$id_usuario, $id_cliente, $tipo, $mensaje]);
-            }
-            $generadas++;
+        // Evitar duplicados: misma notificación para este aviso+usuario+tipo en últimas 24h
+        $sqlExiste = $tieneIdAviso
+            ? "SELECT 1 FROM notificaciones WHERE id_aviso = ? AND id_usuario = ? AND tipo IN ('aviso_por_vencer','aviso_vencido') AND estado != 'descartado' AND fecha_generacion > DATE_SUB(NOW(), INTERVAL 24 HOUR)"
+            : "SELECT 1 FROM notificaciones WHERE id_usuario = ? AND tipo IN ('aviso_por_vencer','aviso_vencido') AND mensaje LIKE ? AND estado != 'descartado' AND fecha_generacion > DATE_SUB(NOW(), INTERVAL 24 HOUR)";
+        $stmtEx = $pdo->prepare($sqlExiste);
+        if ($tieneIdAviso) {
+            $stmtEx->execute([$id_aviso, $id_usuario]);
+        } else {
+            $stmtEx->execute([$id_usuario, '%' . $aviso['cliente_nombre'] . '%']);
         }
+        if ($stmtEx->fetch()) {
+            continue;
+        }
+
+        $cols = $tieneIdAviso
+            ? 'id_usuario, id_cliente, id_aviso, tipo, mensaje'
+            : 'id_usuario, id_cliente, tipo, mensaje';
+        $placeholders = $tieneIdAviso
+            ? '?, ?, ?, ?, ?'
+            : '?, ?, ?, ?';
+        $stmtIns = $pdo->prepare("INSERT INTO notificaciones ($cols) VALUES ($placeholders)");
+        if ($tieneIdAviso) {
+            $stmtIns->execute([$id_usuario, $id_cliente, $id_aviso, $tipo, $mensaje]);
+        } else {
+            $stmtIns->execute([$id_usuario, $id_cliente, $tipo, $mensaje]);
+        }
+        $generadas++;
     }
 
     echo json_encode([
@@ -125,5 +110,5 @@ try {
 } catch (Exception $e) {
     error_log("generar_notificaciones_avisos_pld: " . $e->getMessage());
     http_response_code(500);
-    echo json_encode(['status' => 'error', 'message' => $e->getMessage(), 'generadas' => 0]);
+    echo json_encode(['status' => 'error', 'message' => 'Error interno al generar notificaciones.', 'generadas' => 0]);
 }

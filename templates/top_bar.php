@@ -272,7 +272,7 @@ $topbarAvatarFallback = buildTopbarAvatarDataUri($topbarUserName);
     }
 
     function loadNotifs() {
-        fetch('api/get_notifications.php')
+        fetch('api/get_notifications.php', { cache: 'no-store', credentials: 'same-origin' })
         .then(res => res.json())
         .then(json => {
              const list = document.getElementById('notifList');
@@ -293,6 +293,8 @@ $topbarAvatarFallback = buildTopbarAvatarDataUri($topbarUserName);
                  const escapeHtml = (s) => { if (s == null || s === undefined) return ''; const d = document.createElement('div'); d.textContent = String(s); return d.innerHTML; };
                  notifications.forEach(n => {
                     const notifId = parseInt(n.id_notificacion, 10) || 0;
+                    const clienteId = parseInt(n.id_cliente, 10) || 0;
+                    const openUrl = clienteId > 0 ? `cliente_detalle.php?id=${clienteId}` : 'notificaciones.php';
                     let typeClass = 'bg-light text-dark';
                     const t = (n.tipo || '').toLowerCase();
                     if(t.includes('pld')) typeClass = 'bg-danger-subtle text-danger';
@@ -309,7 +311,7 @@ $topbarAvatarFallback = buildTopbarAvatarDataUri($topbarUserName);
                             <div class="fw-bold small text-dark mb-1">${escapeHtml(n.nombre_cliente || 'Cliente Desconocido')}</div>
                             <div class="small text-secondary mb-2">${escapeHtml(n.mensaje)}</div>
                             <div class="d-flex gap-2">
-                                <button class="btn btn-sm btn-outline-primary py-0 px-2" style="font-size: 0.75rem;" onclick="window.location.href='cliente_detalle.php?id='+${parseInt(n.id_cliente,10)||0}"><i class="fa-solid fa-arrow-up-right-from-square me-1"></i> Abrir</button>
+                                <button class="btn btn-sm btn-outline-primary py-0 px-2" style="font-size: 0.75rem;" onclick="window.location.href='${openUrl}'"><i class="fa-solid fa-arrow-up-right-from-square me-1"></i> Abrir</button>
                                 <button class="btn btn-sm btn-outline-warning py-0 px-2 text-dark" style="font-size: 0.75rem;" onclick="handleAction(${notifId}, 'snooze')"><i class="fa-regular fa-clock me-1"></i> Posponer</button>
                                 <button class="btn btn-sm btn-outline-secondary py-0 px-2" style="font-size: 0.75rem;" onclick="handleAction(${notifId}, 'dismiss')"><i class="fa-solid fa-xmark me-1"></i> Descartar</button>
                             </div>
@@ -328,11 +330,20 @@ $topbarAvatarFallback = buildTopbarAvatarDataUri($topbarUserName);
     }
 
     window.handleAction = function(id, action) {
-        fetch('api/notification_action.php', { method: 'POST', body: JSON.stringify({ id, action }) })
+        fetch('api/notification_action.php', {
+            method: 'POST',
+            credentials: 'same-origin',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ id, action })
+        })
         .then(res => res.json())
         .then(data => {
             if(data.status === 'success') {
                 const el = document.getElementById(`notif-${id}`);
+                if (!el) {
+                    loadNotifs();
+                    return;
+                }
                 el.style.transition = "opacity 0.3s";
                 el.style.opacity = '0';
                 setTimeout(() => {

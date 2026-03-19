@@ -415,34 +415,36 @@ if (!function_exists('validateInformeNoOperaciones')) {
 if (!function_exists('pldObtenerUsuariosNotificacion')) {
     /**
      * Obtiene usuarios a notificar para eventos PLD:
-     * - Administradores
-     * - Responsables PLD del cliente (si tabla existe)
+     * - Dueño del cliente (clientes.id_usuario)
+     * - Fallback al usuario actual cuando no hay cliente/dueño
      */
-    function pldObtenerUsuariosNotificacion($pdo, $id_cliente = null) {
+    function pldObtenerUsuariosNotificacion($pdo, $id_cliente = null, $id_usuario_actual = null) {
         $usuarios = [];
 
-        $stmtAdmin = $pdo->query("
-            SELECT DISTINCT u.id_usuario
-            FROM usuarios u
-            INNER JOIN usuarios_permisos up ON u.id_usuario = up.id_usuario
-            WHERE u.id_status_usuario = 1
-              AND up.administracion > 0
-        ");
-        while ($r = $stmtAdmin->fetch(PDO::FETCH_ASSOC)) {
-            $usuarios[(int)$r['id_usuario']] = true;
+        $id_cliente = (int)$id_cliente;
+        if (
+            $id_cliente > 0
+            && function_exists('pldTableExists')
+            && pldTableExists($pdo, 'clientes')
+        ) {
+            $stmtOwner = $pdo->prepare("
+                SELECT id_usuario
+                FROM clientes
+                WHERE id_cliente = ?
+                  AND id_status != 4
+                LIMIT 1
+            ");
+            $stmtOwner->execute([$id_cliente]);
+            $idOwner = (int)$stmtOwner->fetchColumn();
+            if ($idOwner > 0) {
+                $usuarios[$idOwner] = true;
+            }
         }
 
-        if ($id_cliente && function_exists('pldTableExists') && pldTableExists($pdo, 'clientes_responsable_pld')) {
-            $stmtResp = $pdo->prepare("
-                SELECT id_usuario_responsable
-                FROM clientes_responsable_pld
-                WHERE id_cliente = ?
-                  AND activo = 1
-                  AND (fecha_baja IS NULL OR fecha_baja > CURDATE())
-            ");
-            $stmtResp->execute([$id_cliente]);
-            while ($r = $stmtResp->fetch(PDO::FETCH_ASSOC)) {
-                $usuarios[(int)$r['id_usuario_responsable']] = true;
+        if (empty($usuarios)) {
+            $id_usuario_actual = (int)$id_usuario_actual;
+            if ($id_usuario_actual > 0) {
+                $usuarios[$id_usuario_actual] = true;
             }
         }
 

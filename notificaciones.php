@@ -50,6 +50,12 @@ include 'templates/top_bar.php';
 document.addEventListener('DOMContentLoaded', function() {
     let allNotifs = [];
     let estadoFilter = '';
+    const escapeHtml = (value) => {
+        if (value === null || value === undefined) return '';
+        const div = document.createElement('div');
+        div.textContent = String(value);
+        return div.innerHTML;
+    };
 
     function renderList() {
         const list = document.getElementById('notifListPage');
@@ -63,6 +69,9 @@ document.addEventListener('DOMContentLoaded', function() {
         }
 
         list.innerHTML = filtered.map(n => {
+            const notifId = parseInt(n.id_notificacion, 10) || 0;
+            const clienteId = parseInt(n.id_cliente, 10) || 0;
+            const detailUrl = clienteId > 0 ? `cliente_detalle.php?id=${clienteId}` : 'notificaciones.php';
             let typeClass = 'bg-light text-dark';
             const t = (n.tipo || '').toLowerCase();
             if (t.includes('pld')) typeClass = 'bg-danger-subtle text-danger';
@@ -78,23 +87,23 @@ document.addEventListener('DOMContentLoaded', function() {
             const date = n.fecha_generacion ? new Date(n.fecha_generacion).toLocaleString('es-MX', { dateStyle: 'short', timeStyle: 'short' }) : '-';
             const canAct = n.estado !== 'descartado';
             const actions = canAct
-                ? `<button class="btn btn-sm btn-outline-warning text-dark" onclick="notifPageSnooze(${n.id_notificacion})"><i class="fa-regular fa-clock me-1"></i>Posponer</button>
-                   <button class="btn btn-sm btn-outline-secondary" onclick="notifPageDismiss(${n.id_notificacion})"><i class="fa-solid fa-xmark me-1"></i>Descartar</button>`
+                ? `<button class="btn btn-sm btn-outline-warning text-dark" onclick="notifPageSnooze(${notifId})"><i class="fa-regular fa-clock me-1"></i>Posponer</button>
+                   <button class="btn btn-sm btn-outline-secondary" onclick="notifPageDismiss(${notifId})"><i class="fa-solid fa-xmark me-1"></i>Descartar</button>`
                 : '';
 
             return `
-            <div class="notif-page-card card" id="notif-row-${n.id_notificacion}">
+            <div class="notif-page-card card" id="notif-row-${notifId}">
                 <div class="card-body">
                     <div class="d-flex justify-content-between align-items-start flex-wrap gap-2 mb-1">
-                        <span class="badge ${typeClass}">${n.tipo || 'Notificación'}</span>
-                        <span class="badge ${estadoBadge}">${n.estado || 'pendiente'}</span>
+                        <span class="badge ${typeClass}">${escapeHtml(n.tipo || 'Notificación')}</span>
+                        <span class="badge ${estadoBadge}">${escapeHtml(n.estado || 'pendiente')}</span>
                     </div>
-                    <div class="fw-bold small text-dark mb-1">${n.nombre_cliente || 'Cliente desconocido'}</div>
-                    <div class="small text-secondary mb-2">${n.mensaje || ''}</div>
+                    <div class="fw-bold small text-dark mb-1">${escapeHtml(n.nombre_cliente || 'Cliente desconocido')}</div>
+                    <div class="small text-secondary mb-2">${escapeHtml(n.mensaje || '')}</div>
                     <div class="d-flex justify-content-between align-items-center flex-wrap gap-2">
-                        <small class="text-muted">${date}</small>
+                        <small class="text-muted">${escapeHtml(date)}</small>
                         <div class="d-flex gap-2">
-                            <a href="cliente_detalle.php?id=${n.id_cliente}" class="btn btn-sm btn-outline-primary"><i class="fa-solid fa-arrow-up-right-from-square me-1"></i>Abrir cliente</a>
+                            <a href="${detailUrl}" class="btn btn-sm btn-outline-primary"><i class="fa-solid fa-arrow-up-right-from-square me-1"></i>Abrir cliente</a>
                             ${actions}
                         </div>
                     </div>
@@ -113,7 +122,7 @@ document.addEventListener('DOMContentLoaded', function() {
         renderList();
     });
 
-    fetch('api/get_notifications.php?todas=1')
+    fetch('api/get_notifications.php?todas=1', { cache: 'no-store', credentials: 'same-origin' })
         .then(res => res.json())
         .then(json => {
             if (json.status === 'success' && Array.isArray(json.data)) {
@@ -128,7 +137,7 @@ document.addEventListener('DOMContentLoaded', function() {
         });
 
     window.notifPageSnooze = function(id) {
-        fetch('api/notification_action.php', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ id, action: 'snooze' }) })
+        fetch('api/notification_action.php', { method: 'POST', credentials: 'same-origin', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ id, action: 'snooze' }) })
             .then(r => r.json())
             .then(data => {
                 if (data.status === 'success') {
@@ -139,7 +148,7 @@ document.addEventListener('DOMContentLoaded', function() {
             });
     };
     window.notifPageDismiss = function(id) {
-        fetch('api/notification_action.php', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ id, action: 'dismiss' }) })
+        fetch('api/notification_action.php', { method: 'POST', credentials: 'same-origin', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ id, action: 'dismiss' }) })
             .then(r => r.json())
             .then(data => {
                 if (data.status === 'success') {

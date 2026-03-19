@@ -3,8 +3,8 @@ use PHPMailer\PHPMailer\PHPMailer;
 use PHPMailer\PHPMailer\Exception;
 use PHPMailer\PHPMailer\SMTP;
 
-ini_set('display_errors', 1);
-ini_set('display_startup_errors', 1);
+ini_set('display_errors', 0);
+ini_set('display_startup_errors', 0);
 error_reporting(E_ALL);
 
 session_start();
@@ -135,9 +135,8 @@ try {
 
             $mail->send();
         } catch (Exception $e) {
-            // If mail fails, we log it but maybe still allow logic to proceed for DEV testing?
-            // For now, we return error so you know it failed.
-            throw new Exception("Message could not be sent. Mailer Error: {$mail->ErrorInfo}");
+            error_log("auth_login mail error: " . $mail->ErrorInfo);
+            throw new Exception("No se pudo enviar el código de verificación. Intente nuevamente.");
         }
         
         // Return response (Debug code removed)
@@ -148,6 +147,7 @@ try {
     }
 
 } catch (Exception $e) {
-    echo json_encode(['status' => 'error', 'message' => $e->getMessage()]);
+    error_log("auth_login error: " . $e->getMessage());
+    echo json_encode(['status' => 'error', 'message' => 'Error al procesar la solicitud']);
 }
 ?>

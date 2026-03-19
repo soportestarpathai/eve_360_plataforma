@@ -1,6 +1,6 @@
 <?php
 /**
- * API: Registrar Aviso SPR (Servicios Profesionales) - Fracción XII
+ * API: Registrar Aviso SPR (Servicios Profesionales) - Fracción XI
  * Genera XML según instructivo SPR, almacena en operaciones_pld
  */
 session_start();
@@ -8,12 +8,20 @@ require_once __DIR__ . '/../config/db.php';
 require_once __DIR__ . '/../config/pld_avisos.php';
 require_once __DIR__ . '/../config/bitacora.php';
 require_once __DIR__ . '/../config/pld_middleware.php';
+require_once __DIR__ . '/../config/pld_permisos.php';
 require_once __DIR__ . '/../config/pld_fraccion_xi.php';
 header('Content-Type: application/json');
 
 if (!isset($_SESSION['user_id'])) {
     http_response_code(401);
     echo json_encode(['status' => 'error', 'message' => 'No autorizado']);
+    exit;
+}
+
+$userId = (int)($_SESSION['user_id'] ?? 0);
+if (!function_exists('userCanAccessSPR') || !userCanAccessSPR($pdo, $userId)) {
+    http_response_code(403);
+    echo json_encode(['status' => 'error', 'message' => 'Sin permiso para registrar avisos SPR']);
     exit;
 }
 
@@ -72,6 +80,18 @@ if (is_array($datosOps) && isset($datosOps[0]['tipo_actividad']) && is_array($da
     if (!empty($keys)) {
         $subfraccion_xi = $keys[0]; // compra_venta_inmuebles, administracion_recursos, etc.
     }
+}
+if (empty($subfraccion_xi)) {
+    http_response_code(400);
+    echo json_encode(['status' => 'error', 'message' => 'No se detectó subfracción XI en el payload']);
+    exit;
+}
+
+$subfraccionesPermitidas = getSubfraccionesXIActivas($pdo, $userId);
+if (is_array($subfraccionesPermitidas) && !empty($subfraccionesPermitidas) && !in_array($subfraccion_xi, $subfraccionesPermitidas, true)) {
+    http_response_code(403);
+    echo json_encode(['status' => 'error', 'message' => 'Subfracción XI no autorizada para su usuario']);
+    exit;
 }
 
 $operacionData = [

@@ -23,3 +23,10 @@ Thumbs.db
 # PHP
 vendor/
 composer.lock
+
+# QA / sesiones locales (artefactos generados)
+.tmp_sessions/sess_qamtx-*
+.tmp_sessions/sess_*
+!.tmp_sessions/.gitkeep
+demo_spr_subfraccion*.xml
+comparativo_spr_subfraccion*.txt
