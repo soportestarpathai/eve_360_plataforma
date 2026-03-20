@@ -11,6 +11,9 @@ require_once '../config/pld_expediente.php';
 require_once '../config/expediente_documentos_por_anexo.php';
 ob_end_clean();
 header('Content-Type: application/json; charset=utf-8');
+header('Cache-Control: no-store, no-cache, must-revalidate, max-age=0');
+header('Pragma: no-cache');
+header('Expires: 0');
 
 // Verificar conexión a la base de datos
 if (!isset($pdo) || $pdo === null) {

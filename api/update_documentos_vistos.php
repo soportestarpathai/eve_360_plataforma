@@ -7,9 +7,14 @@ ob_start();
 error_reporting(E_ALL);
 ini_set('display_errors', 0);
 ini_set('log_errors', 1);
-session_start();
+if (session_status() !== PHP_SESSION_ACTIVE) {
+    session_start();
+}
 ob_end_clean();
 header('Content-Type: application/json; charset=utf-8');
+header('Cache-Control: no-store, no-cache, must-revalidate, max-age=0');
+header('Pragma: no-cache');
+header('Expires: 0');
 
 try {
     require_once __DIR__ . '/../config/db.php';
@@ -33,22 +38,33 @@ try {
         exit;
     }
 
-    $id_usuario = $_SESSION['user_id'];
-    $pdo->prepare("
+    $id_usuario = (int) $_SESSION['user_id'];
+    $stmtUpdate = $pdo->prepare("
         UPDATE clientes 
         SET documentos_vistos_original_certificado = 1, 
             fecha_documentos_vistos = CURDATE(), 
             id_usuario_documentos_vistos = ?
         WHERE id_cliente = ?
-    ")->execute([$id_usuario, $id_cliente]);
+    ");
+    $stmtUpdate->execute([$id_usuario, $id_cliente]);
 
-    if ($pdo->rowCount() === 0) {
-        http_response_code(404);
-        echo json_encode(['status' => 'error', 'message' => 'Cliente no encontrado']);
-        exit;
+    if ($stmtUpdate->rowCount() === 0) {
+        // Puede ser que ya estuviera marcado; confirmar existencia para no devolver falso 404.
+        $stmtExiste = $pdo->prepare("SELECT id_cliente FROM clientes WHERE id_cliente = ? LIMIT 1");
+        $stmtExiste->execute([$id_cliente]);
+        if (!$stmtExiste->fetch(PDO::FETCH_ASSOC)) {
+            http_response_code(404);
+            echo json_encode(['status' => 'error', 'message' => 'Cliente no encontrado']);
+            exit;
+        }
     }
 
-    echo json_encode(['status' => 'success', 'message' => 'Documentos marcados como verificados']);
+    echo json_encode([
+        'status' => 'success',
+        'message' => $stmtUpdate->rowCount() > 0
+            ? 'Documentos marcados como verificados'
+            : 'Documentos ya estaban verificados'
+    ]);
 } catch (Exception $e) {
     http_response_code(500);
     echo json_encode(['status' => 'error', 'message' => $e->getMessage()]);

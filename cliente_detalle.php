@@ -230,8 +230,14 @@ include 'templates/header.php';
         const statusDiv = document.getElementById('expediente-pld-status');
         if (!statusDiv) return;
         statusDiv.innerHTML = '<div class="alert alert-info"><i class="fa-solid fa-spinner fa-spin me-2"></i>Cargando estado del expediente...</div>';
+        const endpoint = `api/validate_expediente_pld.php?id_cliente=${clientId}&_ts=${Date.now()}`;
         
-        fetch(`api/validate_expediente_pld.php?id_cliente=${clientId}`)
+        fetch(endpoint, {
+            cache: 'no-store',
+            headers: {
+                'Accept': 'application/json'
+            }
+        })
             .then(res => {
                 if (!res.ok) {
                     throw new Error(`HTTP ${res.status}: ${res.statusText}`);
@@ -421,18 +427,27 @@ include 'templates/header.php';
         const formData = new FormData();
         formData.append('id_cliente', clientId);
         fetch('api/update_documentos_vistos.php', { method: 'POST', body: formData })
-            .then(res => res.json())
-            .then(data => {
-                if (data.status === 'success') {
-                    Swal.fire('Correcto', 'Documentos marcados como verificados', 'success');
-                    loadExpedientePLD();
-                } else {
-                    Swal.fire('Error', data.message || 'Error al marcar documentos', 'error');
-                    if (btn) btn.disabled = false;
+            .then(async (res) => {
+                const raw = await res.text();
+                let data = null;
+                try {
+                    data = JSON.parse(raw);
+                } catch (e) {
+                    throw new Error(`Respuesta inválida del servidor (HTTP ${res.status})`);
                 }
+                if (!res.ok || data.status !== 'success') {
+                    throw new Error(data.message || `Error HTTP ${res.status}`);
+                }
+                return data;
+            })
+            .then(data => {
+                Swal.fire('Correcto', data.message || 'Documentos marcados como verificados', 'success');
+                loadExpedientePLD();
             })
             .catch(err => {
-                Swal.fire('Error', 'Error de conexión', 'error');
+                Swal.fire('Error', err.message || 'Error de conexión', 'error');
+            })
+            .finally(() => {
                 if (btn) btn.disabled = false;
             });
     }
@@ -440,11 +455,28 @@ include 'templates/header.php';
     function validarExpedientePLD() {
         const statusDiv = document.getElementById('expediente-pld-status');
         statusDiv.innerHTML = '<div class="alert alert-info"><i class="fa-solid fa-spinner fa-spin me-2"></i>Validando expediente...</div>';
+        const endpoint = `api/validate_expediente_pld.php?id_cliente=${clientId}&_ts=${Date.now()}`;
         
-        fetch(`api/validate_expediente_pld.php?id_cliente=${clientId}`, {
-            method: 'POST'
+        fetch(endpoint, {
+            method: 'POST',
+            cache: 'no-store',
+            headers: {
+                'Accept': 'application/json'
+            }
         })
-            .then(res => res.json())
+            .then(async (res) => {
+                const raw = await res.text();
+                let data = null;
+                try {
+                    data = JSON.parse(raw);
+                } catch (e) {
+                    throw new Error(`Respuesta inválida del servidor (HTTP ${res.status})`);
+                }
+                if (!res.ok) {
+                    throw new Error(data.message || `Error HTTP ${res.status}`);
+                }
+                return data;
+            })
             .then(data => {
                 if (data.status === 'success') {
                     renderExpedienteStatus(data);
@@ -460,7 +492,7 @@ include 'templates/header.php';
                 }
             })
             .catch(err => {
-                Swal.fire('Error', 'Error al validar expediente', 'error');
+                Swal.fire('Error', err.message || 'Error al validar expediente', 'error');
             });
     }
     
