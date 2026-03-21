@@ -739,6 +739,9 @@ if (!function_exists('registrarOperacionPLD')) {
             $id_fraccion = $data['id_fraccion'] ?? null;
             $tipo_operacion = $data['tipo_operacion'] ?? null;
             $subfraccion_xi = $data['subfraccion_xi'] ?? null;
+            $requiere_aviso_forzado = array_key_exists('requiere_aviso_forzado', $data) ? (bool)$data['requiere_aviso_forzado'] : null;
+            $tipo_aviso_forzado = $data['tipo_aviso_forzado'] ?? null;
+            $fecha_deadline_forzado = $data['fecha_deadline_forzado'] ?? null;
             $es_sospechosa = $data['es_sospechosa'] ?? 0;
             $fecha_conocimiento_sospecha = $data['fecha_conocimiento_sospecha'] ?? null;
             $match_listas_restringidas = $data['match_listas_restringidas'] ?? 0;
@@ -845,6 +848,17 @@ if (!function_exists('registrarOperacionPLD')) {
                     // Usar 'listas_restringidas' que existe en el ENUM (o actualizar el ENUM para incluir 'listas_restringidas_24h')
                     $tipo_aviso = 'listas_restringidas'; // Aviso 24H - Nota: El ENUM debe incluir 'listas_restringidas_24h' para mayor especificidad
                     $fecha_deadline_aviso = $validacionListas['fecha_deadline'] ?? null;
+                }
+            }
+
+            // Forzado de aviso (casos especiales de fracción/actividad, p.ej. Fracción XVI por contraprestación)
+            if ($requiere_aviso_forzado === true) {
+                $requiere_aviso = true;
+                if (empty($tipo_aviso)) {
+                    $tipo_aviso = $tipo_aviso_forzado ?: 'umbral_individual';
+                }
+                if (empty($fecha_deadline_aviso)) {
+                    $fecha_deadline_aviso = $fecha_deadline_forzado ?: calcularDeadlineAviso($fecha_operacion);
                 }
             }
             

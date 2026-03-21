@@ -51,8 +51,8 @@ if (!function_exists('ensureFraccionesPLDColumn')) {
                 $decoded = json_decode($row['fracciones_activas'], true);
                 if (is_array($decoded)) $empresaFracciones = $decoded;
             }
-            // Asegurar II (TSC) y XI (SPR) siempre disponibles para asignación de usuarios
-            $fraccionesBase = ['II', 'XI', 'V', 'V Bis', 'VI'];
+            // Asegurar fracciones base disponibles para asignación de usuarios
+            $fraccionesBase = ['II', 'XI', 'XVI', 'V', 'V Bis', 'VI'];
             foreach ($fraccionesBase as $fb) {
                 if (!in_array($fb, $empresaFracciones, true)) $empresaFracciones[] = $fb;
             }
@@ -107,6 +107,15 @@ if (!function_exists('ensureFraccionesPLDColumn')) {
     function userCanAccessSPR($pdo, $userId) {
         $fracciones = getUserFraccionesPLD($pdo, $userId);
         return in_array('XI', $fracciones);
+    }
+
+    /**
+     * Verifica si el usuario tiene acceso al formulario AVI (requiere Fracción XVI).
+     * Activos virtuales.
+     */
+    function userCanAccessAVI($pdo, $userId) {
+        $fracciones = getUserFraccionesPLD($pdo, $userId);
+        return in_array('XVI', $fracciones);
     }
 }
 

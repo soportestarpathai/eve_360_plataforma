@@ -378,6 +378,7 @@ if ($configRow && !empty($configRow['fracciones_activas'])) {
 $fraccionesActivas = array_values(array_filter($fraccionesActivas, fn($f) => $f !== 'XII'));
 if (!in_array('II', $fraccionesActivas, true)) array_unshift($fraccionesActivas, 'II');
 if (!in_array('XI', $fraccionesActivas, true)) $fraccionesActivas[] = 'XI';
+if (!in_array('XVI', $fraccionesActivas, true)) $fraccionesActivas[] = 'XVI';
 $fraccionesActivas = array_values(array_unique($fraccionesActivas));
 
 $adminUsers = [];
