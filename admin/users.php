@@ -374,10 +374,11 @@ if ($configRow && !empty($configRow['fracciones_activas'])) {
     $decoded = json_decode($configRow['fracciones_activas'], true);
     if (is_array($decoded)) $fraccionesActivas = $decoded;
 }
-// Asegurar II (TSC) y XI (SPR) siempre disponibles; reemplazar XII por XI
+// Asegurar fracciones base siempre disponibles; reemplazar XII por XI
 $fraccionesActivas = array_values(array_filter($fraccionesActivas, fn($f) => $f !== 'XII'));
 if (!in_array('II', $fraccionesActivas, true)) array_unshift($fraccionesActivas, 'II');
 if (!in_array('XI', $fraccionesActivas, true)) $fraccionesActivas[] = 'XI';
+if (!in_array('XIII', $fraccionesActivas, true)) $fraccionesActivas[] = 'XIII';
 if (!in_array('XVI', $fraccionesActivas, true)) $fraccionesActivas[] = 'XVI';
 $fraccionesActivas = array_values(array_unique($fraccionesActivas));
 

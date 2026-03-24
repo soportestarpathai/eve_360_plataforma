@@ -52,7 +52,7 @@ if (!function_exists('ensureFraccionesPLDColumn')) {
                 if (is_array($decoded)) $empresaFracciones = $decoded;
             }
             // Asegurar fracciones base disponibles para asignación de usuarios
-            $fraccionesBase = ['II', 'XI', 'XVI', 'V', 'V Bis', 'VI'];
+            $fraccionesBase = ['II', 'XI', 'XIII', 'XVI', 'V', 'V Bis', 'VI'];
             foreach ($fraccionesBase as $fb) {
                 if (!in_array($fb, $empresaFracciones, true)) $empresaFracciones[] = $fb;
             }
@@ -107,6 +107,15 @@ if (!function_exists('ensureFraccionesPLDColumn')) {
     function userCanAccessSPR($pdo, $userId) {
         $fracciones = getUserFraccionesPLD($pdo, $userId);
         return in_array('XI', $fracciones);
+    }
+
+    /**
+     * Verifica si el usuario tiene acceso al formulario DON (requiere Fracción XIII).
+     * Donativos.
+     */
+    function userCanAccessDON($pdo, $userId) {
+        $fracciones = getUserFraccionesPLD($pdo, $userId);
+        return in_array('XIII', $fracciones);
     }
 
     /**

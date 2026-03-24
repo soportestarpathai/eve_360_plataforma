@@ -80,8 +80,26 @@ if (!function_exists('getIdVulnerableFraccionXIII')) {
      */
     function getIdVulnerableFraccionXIII($pdo) {
         try {
-            $stmt = $pdo->prepare("SELECT id_vulnerable FROM cat_vulnerables WHERE fraccion = 'XIII' AND (id_status = 1 OR id_status IS NULL) LIMIT 1");
-            $stmt->execute();
+            try {
+                $stmt = $pdo->prepare("
+                    SELECT id_vulnerable
+                    FROM cat_vulnerables
+                    WHERE fraccion = 'XIII'
+                      AND (id_status = 1 OR id_status IS NULL)
+                    ORDER BY id_vulnerable
+                    LIMIT 1
+                ");
+                $stmt->execute();
+            } catch (Exception $e) {
+                $stmt = $pdo->prepare("
+                    SELECT id_vulnerable
+                    FROM cat_vulnerables
+                    WHERE fraccion = 'XIII'
+                    ORDER BY id_vulnerable
+                    LIMIT 1
+                ");
+                $stmt->execute();
+            }
             $row = $stmt->fetch(PDO::FETCH_ASSOC);
             return $row ? (int) $row['id_vulnerable'] : null;
         } catch (Exception $e) {

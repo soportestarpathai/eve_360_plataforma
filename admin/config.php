@@ -698,8 +698,8 @@ $listaUsuarios = $stmtUsuarios->fetchAll(PDO::FETCH_ASSOC);
                                     <textarea id="fraccionesActivas" 
                                               class="form-control" 
                                               rows="3" 
-                                              placeholder='Ej: ["II", "XI", "XVI", "V", "V Bis", "VI"] o II, XI, XVI, V, V Bis, VI'><?= htmlspecialchars($config['fracciones_activas'] ?? '') ?></textarea>
-                                    <small class="form-text text-muted">Formato JSON o separado por comas. II = TSC, XI = SPR (Servicios Profesionales), XVI = AVI (Activos Virtuales)</small>
+                                              placeholder='Ej: ["II", "XI", "XIII", "XVI", "V", "V Bis", "VI"] o II, XI, XIII, XVI, V, V Bis, VI'><?= htmlspecialchars($config['fracciones_activas'] ?? '') ?></textarea>
+                                    <small class="form-text text-muted">Formato JSON o separado por comas. II = TSC, XI = SPR, XIII = DON (Donativos), XVI = AVI (Activos Virtuales)</small>
                                 </div>
 
                                 <div id="subfraccionesXiSection" class="mb-3 mt-3 nested-card" style="display:none;">

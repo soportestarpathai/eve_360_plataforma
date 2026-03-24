@@ -51,7 +51,7 @@ if (!function_exists('isModuleActive')) {
 // Mapeo: file_path o label -> nombre_clave del módulo
 if (!defined('MODULE_PAGE_MAP')) {
     define('MODULE_PAGE_MAP', [
-        'pld' => ['operaciones_pld.php', 'conservacion_pld.php', 'pld_avisos.php', 'operacion_din.php', 'operacion_tsc.php', 'operacion_spr.php', 'operacion_avi.php'],
+        'pld' => ['operaciones_pld.php', 'conservacion_pld.php', 'pld_avisos.php', 'operacion_din.php', 'operacion_tsc.php', 'operacion_spr.php', 'operacion_don.php', 'operacion_avi.php'],
         'risk' => ['reporte_riesgos.php', 'config_ebr.php'],
         'reports' => ['reporte_transacciones.php', 'bitacora_actividad.php'],
         'investments' => ['valuacion.php', 'rebalanceo.php', 'portafolios.php'],
