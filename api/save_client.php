@@ -90,6 +90,13 @@ function isFutureDateYmd($dateValue) {
     return $date > $today;
 }
 
+function isPastDateYmd($dateValue) {
+    if (!isValidDateYmd($dateValue)) return false;
+    $date = new DateTime($dateValue);
+    $today = new DateTime('today');
+    return $date < $today;
+}
+
 function tableColumnExists(PDO $pdo, string $tableName, string $columnName): bool {
     $stmt = $pdo->prepare("
         SELECT COUNT(*)
@@ -204,6 +211,19 @@ if ($data['no_contrato'] === '') {
     exit;
 }
 
+$fechaApertura = trim((string)($data['fecha_apertura'] ?? ''));
+if (!isValidDateYmd($fechaApertura)) {
+    http_response_code(400);
+    echo json_encode(['status' => 'error', 'message' => 'Fecha de apertura inválida']);
+    exit;
+}
+if (isFutureDateYmd($fechaApertura)) {
+    http_response_code(400);
+    echo json_encode(['status' => 'error', 'message' => 'La fecha de apertura no puede ser posterior a la fecha actual']);
+    exit;
+}
+$data['fecha_apertura'] = $fechaApertura;
+
 $type_stmt = $pdo->prepare("SELECT * FROM cat_tipo_persona WHERE id_tipo_persona = ?");
 $type_stmt->execute([$data['id_tipo_persona']]);
 $personaType = $type_stmt->fetch(PDO::FETCH_ASSOC);
@@ -283,6 +303,22 @@ if ((int)$personaType['es_fisica'] > 0) {
         echo json_encode(['status' => 'error', 'message' => 'CURP inválida']);
         exit;
     }
+    if (!$requiresTaxIdUSA && $fisCurp !== '' && substr($fisRfc, 0, 10) !== substr($fisCurp, 0, 10)) {
+        http_response_code(400);
+        echo json_encode(['status' => 'error', 'message' => 'RFC y CURP no coinciden. Deben corresponder a la misma persona.']);
+        exit;
+    }
+    $rfcDocError = $_FILES['fisica_rfc_doc_file']['error'] ?? UPLOAD_ERR_NO_FILE;
+    if ($rfcDocError === UPLOAD_ERR_NO_FILE) {
+        http_response_code(400);
+        echo json_encode(['status' => 'error', 'message' => 'Adjunte la constancia RFC / Tax ID para persona física.']);
+        exit;
+    }
+    if ($rfcDocError !== UPLOAD_ERR_OK) {
+        http_response_code(400);
+        echo json_encode(['status' => 'error', 'message' => 'No fue posible cargar la constancia RFC / Tax ID. Verifique el archivo.']);
+        exit;
+    }
 }
 
 if ((int)$personaType['es_moral'] > 0) {
@@ -315,6 +351,22 @@ if ((int)$personaType['es_moral'] > 0) {
         http_response_code(400);
         echo json_encode(['status' => 'error', 'message' => 'RFC inválido para persona moral']);
         exit;
+    }
+}
+
+if ((int)$personaType['es_fisica'] > 0 && empty($data['fisica_id_pais_nacimiento'])) {
+    $stmtMex = $pdo->query("
+        SELECT id_pais
+        FROM cat_pais
+        WHERE UPPER(clave) = 'MX'
+           OR UPPER(nombre) LIKE '%MEXICO%'
+           OR UPPER(nombre) LIKE '%MÉXICO%'
+        ORDER BY CASE WHEN UPPER(clave) = 'MX' THEN 0 ELSE 1 END, id_pais
+        LIMIT 1
+    ");
+    $idPaisMexico = $stmtMex ? (int)$stmtMex->fetchColumn() : 0;
+    if ($idPaisMexico > 0) {
+        $data['fisica_id_pais_nacimiento'] = $idPaisMexico;
     }
 }
 
@@ -457,6 +509,23 @@ try {
     );
     $idStatusCliente = $esPreRegistro ? '2' : (string)$data['id_status'];
     $fecha_baja = ($idStatusCliente == '3') ? $data['fecha_baja'] : null;
+    if ($idStatusCliente == '3') {
+        $fecha_baja = trim((string)$fecha_baja);
+        if (!isValidDateYmd($fecha_baja)) {
+            $pdo->rollBack();
+            http_response_code(400);
+            echo json_encode(['status' => 'error', 'message' => 'La Fecha de Cancelación es obligatoria cuando el estatus es Cancelado.']);
+            exit;
+        }
+        if (new DateTime($fecha_baja) < new DateTime($data['fecha_apertura'])) {
+            $pdo->rollBack();
+            http_response_code(400);
+            echo json_encode(['status' => 'error', 'message' => 'La Fecha de Cancelación no puede ser menor a la Fecha de Apertura.']);
+            exit;
+        }
+    } else {
+        $fecha_baja = null;
+    }
     
     $stmt->execute([
         $data['id_tipo_persona'],
@@ -587,10 +656,19 @@ try {
         $stmt_id = $pdo->prepare("INSERT INTO clientes_identificaciones (id_cliente, id_tipo_identificacion, numero_identificacion, fecha_vencimiento, id_status) VALUES (?, ?, ?, ?, 1)");
         $newDataIdent = [];
         foreach ($data['ident_tipo'] as $key => $tipo) {
-            $vencimiento = $data['ident_vencimiento'][$key] ?: null;
+            $vencimiento = trim((string)($data['ident_vencimiento'][$key] ?? ''));
+            $vencimiento = $vencimiento !== '' ? $vencimiento : null;
             $numero = trim((string)($data['ident_numero'][$key] ?? ''));
             if ($tipo === '' || $numero === '') {
                 throw new Exception('Cada identificación requiere tipo y número.');
+            }
+            if ($vencimiento !== null) {
+                if (!isValidDateYmd($vencimiento)) {
+                    throw new Exception('La fecha de vencimiento de identificación no es válida.');
+                }
+                if (isPastDateYmd($vencimiento)) {
+                    throw new Exception('La fecha de vencimiento de identificación no puede ser anterior a la fecha actual.');
+                }
             }
             $stmt_id->execute([$id_cliente, $tipo, $numero, $vencimiento]);
             $newDataIdent[] = ['id_cliente' => $id_cliente, 'id_tipo_identificacion' => $tipo, 'numero_identificacion' => $numero, 'fecha_vencimiento' => $vencimiento];
@@ -749,8 +827,17 @@ try {
         if (isset($data['doc_tipo']) && is_array($data['doc_tipo'])) {
             foreach ($data['doc_tipo'] as $key => $tipo) {
                 $descripcion = trim((string)$tipo);
-                $vencimiento = $data['doc_vencimiento'][$key] ?: null;
+                $vencimiento = trim((string)($data['doc_vencimiento'][$key] ?? ''));
+                $vencimiento = $vencimiento !== '' ? $vencimiento : null;
                 $rutaDB = null;
+                if ($vencimiento !== null) {
+                    if (!isValidDateYmd($vencimiento)) {
+                        throw new Exception('La fecha de vencimiento de documento no es válida.');
+                    }
+                    if (isPastDateYmd($vencimiento)) {
+                        throw new Exception('La fecha de vencimiento de documento no puede ser anterior a la fecha actual.');
+                    }
+                }
 
                 if (isset($_FILES['doc_file']['name'][$key]) && $_FILES['doc_file']['error'][$key] === UPLOAD_ERR_OK) {
                     $tmpName = $_FILES['doc_file']['tmp_name'][$key];

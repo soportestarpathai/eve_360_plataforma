@@ -2,39 +2,13 @@
 // api/get_transaction_rules.php
 session_start();
 require_once '../config/db.php';
+require_once '../config/pld_permisos.php';
 header('Content-Type: application/json');
 
 if (!isset($_SESSION['user_id'])) {
     http_response_code(401);
     echo json_encode(['status' => 'error', 'message' => 'Unauthorized']);
     exit;
-}
-
-function parseFraccionesActivas($raw) {
-    if ($raw === null || $raw === '') {
-        return [];
-    }
-
-    if (is_array($raw)) {
-        $values = $raw;
-    } else {
-        $decoded = json_decode((string)$raw, true);
-        if (is_array($decoded)) {
-            $values = $decoded;
-        } else {
-            $values = array_map('trim', explode(',', (string)$raw));
-        }
-    }
-
-    $out = [];
-    foreach ($values as $v) {
-        $s = trim((string)$v);
-        if ($s !== '') {
-            $out[] = $s;
-        }
-    }
-
-    return array_values(array_unique($out));
 }
 
 try {
@@ -70,8 +44,8 @@ try {
     $uma = $stmtUMA->fetchColumn();
     $response['uma_value'] = (float)$uma;
 
-    $fraccionesActivas = parseFraccionesActivas($config['fracciones_activas'] ?? null);
-    // Solo usar las fracciones habilitadas en config; no mostrar todas si está vacío
+    // Usar solo fracciones efectivamente permitidas al usuario
+    $fraccionesActivas = getUserFraccionesPLD($pdo, (int)$userId);
     $activities = [];
     if (!empty($fraccionesActivas)) {
         $placeholders = implode(',', array_fill(0, count($fraccionesActivas), '?'));
@@ -83,20 +57,6 @@ try {
         ");
         $stmtActivities->execute($fraccionesActivas);
         $activities = $stmtActivities->fetchAll(PDO::FETCH_ASSOC);
-    }
-
-    if (empty($activities) && (int)$config['id_vulnerable'] > 0) {
-        $stmtActivity = $pdo->prepare("
-            SELECT id_vulnerable, nombre, fraccion
-            FROM cat_vulnerables
-            WHERE id_vulnerable = ?
-            LIMIT 1
-        ");
-        $stmtActivity->execute([(int)$config['id_vulnerable']]);
-        $single = $stmtActivity->fetch(PDO::FETCH_ASSOC);
-        if ($single) {
-            $activities[] = $single;
-        }
     }
 
     if (empty($activities)) {

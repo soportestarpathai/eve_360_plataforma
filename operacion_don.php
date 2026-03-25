@@ -40,108 +40,190 @@ include 'templates/header.php';
 <title><?= htmlspecialchars($page_title) ?> - <?= htmlspecialchars($appConfig['nombre_empresa']) ?></title>
 <link rel="stylesheet" href="assets/css/operaciones_pld.css">
 <style>
-.don-card{border:1px solid #e2e8f0;border-radius:12px;background:#fff;padding:16px;margin-bottom:14px}
+:root{
+  --don-primary:#16a34a;
+  --don-primary-dark:#15803d;
+  --don-info:#0891b2;
+  --don-warning:#d97706;
+  --don-success:#059669;
+  --don-dark:#14532d;
+  --don-light:#f0fdf4;
+  --don-border:#bbf7d0;
+  --don-shadow:0 4px 24px rgba(0,0,0,.06);
+  --don-radius:16px;
+  --don-radius-sm:10px;
+  --don-transition:.25s cubic-bezier(.4,0,.2,1);
+  --don-max-width:960px;
+}
+.don-wrapper{max-width:var(--don-max-width);margin:0 auto}
+.don-page-header{
+  background:linear-gradient(135deg,var(--don-primary),var(--don-primary-dark));
+  color:#fff;border-radius:var(--don-radius);padding:1.75rem 2rem;margin-bottom:1.75rem;
+}
+.don-page-header h2{font-size:1.5rem;font-weight:800;margin-bottom:.25rem}
+.don-page-header p{opacity:.9;margin:0}
+.don-page-header .btn-outline-light{border:1.5px solid rgba(255,255,255,.55);color:#fff}
+.don-page-header .btn-outline-light:hover{background:rgba(255,255,255,.15);border-color:#fff}
+.don-progress{display:flex;gap:0;margin-bottom:1.8rem;overflow-x:auto;padding-bottom:4px}
+.don-step{flex:1;min-width:100px;text-align:center;position:relative;padding:.75rem .5rem;font-size:.78rem;font-weight:600;color:#94a3b8;transition:var(--don-transition)}
+.don-step::after{content:'';position:absolute;bottom:0;left:0;width:100%;height:3px;background:#e2e8f0;border-radius:3px;transition:var(--don-transition)}
+.don-step.active{color:var(--don-primary)}
+.don-step.active::after{background:var(--don-primary)}
+.don-step-num{display:inline-flex;align-items:center;justify-content:center;width:28px;height:28px;border-radius:50%;font-size:.75rem;font-weight:700;background:#e2e8f0;color:#64748b;margin-bottom:4px;transition:var(--don-transition)}
+.don-step.active .don-step-num{background:var(--don-primary);color:#fff}
+.don-card{border:none;border-radius:var(--don-radius);background:#fff;box-shadow:var(--don-shadow);margin-bottom:1.5rem;overflow:hidden;transition:var(--don-transition)}
+.don-card:hover{box-shadow:0 8px 32px rgba(0,0,0,.09)}
+.don-card-header{padding:1rem 1.5rem;display:flex;align-items:center;gap:.75rem;cursor:pointer;user-select:none;border-bottom:1px solid transparent;transition:var(--don-transition)}
+.don-card-header:hover{background:rgba(0,0,0,.015)}
+.don-card-body{padding:1.25rem 1.5rem}
+.don-icon{width:40px;height:40px;border-radius:var(--don-radius-sm);display:flex;align-items:center;justify-content:center;font-size:1.1rem;color:#fff;flex-shrink:0}
+.don-icon-cliente{background:linear-gradient(135deg,var(--don-primary),var(--don-primary-dark))}
+.don-icon-aviso{background:linear-gradient(135deg,var(--don-warning),#b45309)}
+.don-icon-persona{background:linear-gradient(135deg,var(--don-success),#047857)}
+.don-icon-benef{background:linear-gradient(135deg,var(--don-info),#0e7490)}
+.don-icon-detalle{background:linear-gradient(135deg,#7c3aed,#5b21b6)}
+.don-card-header h5{margin:0;font-size:1rem;font-weight:700;color:var(--don-dark)}
+.don-card-header small{color:#94a3b8;font-size:.78rem;font-weight:400;display:block}
+.don-chevron{margin-left:auto;font-size:.85rem;color:#94a3b8;transition:var(--don-transition)}
+.don-card-header.collapsed .don-chevron{transform:rotate(-90deg)}
+.don-subcard{border-left:3px solid var(--don-primary);background:var(--don-light);border-radius:0 var(--don-radius-sm) var(--don-radius-sm) 0;padding:1rem 1rem .25rem;margin-top:1rem}
+.don-submit-bar{position:sticky;bottom:0;background:#fff;padding:1rem 1.5rem;border-top:1px solid #e2e8f0;border-radius:var(--don-radius) var(--don-radius) 0 0;box-shadow:0 -4px 20px rgba(0,0,0,.06);z-index:10;display:flex;justify-content:flex-end;align-items:center;gap:.75rem;flex-wrap:wrap}
+.don-submit-bar .btn-primary{background:linear-gradient(135deg,var(--don-primary),var(--don-primary-dark));border:none;padding:.7rem 1.6rem;font-weight:700;border-radius:var(--don-radius-sm);box-shadow:0 4px 14px rgba(22,163,74,.25)}
+.don-submit-bar .btn-primary:hover{transform:translateY(-1px);box-shadow:0 6px 18px rgba(22,163,74,.35)}
 .don-hidden{display:none!important}
-.don-note{font-size:.85rem;color:#64748b}
+.don-note{font-size:.8rem;color:#64748b}
 .don-person-item{border:1px solid #d1fae5;background:#f0fdf4;border-radius:10px;padding:10px 12px;margin-bottom:8px}
+.don-card .form-control::placeholder,
+.don-card .form-select::placeholder{color:#94a3b8;opacity:1}
 </style>
 </head>
 <body>
 <?php $is_sub_page = true; include 'templates/top_bar.php'; ?>
 
 <div class="content-wrapper">
-<div class="container-fluid" style="max-width:1150px">
-<div class="d-flex justify-content-between align-items-center mb-3">
-  <h4 class="mb-0"><i class="fa-solid fa-hand-holding-heart me-2 text-success"></i>Aviso DON - Fraccion XIII</h4>
-  <a class="btn btn-outline-secondary btn-sm" href="operaciones_pld.php"><i class="fa-solid fa-arrow-left me-1"></i> Volver</a>
-</div>
-<div class="alert alert-info">Umbral de identificacion: <code>1,605 UMA</code>. Umbral de aviso/acumulacion: <code>3,210 UMA</code>.</div>
-
-<form id="formDON" novalidate>
-  <div class="don-card">
-    <h6 class="mb-3">1) Cliente e informe</h6>
-    <div class="row g-3">
-      <div class="col-md-4"><label class="form-label">Cliente *</label><select id="id_cliente" class="form-select" required><option value="">-- Seleccione --</option></select></div>
-      <div class="col-md-2"><label class="form-label">Mes reportado *</label><input id="mes_reportado" class="form-control" maxlength="6" value="<?= date('Ym') ?>" required></div>
-      <div class="col-md-3"><label class="form-label">Clave sujeto obligado *</label><input id="clave_sujeto_obligado" class="form-control text-uppercase" maxlength="13" value="<?= htmlspecialchars($claveSO) ?>" required></div>
-      <div class="col-md-1"><label class="form-label">Actividad</label><input class="form-control" value="DON" readonly></div>
-      <div class="col-md-2"><label class="form-label">Exento</label><select id="exento" class="form-select"><?= donCatalogoOptions('exento', '0', null, false) ?></select></div>
-      <div class="col-md-3"><label class="form-label">Clave entidad colegiada</label><input id="clave_entidad_colegiada" class="form-control text-uppercase" maxlength="12"></div>
+<div class="don-wrapper">
+  <div class="don-page-header">
+    <div class="d-flex justify-content-between align-items-center flex-wrap gap-3">
+      <div>
+        <h2><i class="fa-solid fa-hand-holding-heart me-2"></i>Aviso DON</h2>
+        <p>Fracción XIII - Donativos</p>
+      </div>
+      <a class="btn btn-outline-light btn-sm" href="operaciones_pld.php"><i class="fa-solid fa-arrow-left me-1"></i> Volver</a>
     </div>
-    <div id="kyc_info" class="don-note mt-2"></div>
   </div>
 
-  <div class="don-card">
-    <h6 class="mb-3">2) Datos del aviso</h6>
+  <div class="don-progress" aria-label="Progreso DON">
+    <div class="don-step active"><div class="don-step-num">1</div><div>Cliente</div></div>
+    <div class="don-step active"><div class="don-step-num">2</div><div>Aviso</div></div>
+    <div class="don-step active"><div class="don-step-num">3</div><div>Persona</div></div>
+    <div class="don-step active"><div class="don-step-num">4</div><div>Beneficiario</div></div>
+    <div class="don-step active"><div class="don-step-num">5</div><div>Detalle DON</div></div>
+  </div>
+
+  <div class="alert alert-info">Umbral de identificacion: <code>1,605 UMA</code>. Umbral de aviso/acumulacion: <code>3,210 UMA</code>.</div>
+
+<form id="formDON" novalidate>
+  <div class="don-card" id="sec-cliente">
+    <div class="don-card-header" onclick="toggleDonCard(this)">
+      <div class="don-icon don-icon-cliente"><i class="fa-solid fa-user"></i></div>
+      <div><h5>Cliente e informe</h5><small>Datos generales del sujeto obligado</small></div>
+      <i class="fa-solid fa-chevron-down don-chevron"></i>
+    </div>
+    <div class="don-card-body">
     <div class="row g-3">
-      <div class="col-md-3"><label class="form-label">Referencia aviso *</label><input id="referencia_aviso" class="form-control text-uppercase" maxlength="14" required></div>
-      <div class="col-md-2"><label class="form-label">Prioridad *</label><select id="prioridad" class="form-select" required><?= donCatalogoOptions('prioridad', '1', null, false) ?></select></div>
-      <div class="col-md-3"><label class="form-label">Tipo alerta *</label><select id="tipo_alerta" class="form-select" required><?= donCatalogoOptions('tipo_alerta', '100') ?></select></div>
-      <div class="col-md-4"><label class="form-label">Descripcion alerta</label><input id="descripcion_alerta" class="form-control text-uppercase" maxlength="3000"></div>
+      <div class="col-xl-5 col-lg-6 col-md-12"><label class="form-label">Cliente *</label><select id="id_cliente" class="form-select" required><option value="">-- Seleccione cliente --</option></select></div>
+      <div class="col-xl-2 col-lg-3 col-md-4"><label class="form-label">Mes reportado *</label><input id="mes_reportado" class="form-control" maxlength="6" value="<?= date('Ym') ?>" placeholder="202603" inputmode="numeric" required></div>
+      <div class="col-xl-3 col-lg-5 col-md-8"><label class="form-label">Clave sujeto obligado *</label><input id="clave_sujeto_obligado" class="form-control text-uppercase" maxlength="13" value="<?= htmlspecialchars($claveSO) ?>" placeholder="ABCD900101XY1" required></div>
+      <div class="col-xl-2 col-lg-2 col-md-4"><label class="form-label">Actividad</label><input class="form-control" value="DON" readonly></div>
+      <div class="col-xl-2 col-lg-3 col-md-4"><label class="form-label">Exento</label><select id="exento" class="form-select"><?= donCatalogoOptions('exento', '0', null, false) ?></select></div>
+      <div class="col-xl-4 col-lg-5 col-md-8"><label class="form-label">Clave entidad colegiada</label><input id="clave_entidad_colegiada" class="form-control text-uppercase" maxlength="12" placeholder="ABC900101A1B"></div>
+    </div>
+    <div id="kyc_info" class="don-note mt-2"></div>
+    </div>
+  </div>
+
+  <div class="don-card" id="sec-aviso">
+    <div class="don-card-header" onclick="toggleDonCard(this)">
+      <div class="don-icon don-icon-aviso"><i class="fa-solid fa-bell"></i></div>
+      <div><h5>Datos del aviso</h5><small>Referencia, prioridad y alerta</small></div>
+      <i class="fa-solid fa-chevron-down don-chevron"></i>
+    </div>
+    <div class="don-card-body">
+    <div class="row g-3">
+      <div class="col-lg-3 col-md-6"><label class="form-label">Referencia aviso *</label><input id="referencia_aviso" class="form-control text-uppercase" maxlength="14" placeholder="REF20260001" required></div>
+      <div class="col-lg-2 col-md-3"><label class="form-label">Prioridad *</label><select id="prioridad" class="form-select" required><?= donCatalogoOptions('prioridad', '1', null, false) ?></select></div>
+      <div class="col-lg-3 col-md-6"><label class="form-label">Tipo alerta *</label><select id="tipo_alerta" class="form-select" required><?= donCatalogoOptions('tipo_alerta', '100') ?></select></div>
+      <div class="col-lg-4 col-md-12"><label class="form-label">Descripcion alerta</label><input id="descripcion_alerta" class="form-control text-uppercase" maxlength="3000" placeholder="Ej. MOVIMIENTOS INUSUALES DEL DONANTE"></div>
     </div>
     <div class="form-check mt-3"><input id="es_modificatorio" class="form-check-input" type="checkbox"><label class="form-check-label" for="es_modificatorio">Aviso modificatorio</label></div>
     <div id="modif_wrap" class="row g-3 mt-1 don-hidden">
-      <div class="col-md-4"><label class="form-label">Folio modificacion *</label><input id="folio_modificacion" class="form-control text-uppercase" maxlength="14"></div>
-      <div class="col-md-8"><label class="form-label">Descripcion modificacion *</label><input id="descripcion_modificacion" class="form-control text-uppercase" maxlength="3000"></div>
+      <div class="col-lg-4 col-md-6"><label class="form-label">Folio modificacion *</label><input id="folio_modificacion" class="form-control text-uppercase" maxlength="14" placeholder="2026-12345"></div>
+      <div class="col-lg-8 col-md-12"><label class="form-label">Descripcion modificacion *</label><input id="descripcion_modificacion" class="form-control text-uppercase" maxlength="3000" placeholder="Ej. CORRECCION DE DATOS DEL DONANTE"></div>
+    </div>
     </div>
   </div>
 
-  <div class="don-card">
-    <h6 class="mb-3">3) Persona aviso, domicilio y contacto</h6>
+  <div class="don-card" id="sec-persona">
+    <div class="don-card-header" onclick="toggleDonCard(this)">
+      <div class="don-icon don-icon-persona"><i class="fa-solid fa-users"></i></div>
+      <div><h5>Persona aviso, domicilio y contacto</h5><small>Captura de una o varias personas del aviso</small></div>
+      <i class="fa-solid fa-chevron-down don-chevron"></i>
+    </div>
+    <div class="don-card-body">
     <div class="row g-3">
-      <div class="col-md-3"><label class="form-label">Tipo persona *</label><select id="persona_tipo" class="form-select"><option value="fisica">Fisica</option><option value="moral">Moral</option><option value="fideicomiso">Fideicomiso</option></select></div>
-      <div class="col-md-3"><label class="form-label">Tipo domicilio *</label><select id="domicilio_tipo" class="form-select"><option value="nacional">Nacional</option><option value="extranjero">Extranjero</option></select></div>
+      <div class="col-lg-3 col-md-6"><label class="form-label">Tipo persona *</label><select id="persona_tipo" class="form-select"><option value="fisica">Fisica</option><option value="moral">Moral</option><option value="fideicomiso">Fideicomiso</option></select></div>
+      <div class="col-lg-3 col-md-6"><label class="form-label">Tipo domicilio *</label><select id="domicilio_tipo" class="form-select"><option value="nacional">Nacional</option><option value="extranjero">Extranjero</option></select></div>
     </div>
 
     <div id="pf_wrap" class="mt-3">
       <div class="row g-3">
-        <div class="col-md-4"><label class="form-label">Nombre *</label><input id="pf_nombre" class="form-control text-uppercase"></div>
-        <div class="col-md-4"><label class="form-label">Apellido paterno *</label><input id="pf_ap" class="form-control text-uppercase"></div>
-        <div class="col-md-4"><label class="form-label">Apellido materno *</label><input id="pf_am" class="form-control text-uppercase"></div>
-        <div class="col-md-3"><label class="form-label">Fecha nacimiento</label><input id="pf_fn" type="date" class="form-control"></div>
-        <div class="col-md-3"><label class="form-label">RFC</label><input id="pf_rfc" class="form-control text-uppercase" maxlength="13"></div>
-        <div class="col-md-3"><label class="form-label">CURP</label><input id="pf_curp" class="form-control text-uppercase" maxlength="18"></div>
-        <div class="col-md-3"><label class="form-label">Pais *</label><select id="pf_pais" class="form-select"><?= donCatalogoOptions('pais', 'MX') ?></select></div>
-        <div class="col-md-4"><label class="form-label">Actividad economica *</label><select id="pf_act" class="form-select"><?= donCatalogoOptions('actividad_economica', '1000000') ?></select></div>
+        <div class="col-lg-4 col-md-6"><label class="form-label">Nombre *</label><input id="pf_nombre" class="form-control text-uppercase" placeholder="JUAN CARLOS"></div>
+        <div class="col-lg-4 col-md-6"><label class="form-label">Apellido paterno *</label><input id="pf_ap" class="form-control text-uppercase" placeholder="PEREZ"></div>
+        <div class="col-lg-4 col-md-6"><label class="form-label">Apellido materno *</label><input id="pf_am" class="form-control text-uppercase" placeholder="GARCIA"></div>
+        <div class="col-lg-3 col-md-4"><label class="form-label">Fecha nacimiento</label><input id="pf_fn" type="date" class="form-control" placeholder="1990-05-16"></div>
+        <div class="col-lg-3 col-md-4"><label class="form-label">RFC</label><input id="pf_rfc" class="form-control text-uppercase" maxlength="13" placeholder="PEGJ780219R56"></div>
+        <div class="col-lg-3 col-md-4"><label class="form-label">CURP</label><input id="pf_curp" class="form-control text-uppercase" maxlength="18" placeholder="PEGJ780219HDFRRS09"></div>
+        <div class="col-lg-3 col-md-4"><label class="form-label">Pais *</label><select id="pf_pais" class="form-select"><?= donCatalogoOptions('pais', 'MX') ?></select></div>
+        <div class="col-lg-6 col-md-8"><label class="form-label">Actividad economica *</label><select id="pf_act" class="form-select"><?= donCatalogoOptions('actividad_economica', '1000000') ?></select></div>
       </div>
     </div>
 
     <div id="pm_wrap" class="mt-3 don-hidden">
       <div class="row g-3">
-        <div class="col-md-6"><label class="form-label">Denominacion / Razon *</label><input id="pm_den" class="form-control text-uppercase"></div>
-        <div class="col-md-3"><label class="form-label">Fecha constitucion</label><input id="pm_fc" type="date" class="form-control"></div>
-        <div class="col-md-3"><label class="form-label">RFC</label><input id="pm_rfc" class="form-control text-uppercase" maxlength="12"></div>
-        <div class="col-md-3"><label class="form-label">Pais *</label><select id="pm_pais" class="form-select"><?= donCatalogoOptions('pais', 'MX') ?></select></div>
-        <div class="col-md-6"><label class="form-label">Giro mercantil *</label><select id="pm_giro" class="form-select"><?= donCatalogoOptions('giro_mercantil', '1000000') ?></select></div>
+        <div class="col-lg-6 col-md-8"><label class="form-label">Denominacion / Razon *</label><input id="pm_den" class="form-control text-uppercase" placeholder="ASOCIACION DONA VIDA A.C."></div>
+        <div class="col-lg-3 col-md-4"><label class="form-label">Fecha constitucion</label><input id="pm_fc" type="date" class="form-control" placeholder="2018-05-16"></div>
+        <div class="col-lg-3 col-md-4"><label class="form-label">RFC</label><input id="pm_rfc" class="form-control text-uppercase" maxlength="12" placeholder="ASF950516ABC"></div>
+        <div class="col-lg-3 col-md-4"><label class="form-label">Pais *</label><select id="pm_pais" class="form-select"><?= donCatalogoOptions('pais', 'MX') ?></select></div>
+        <div class="col-lg-6 col-md-8"><label class="form-label">Giro mercantil *</label><select id="pm_giro" class="form-select"><?= donCatalogoOptions('giro_mercantil', '1000000') ?></select></div>
       </div>
-      <div class="border rounded p-3 mt-3">
+      <div class="don-subcard">
         <h6 class="mb-2">Representante / Apoderado</h6>
         <div class="row g-3">
-          <div class="col-md-4"><label class="form-label">Nombre *</label><input id="pm_rn" class="form-control text-uppercase"></div>
-          <div class="col-md-4"><label class="form-label">Apellido paterno *</label><input id="pm_rap" class="form-control text-uppercase"></div>
-          <div class="col-md-4"><label class="form-label">Apellido materno *</label><input id="pm_ram" class="form-control text-uppercase"></div>
-          <div class="col-md-3"><label class="form-label">Fecha nacimiento</label><input id="pm_rfn" type="date" class="form-control"></div>
-          <div class="col-md-3"><label class="form-label">RFC</label><input id="pm_rrfc" class="form-control text-uppercase" maxlength="13"></div>
-          <div class="col-md-3"><label class="form-label">CURP</label><input id="pm_rcurp" class="form-control text-uppercase" maxlength="18"></div>
+          <div class="col-lg-4 col-md-6"><label class="form-label">Nombre *</label><input id="pm_rn" class="form-control text-uppercase" placeholder="JUAN MANUEL"></div>
+          <div class="col-lg-4 col-md-6"><label class="form-label">Apellido paterno *</label><input id="pm_rap" class="form-control text-uppercase" placeholder="LOPEZ"></div>
+          <div class="col-lg-4 col-md-6"><label class="form-label">Apellido materno *</label><input id="pm_ram" class="form-control text-uppercase" placeholder="MARTINEZ"></div>
+          <div class="col-lg-3 col-md-4"><label class="form-label">Fecha nacimiento</label><input id="pm_rfn" type="date" class="form-control" placeholder="1988-03-22"></div>
+          <div class="col-lg-3 col-md-4"><label class="form-label">RFC</label><input id="pm_rrfc" class="form-control text-uppercase" maxlength="13" placeholder="LOMJ880322AB1"></div>
+          <div class="col-lg-3 col-md-4"><label class="form-label">CURP</label><input id="pm_rcurp" class="form-control text-uppercase" maxlength="18" placeholder="LOMJ880322HDFPRN01"></div>
         </div>
       </div>
     </div>
 
     <div id="fi_wrap" class="mt-3 don-hidden">
       <div class="row g-3">
-        <div class="col-md-6"><label class="form-label">Denominacion fiduciario *</label><input id="fi_den" class="form-control text-uppercase"></div>
-        <div class="col-md-3"><label class="form-label">RFC fideicomiso</label><input id="fi_rfc" class="form-control text-uppercase" maxlength="12"></div>
-        <div class="col-md-3"><label class="form-label">Identificador fideicomiso</label><input id="fi_id" class="form-control text-uppercase" maxlength="40"></div>
+        <div class="col-lg-6 col-md-8"><label class="form-label">Denominacion fiduciario *</label><input id="fi_den" class="form-control text-uppercase" placeholder="FIDEICOMISO APOYO SOCIAL"></div>
+        <div class="col-lg-3 col-md-4"><label class="form-label">RFC fideicomiso</label><input id="fi_rfc" class="form-control text-uppercase" maxlength="12" placeholder="FID901010ABC"></div>
+        <div class="col-lg-3 col-md-4"><label class="form-label">Identificador fideicomiso</label><input id="fi_id" class="form-control text-uppercase" maxlength="40" placeholder="FID-2026-001"></div>
       </div>
-      <div class="border rounded p-3 mt-3">
+      <div class="don-subcard">
         <h6 class="mb-2">Apoderado / Delegado fiduciario</h6>
         <div class="row g-3">
-          <div class="col-md-4"><label class="form-label">Nombre *</label><input id="fi_an" class="form-control text-uppercase"></div>
-          <div class="col-md-4"><label class="form-label">Apellido paterno *</label><input id="fi_aap" class="form-control text-uppercase"></div>
-          <div class="col-md-4"><label class="form-label">Apellido materno *</label><input id="fi_aam" class="form-control text-uppercase"></div>
-          <div class="col-md-3"><label class="form-label">Fecha nacimiento</label><input id="fi_afn" type="date" class="form-control"></div>
-          <div class="col-md-3"><label class="form-label">RFC</label><input id="fi_arfc" class="form-control text-uppercase" maxlength="13"></div>
-          <div class="col-md-3"><label class="form-label">CURP</label><input id="fi_acurp" class="form-control text-uppercase" maxlength="18"></div>
+          <div class="col-lg-4 col-md-6"><label class="form-label">Nombre *</label><input id="fi_an" class="form-control text-uppercase" placeholder="MARIA FERNANDA"></div>
+          <div class="col-lg-4 col-md-6"><label class="form-label">Apellido paterno *</label><input id="fi_aap" class="form-control text-uppercase" placeholder="HERNANDEZ"></div>
+          <div class="col-lg-4 col-md-6"><label class="form-label">Apellido materno *</label><input id="fi_aam" class="form-control text-uppercase" placeholder="SILVA"></div>
+          <div class="col-lg-3 col-md-4"><label class="form-label">Fecha nacimiento</label><input id="fi_afn" type="date" class="form-control" placeholder="1991-10-09"></div>
+          <div class="col-lg-3 col-md-4"><label class="form-label">RFC</label><input id="fi_arfc" class="form-control text-uppercase" maxlength="13" placeholder="HESM9110099A1"></div>
+          <div class="col-lg-3 col-md-4"><label class="form-label">CURP</label><input id="fi_acurp" class="form-control text-uppercase" maxlength="18" placeholder="HESM911009MDFRRL08"></div>
         </div>
       </div>
     </div>
@@ -149,31 +231,31 @@ include 'templates/header.php';
     <hr>
     <div id="dom_nac">
       <div class="row g-3">
-        <div class="col-md-4"><label class="form-label">Colonia *</label><input id="dn_col" class="form-control text-uppercase"></div>
-        <div class="col-md-4"><label class="form-label">Calle *</label><input id="dn_calle" class="form-control text-uppercase"></div>
-        <div class="col-md-2"><label class="form-label">Numero exterior *</label><input id="dn_ne" class="form-control text-uppercase"></div>
-        <div class="col-md-2"><label class="form-label">Numero interior</label><input id="dn_ni" class="form-control text-uppercase"></div>
-        <div class="col-md-2"><label class="form-label">Codigo postal *</label><input id="dn_cp" class="form-control" maxlength="5"></div>
+        <div class="col-lg-4 col-md-6"><label class="form-label">Colonia *</label><input id="dn_col" class="form-control text-uppercase" placeholder="AXOTLA"></div>
+        <div class="col-lg-4 col-md-6"><label class="form-label">Calle *</label><input id="dn_calle" class="form-control text-uppercase" placeholder="INSURGENTES SUR"></div>
+        <div class="col-lg-2 col-md-4"><label class="form-label">Numero exterior *</label><input id="dn_ne" class="form-control text-uppercase" placeholder="785"></div>
+        <div class="col-lg-2 col-md-4"><label class="form-label">Numero interior</label><input id="dn_ni" class="form-control text-uppercase" placeholder="B45"></div>
+        <div class="col-lg-2 col-md-4"><label class="form-label">Codigo postal *</label><input id="dn_cp" class="form-control" maxlength="5" placeholder="01030" inputmode="numeric"></div>
       </div>
     </div>
 
     <div id="dom_ext" class="don-hidden">
       <div class="row g-3">
-        <div class="col-md-3"><label class="form-label">Pais *</label><select id="de_pais" class="form-select"><?= donCatalogoOptions('pais', 'US') ?></select></div>
-        <div class="col-md-3"><label class="form-label">Estado / Provincia *</label><input id="de_est" class="form-control text-uppercase"></div>
-        <div class="col-md-3"><label class="form-label">Ciudad / Poblacion *</label><input id="de_cd" class="form-control text-uppercase"></div>
-        <div class="col-md-3"><label class="form-label">Colonia *</label><input id="de_col" class="form-control text-uppercase"></div>
-        <div class="col-md-4"><label class="form-label">Calle *</label><input id="de_calle" class="form-control text-uppercase"></div>
-        <div class="col-md-2"><label class="form-label">Numero exterior *</label><input id="de_ne" class="form-control text-uppercase"></div>
-        <div class="col-md-2"><label class="form-label">Numero interior</label><input id="de_ni" class="form-control text-uppercase"></div>
-        <div class="col-md-2"><label class="form-label">Codigo postal *</label><input id="de_cp" class="form-control text-uppercase" maxlength="12"></div>
+        <div class="col-lg-3 col-md-6"><label class="form-label">Pais *</label><select id="de_pais" class="form-select"><?= donCatalogoOptions('pais', 'US') ?></select></div>
+        <div class="col-lg-3 col-md-6"><label class="form-label">Estado / Provincia *</label><input id="de_est" class="form-control text-uppercase" placeholder="MUNICH"></div>
+        <div class="col-lg-3 col-md-6"><label class="form-label">Ciudad / Poblacion *</label><input id="de_cd" class="form-control text-uppercase" placeholder="MUNICH"></div>
+        <div class="col-lg-3 col-md-6"><label class="form-label">Colonia *</label><input id="de_col" class="form-control text-uppercase" placeholder="CENTRO"></div>
+        <div class="col-lg-4 col-md-6"><label class="form-label">Calle *</label><input id="de_calle" class="form-control text-uppercase" placeholder="STURGENSSEN"></div>
+        <div class="col-lg-2 col-md-4"><label class="form-label">Numero exterior *</label><input id="de_ne" class="form-control text-uppercase" placeholder="45"></div>
+        <div class="col-lg-2 col-md-4"><label class="form-label">Numero interior</label><input id="de_ni" class="form-control text-uppercase" placeholder="A"></div>
+        <div class="col-lg-2 col-md-4"><label class="form-label">Codigo postal *</label><input id="de_cp" class="form-control text-uppercase" maxlength="12" placeholder="115501"></div>
       </div>
     </div>
 
     <div class="row g-3 mt-1">
       <div class="col-md-3"><label class="form-label">Clave pais telefono</label><select id="tel_pais" class="form-select"><?= donCatalogoOptions('pais', 'MX') ?></select></div>
-      <div class="col-md-3"><label class="form-label">Telefono</label><input id="tel_num" class="form-control" maxlength="12"></div>
-      <div class="col-md-6"><label class="form-label">Correo electronico</label><input id="tel_mail" class="form-control text-uppercase" maxlength="60"></div>
+      <div class="col-md-3"><label class="form-label">Telefono</label><input id="tel_num" class="form-control" maxlength="12" placeholder="5512345678" inputmode="numeric"></div>
+      <div class="col-md-6"><label class="form-label">Correo electronico</label><input id="tel_mail" class="form-control text-uppercase" maxlength="60" placeholder="DONANTE@MAIL.COM"></div>
     </div>
     <div class="d-flex flex-wrap gap-2 align-items-center mt-3">
       <button type="button" id="btn_add_persona" class="btn btn-outline-success btn-sm"><i class="fa-solid fa-user-plus me-1"></i>Agregar persona al aviso</button>
@@ -181,74 +263,90 @@ include 'templates/header.php';
       <span class="don-note">Puedes registrar varias personas en el mismo aviso DON.</span>
     </div>
     <div id="personas_list" class="mt-3"></div>
+    </div>
   </div>
 
-  <div class="don-card">
-    <h6 class="mb-3">4) Dueno beneficiario (opcional)</h6>
+  <div class="don-card" id="sec-beneficiario">
+    <div class="don-card-header" onclick="toggleDonCard(this)">
+      <div class="don-icon don-icon-benef"><i class="fa-solid fa-user-shield"></i></div>
+      <div><h5>Dueño beneficiario (opcional)</h5><small>Información de beneficiario final del aviso</small></div>
+      <i class="fa-solid fa-chevron-down don-chevron"></i>
+    </div>
+    <div class="don-card-body">
     <div class="form-check mb-2"><input id="db_on" class="form-check-input" type="checkbox"><label class="form-check-label" for="db_on">Capturar dueno beneficiario</label></div>
     <div id="db_wrap" class="don-hidden">
       <div class="row g-3"><div class="col-md-3"><label class="form-label">Tipo</label><select id="db_tipo" class="form-select"><option value="fisica">Fisica</option><option value="moral">Moral</option><option value="fideicomiso">Fideicomiso</option></select></div></div>
       <div id="db_fisica" class="mt-2">
         <div class="row g-3">
-          <div class="col-md-4"><label class="form-label">Nombre *</label><input id="db_f_nom" class="form-control text-uppercase"></div>
-          <div class="col-md-4"><label class="form-label">Apellido paterno *</label><input id="db_f_ap" class="form-control text-uppercase"></div>
-          <div class="col-md-4"><label class="form-label">Apellido materno *</label><input id="db_f_am" class="form-control text-uppercase"></div>
-          <div class="col-md-3"><label class="form-label">Fecha nacimiento</label><input id="db_f_fecha" type="date" class="form-control"></div>
-          <div class="col-md-3"><label class="form-label">RFC</label><input id="db_f_rfc" class="form-control text-uppercase" maxlength="13"></div>
-          <div class="col-md-3"><label class="form-label">CURP</label><input id="db_f_curp" class="form-control text-uppercase" maxlength="18"></div>
+          <div class="col-lg-4 col-md-6"><label class="form-label">Nombre *</label><input id="db_f_nom" class="form-control text-uppercase" placeholder="RODRIGO"></div>
+          <div class="col-lg-4 col-md-6"><label class="form-label">Apellido paterno *</label><input id="db_f_ap" class="form-control text-uppercase" placeholder="SUAREZ"></div>
+          <div class="col-lg-4 col-md-6"><label class="form-label">Apellido materno *</label><input id="db_f_am" class="form-control text-uppercase" placeholder="MORALES"></div>
+          <div class="col-lg-3 col-md-4"><label class="form-label">Fecha nacimiento</label><input id="db_f_fecha" type="date" class="form-control" placeholder="1992-11-08"></div>
+          <div class="col-lg-3 col-md-4"><label class="form-label">RFC</label><input id="db_f_rfc" class="form-control text-uppercase" maxlength="13" placeholder="SUMR921108AA1"></div>
+          <div class="col-lg-3 col-md-4"><label class="form-label">CURP</label><input id="db_f_curp" class="form-control text-uppercase" maxlength="18" placeholder="SUMR921108HDFRDL06"></div>
           <div class="col-md-3"><label class="form-label">Pais</label><select id="db_f_pais" class="form-select"><?= donCatalogoOptions('pais', 'MX') ?></select></div>
         </div>
       </div>
       <div id="db_moral" class="mt-2 don-hidden">
         <div class="row g-3">
-          <div class="col-md-6"><label class="form-label">Denominacion / Razon *</label><input id="db_m_den" class="form-control text-uppercase"></div>
-          <div class="col-md-3"><label class="form-label">Fecha constitucion</label><input id="db_m_fc" type="date" class="form-control"></div>
-          <div class="col-md-3"><label class="form-label">RFC</label><input id="db_m_rfc" class="form-control text-uppercase" maxlength="12"></div>
+          <div class="col-md-6"><label class="form-label">Denominacion / Razon *</label><input id="db_m_den" class="form-control text-uppercase" placeholder="FUNDACION AYUDA TOTAL"></div>
+          <div class="col-md-3"><label class="form-label">Fecha constitucion</label><input id="db_m_fc" type="date" class="form-control" placeholder="2010-01-15"></div>
+          <div class="col-md-3"><label class="form-label">RFC</label><input id="db_m_rfc" class="form-control text-uppercase" maxlength="12" placeholder="FAT100115AB1"></div>
           <div class="col-md-3"><label class="form-label">Pais</label><select id="db_m_pais" class="form-select"><?= donCatalogoOptions('pais', 'MX') ?></select></div>
         </div>
       </div>
       <div id="db_fide" class="mt-2 don-hidden">
         <div class="row g-3">
-          <div class="col-md-6"><label class="form-label">Denominacion / Razon *</label><input id="db_t_den" class="form-control text-uppercase"></div>
-          <div class="col-md-3"><label class="form-label">RFC</label><input id="db_t_rfc" class="form-control text-uppercase" maxlength="12"></div>
-          <div class="col-md-3"><label class="form-label">Identificador *</label><input id="db_t_id" class="form-control text-uppercase" maxlength="40"></div>
+          <div class="col-md-6"><label class="form-label">Denominacion / Razon *</label><input id="db_t_den" class="form-control text-uppercase" placeholder="FIDEICOMISO BENEFICIARIO"></div>
+          <div class="col-md-3"><label class="form-label">RFC</label><input id="db_t_rfc" class="form-control text-uppercase" maxlength="12" placeholder="FIB901201ABC"></div>
+          <div class="col-md-3"><label class="form-label">Identificador *</label><input id="db_t_id" class="form-control text-uppercase" maxlength="40" placeholder="FDB-2026-009"></div>
         </div>
       </div>
     </div>
+    </div>
   </div>
 
-  <div class="don-card">
-    <h6 class="mb-3">5) Detalle de operacion DON</h6>
-    <div class="row g-3">
-      <div class="col-md-3"><label class="form-label">Fecha operacion *</label><input id="op_fecha" type="date" class="form-control" value="<?= date('Y-m-d') ?>"></div>
-      <div class="col-md-3"><label class="form-label">CP sucursal *</label><input id="op_cp" class="form-control" maxlength="5"></div>
-      <div class="col-md-4"><label class="form-label">Tipo operacion *</label><select id="op_tipo" class="form-select"><?= donCatalogoOptions('tipo_operacion', '1301') ?></select></div>
+  <div class="don-card" id="sec-detalle">
+    <div class="don-card-header" onclick="toggleDonCard(this)">
+      <div class="don-icon don-icon-detalle"><i class="fa-solid fa-file-invoice-dollar"></i></div>
+      <div><h5>Detalle de operación DON</h5><small>Datos de la operación y tipo de donativo</small></div>
+      <i class="fa-solid fa-chevron-down don-chevron"></i>
     </div>
-    <div class="row g-3 mt-1"><div class="col-md-3"><label class="form-label">Clase donativo *</label><select id="don_clase" class="form-select"><option value="numerario">Numerario</option><option value="especie">Especie</option></select></div></div>
+    <div class="don-card-body">
+    <div class="row g-3">
+      <div class="col-lg-3 col-md-4"><label class="form-label">Fecha operacion *</label><input id="op_fecha" type="date" class="form-control" value="<?= date('Y-m-d') ?>" placeholder="2026-03-24"></div>
+      <div class="col-lg-3 col-md-4"><label class="form-label">CP sucursal *</label><input id="op_cp" class="form-control" maxlength="5" placeholder="01030" inputmode="numeric"></div>
+      <div class="col-lg-4 col-md-6"><label class="form-label">Tipo operacion *</label><select id="op_tipo" class="form-select"><?= donCatalogoOptions('tipo_operacion', '1301') ?></select></div>
+    </div>
+    <div class="row g-3 mt-1"><div class="col-lg-3 col-md-4"><label class="form-label">Clase donativo *</label><select id="don_clase" class="form-select"><option value="numerario">Numerario</option><option value="especie">Especie</option></select></div></div>
     <div id="don_num" class="mt-2">
       <div class="row g-3">
-        <div class="col-md-3"><label class="form-label">Fecha pago *</label><input id="num_fp" type="date" class="form-control" value="<?= date('Y-m-d') ?>"></div>
-        <div class="col-md-3"><label class="form-label">Instrumento monetario *</label><select id="num_inst" class="form-select"><?= donCatalogoOptions('instrumento_monetario') ?></select></div>
-        <div class="col-md-3"><label class="form-label">Moneda *</label><select id="num_moneda" class="form-select"><?= donCatalogoOptions('moneda', '147') ?></select></div>
-        <div class="col-md-3"><label class="form-label">Monto *</label><input id="num_monto" type="number" class="form-control" step="0.01" min="0.01" value="0.00"></div>
+        <div class="col-lg-3 col-md-4"><label class="form-label">Fecha pago *</label><input id="num_fp" type="date" class="form-control" value="<?= date('Y-m-d') ?>" placeholder="2026-03-24"></div>
+        <div class="col-lg-3 col-md-4"><label class="form-label">Instrumento monetario *</label><select id="num_inst" class="form-select"><?= donCatalogoOptions('instrumento_monetario') ?></select></div>
+        <div class="col-lg-3 col-md-4"><label class="form-label">Moneda *</label><select id="num_moneda" class="form-select"><?= donCatalogoOptions('moneda', '147') ?></select></div>
+        <div class="col-lg-3 col-md-4"><label class="form-label">Monto *</label><input id="num_monto" type="number" class="form-control" step="0.01" min="0.01" value="0.00" placeholder="175847.00"></div>
       </div>
     </div>
     <div id="don_esp" class="mt-2 don-hidden">
       <div class="row g-3">
-        <div class="col-md-3"><label class="form-label">Monto especie *</label><input id="esp_monto" type="number" class="form-control" step="0.01" min="0.01" value="0.00"></div>
+        <div class="col-md-3"><label class="form-label">Monto especie *</label><input id="esp_monto" type="number" class="form-control" step="0.01" min="0.01" value="0.00" placeholder="14500.00"></div>
         <div class="col-md-3"><label class="form-label">Moneda *</label><select id="esp_moneda" class="form-select"><?= donCatalogoOptions('moneda', '147') ?></select></div>
         <div class="col-md-3"><label class="form-label">Bien donado *</label><select id="esp_bien" class="form-select"><?= donCatalogoOptions('bien_donado') ?></select></div>
       </div>
       <div id="inm_wrap" class="row g-3 mt-1 don-hidden">
         <div class="col-md-3"><label class="form-label">Tipo inmueble *</label><select id="inm_tipo" class="form-select"><?= donCatalogoOptions('tipo_inmueble') ?></select></div>
-        <div class="col-md-3"><label class="form-label">CP inmueble *</label><input id="inm_cp" class="form-control" maxlength="5"></div>
+        <div class="col-md-3"><label class="form-label">CP inmueble *</label><input id="inm_cp" class="form-control" maxlength="5" placeholder="01030" inputmode="numeric"></div>
         <div class="col-md-6"><label class="form-label">Folio real / antecedentes *</label><input id="inm_folio" class="form-control text-uppercase" maxlength="200" placeholder="Si no existe, capture XXXX"></div>
       </div>
-      <div id="otro_wrap" class="mt-2 don-hidden"><label class="form-label">Descripcion del bien donado *</label><textarea id="otro_desc" class="form-control text-uppercase" rows="2" maxlength="3000"></textarea></div>
+      <div id="otro_wrap" class="mt-2 don-hidden"><label class="form-label">Descripcion del bien donado *</label><textarea id="otro_desc" class="form-control text-uppercase" rows="2" maxlength="3000" placeholder="EJ. MONUMENTO DE BRONCE"></textarea></div>
+    </div>
     </div>
   </div>
 
-  <div class="text-end mb-4"><button type="submit" class="btn btn-success"><i class="fa-solid fa-floppy-disk me-1"></i> Registrar aviso DON</button></div>
+  <div class="don-submit-bar mb-4">
+    <a href="operaciones_pld.php" class="btn btn-outline-secondary">Cancelar</a>
+    <button type="submit" class="btn btn-primary"><i class="fa-solid fa-floppy-disk me-1"></i> Registrar aviso DON</button>
+  </div>
 </form>
 </div>
 </div>
@@ -266,6 +364,14 @@ const isMonth6 = x => /^[2-9]\d{3}(0[1-9]|1[0-2])$/.test(x);
 
 let personasAviso = [];
 let personaEditIndex = null;
+
+function toggleDonCard(header) {
+  const card = header?.closest('.don-card');
+  const body = card?.querySelector('.don-card-body');
+  if (!body) return;
+  const collapsed = header.classList.toggle('collapsed');
+  body.style.display = collapsed ? 'none' : '';
+}
 
 function setPersonaActionButton() {
   const btn = q('btn_add_persona');
@@ -294,6 +400,51 @@ function date8ToInput(value) {
 
 function deepClone(obj) {
   return JSON.parse(JSON.stringify(obj));
+}
+
+function bindInputMask(id, formatter) {
+  const el = q(id);
+  if (!el || typeof formatter !== 'function') return;
+  const apply = () => {
+    const old = el.value;
+    const next = formatter(old);
+    if (old !== next) el.value = next;
+  };
+  el.addEventListener('input', apply);
+  el.addEventListener('blur', apply);
+  apply();
+}
+
+function setupInputMasks() {
+  const digits = max => value => String(value || '').replace(/\D+/g, '').slice(0, max);
+  const upperAllowed = (max, regex) => value => up(value).replace(regex, '').slice(0, max);
+
+  bindInputMask('mes_reportado', digits(6));
+  bindInputMask('op_cp', digits(5));
+  bindInputMask('dn_cp', digits(5));
+  bindInputMask('inm_cp', digits(5));
+  bindInputMask('tel_num', digits(12));
+
+  bindInputMask('de_cp', upperAllowed(12, /[^A-Z0-9Ñ]/g));
+  bindInputMask('folio_modificacion', upperAllowed(14, /[^0-9-]/g));
+
+  bindInputMask('clave_sujeto_obligado', upperAllowed(13, /[^A-Z0-9Ñ&]/g));
+  bindInputMask('referencia_aviso', upperAllowed(14, /[^A-Z0-9Ñ]/g));
+  bindInputMask('clave_entidad_colegiada', upperAllowed(12, /[^A-Z0-9Ñ&]/g));
+
+  ['pf_rfc', 'pm_rrfc', 'fi_arfc', 'db_f_rfc'].forEach(id => bindInputMask(id, upperAllowed(13, /[^A-Z0-9Ñ&]/g)));
+  ['pm_rfc', 'fi_rfc', 'db_m_rfc', 'db_t_rfc'].forEach(id => bindInputMask(id, upperAllowed(12, /[^A-Z0-9Ñ&]/g)));
+  ['pf_curp', 'pm_rcurp', 'fi_acurp', 'db_f_curp'].forEach(id => bindInputMask(id, upperAllowed(18, /[^A-Z0-9]/g)));
+
+  ['pf_nombre', 'pf_ap', 'pf_am', 'pm_den', 'pm_rn', 'pm_rap', 'pm_ram', 'fi_den', 'fi_an', 'fi_aap', 'fi_aam',
+   'dn_col', 'dn_calle', 'dn_ne', 'dn_ni', 'de_est', 'de_cd', 'de_col', 'de_calle', 'de_ne', 'de_ni',
+   'db_f_nom', 'db_f_ap', 'db_f_am', 'db_m_den', 'db_t_den', 'db_t_id', 'inm_folio']
+    .forEach(id => bindInputMask(id, value => up(value)));
+
+  bindInputMask('tel_mail', upperAllowed(60, /[^A-Z0-9@._'\-]/g));
+  bindInputMask('descripcion_alerta', value => up(value).slice(0, 3000));
+  bindInputMask('descripcion_modificacion', value => up(value).slice(0, 3000));
+  bindInputMask('otro_desc', value => up(value).slice(0, 3000));
 }
 
 function tgPersona() {
@@ -748,6 +899,7 @@ function validateGeneral() {
 }
 
 document.addEventListener('DOMContentLoaded', async () => {
+  setupInputMasks();
   await loadClientes();
   q('id_cliente').addEventListener('change', loadKyc);
   q('persona_tipo').addEventListener('change', tgPersona);

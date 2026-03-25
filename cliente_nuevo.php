@@ -182,7 +182,7 @@ if (!$isPLDHabilitado) {
                                 <i class="fa-solid fa-calendar-plus"></i>
                                 Fecha Apertura*
                             </label>
-                            <input type="date" class="form-control" name="fecha_apertura" required>
+                            <input type="date" class="form-control" id="fecha_apertura" name="fecha_apertura" max="<?= date('Y-m-d') ?>" required>
                         </div>
                         <div class="col-md-6 mb-3">
                             <label class="form-label">
@@ -215,7 +215,7 @@ if (!$isPLDHabilitado) {
                                 <i class="fa-solid fa-calendar-times"></i>
                                 Fecha de Cancelación*
                             </label>
-                            <input type="date" class="form-control" name="fecha_baja">
+                            <input type="date" class="form-control" id="fecha_baja" name="fecha_baja">
                         </div>
                     </div>
                 </div>

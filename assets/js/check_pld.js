@@ -131,6 +131,15 @@ document.addEventListener('DOMContentLoaded', function() {
                     resultTitle.innerHTML = 'COINCIDENCIAS ENCONTRADAS';
                     
                     let html = '<p class="mb-3 fw-bold">Se encontraron posibles coincidencias en las siguientes listas:</p>';
+                    if (json.used_materno_fallback) {
+                        html = `
+                            <div class="alert alert-info py-2">
+                                <i class="fa-solid fa-circle-info me-2"></i>
+                                <strong>Búsqueda flexible aplicada:</strong>
+                                se reintentó sin apellido materno para ampliar coincidencias.
+                            </div>
+                        ` + html;
+                    }
                     
                     // Robust Parsing for Array of Arrays (PDF Structure)
                     const hits = Array.isArray(json.data) ? json.data : [json.data];
@@ -175,7 +184,18 @@ document.addEventListener('DOMContentLoaded', function() {
                     resultBox.className = 'result-box safe';
                     resultIcon.innerHTML = '<i class="fa-solid fa-check-circle fa-2x"></i>';
                     resultTitle.innerHTML = 'SIN COINCIDENCIAS';
-                    resultBody.innerHTML = '<p class="mb-0">La persona consultada no aparece en ninguna lista de riesgo, PEPs o bloqueados.</p>';
+                    if (json.used_materno_fallback) {
+                        resultBody.innerHTML = `
+                            <div class="alert alert-info py-2">
+                                <i class="fa-solid fa-circle-info me-2"></i>
+                                <strong>Búsqueda flexible aplicada:</strong>
+                                se reintentó sin apellido materno para ampliar coincidencias.
+                            </div>
+                            <p class="mb-0">La persona consultada no aparece en ninguna lista de riesgo, PEPs o bloqueados.</p>
+                        `;
+                    } else {
+                        resultBody.innerHTML = '<p class="mb-0">La persona consultada no aparece en ninguna lista de riesgo, PEPs o bloqueados.</p>';
+                    }
                 }
             } else {
                 if (json.quota) {

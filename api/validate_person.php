@@ -195,18 +195,73 @@ $postData = [
     "tipo_persona" => $tipo_persona, "tipo_busqueda" => "normal", "id_entidad" => "46000"
 ];
 
-$ch = curl_init();
-curl_setopt_array($ch, [
-    CURLOPT_URL => $endpoint, CURLOPT_RETURNTRANSFER => true, CURLOPT_POST => true,
-    CURLOPT_POSTFIELDS => http_build_query($postData),
-    CURLOPT_HTTPHEADER => ["x-api-key: $apiKey", "Content-Type: application/x-www-form-urlencoded"],
-    CURLOPT_SSL_VERIFYPEER => false, CURLOPT_TIMEOUT => 30
-]);
-$response = curl_exec($ch);
-$httpCode = curl_getinfo($ch, CURLINFO_HTTP_CODE);
-curl_close($ch);
+/**
+ * Ejecuta consulta al proveedor externo de listas.
+ * @return array{ok:bool,http:int,response:string|false}
+ */
+$runProviderSearch = function(array $payload) use ($endpoint, $apiKey) {
+    $chLocal = curl_init();
+    curl_setopt_array($chLocal, [
+        CURLOPT_URL => $endpoint, CURLOPT_RETURNTRANSFER => true, CURLOPT_POST => true,
+        CURLOPT_POSTFIELDS => http_build_query($payload),
+        CURLOPT_HTTPHEADER => ["x-api-key: $apiKey", "Content-Type: application/x-www-form-urlencoded"],
+        CURLOPT_SSL_VERIFYPEER => false, CURLOPT_TIMEOUT => 30
+    ]);
+    $respLocal = curl_exec($chLocal);
+    $httpLocal = curl_getinfo($chLocal, CURLINFO_HTTP_CODE);
+    curl_close($chLocal);
+    return [
+        'ok' => ($httpLocal >= 200 && $httpLocal < 300 && $respLocal !== false),
+        'http' => (int)$httpLocal,
+        'response' => $respLocal
+    ];
+};
 
-if ($httpCode < 200 || $httpCode >= 300 || $response === false) {
+/**
+ * Mapea respuesta del proveedor a estructura de hits estándar.
+ * @return array{found:bool,hits:array<int,array<string,mixed>>}
+ */
+$parseProviderHits = function($rawResponse) {
+    $jsonResponseLocal = json_decode((string)$rawResponse, true);
+    $hitsLocal = [];
+    $foundLocal = false;
+    if (json_last_error() === JSON_ERROR_NONE) {
+        $rawResult = $jsonResponseLocal['parameters']['result'] ?? $jsonResponseLocal['result'] ?? null;
+        if ($rawResult !== null) {
+            if (is_string($rawResult)) {
+                $decoded = json_decode($rawResult, true);
+                $resultData = (json_last_error() === JSON_ERROR_NONE) ? $decoded : $rawResult;
+            } else {
+                $resultData = $rawResult;
+            }
+
+            if (is_array($resultData) && !empty($resultData)) {
+                $rows = (isset($resultData[0]) && is_array($resultData[0])) ? $resultData : [$resultData];
+                foreach ($rows as $hit) {
+                    if (!is_array($hit)) continue;
+                    $hitsLocal[] = [
+                        'id' => $hit[0] ?? '',
+                        'nombreCompleto' => $hit[1] ?? 'Desconocido',
+                        'entidad' => $hit[2] ?? '',
+                        'puesto' => $hit[3] ?? '',
+                        'fecha' => $hit[4] ?? '',
+                        'lista' => $hit[5] ?? 'Desconocida',
+                        'estatus' => $hit[6] ?? '',
+                        'porcentaje' => $hit[7] ?? 0
+                    ];
+                }
+                $foundLocal = count($hitsLocal) > 0;
+            }
+        }
+    }
+    return ['found' => $foundLocal, 'hits' => $hitsLocal];
+};
+
+$providerResult = $runProviderSearch($postData);
+$response = $providerResult['response'];
+$httpCode = $providerResult['http'];
+
+if (!$providerResult['ok']) {
     echo json_encode([
         'status' => 'error',
         'message' => "API Error: HTTP $httpCode",
@@ -231,36 +286,37 @@ try {
 }
 
 // --- 5. PARSE RESPONSE ---
-$jsonResponse = json_decode($response, true);
-$mappedHits = [];
-$found = false;
+$parsedPrimary = $parseProviderHits($response);
+$mappedHits = $parsedPrimary['hits'];
+$found = $parsedPrimary['found'];
+$usedMaternoFallback = false;
 
-if (json_last_error() === JSON_ERROR_NONE) {
-    $rawResult = $jsonResponse['parameters']['result'] ?? $jsonResponse['result'] ?? null;
-    if ($rawResult !== null) {
-        if (is_string($rawResult)) {
-            $decoded = json_decode($rawResult, true);
-            $resultData = (json_last_error() === JSON_ERROR_NONE) ? $decoded : $rawResult;
-        } else { $resultData = $rawResult; }
-
-        if (is_array($resultData) && !empty($resultData)) {
-             $hits = (isset($resultData[0]) && is_array($resultData[0])) ? $resultData : [$resultData];
-             foreach ($hits as $hit) {
-                 if (is_array($hit)) {
-                     $mappedHits[] = [
-                         'id' => $hit[0] ?? '',
-                         'nombreCompleto' => $hit[1] ?? 'Desconocido',
-                         'entidad' => $hit[2] ?? '',
-                         'puesto' => $hit[3] ?? '',
-                         'fecha' => $hit[4] ?? '',
-                         'lista' => $hit[5] ?? 'Desconocida',
-                         'estatus' => $hit[6] ?? '',
-                         'porcentaje' => $hit[7] ?? 0
-                     ];
-                 }
-             }
-             if (count($mappedHits) > 0) $found = true;
+// Fallback para persona física: si no hay coincidencias y se capturó materno,
+// reintentar sin apellido materno para no perder posibles PEP/CI por variaciones.
+if (!$found && $tipo_persona === 'fisica' && $materno !== '') {
+    $fallbackPayload = $postData;
+    $fallbackPayload['amaterno'] = '';
+    $fallbackResult = $runProviderSearch($fallbackPayload);
+    if ($fallbackResult['ok']) {
+        $parsedFallback = $parseProviderHits($fallbackResult['response']);
+        if ($parsedFallback['found']) {
+            $usedMaternoFallback = true;
+            $seen = [];
+            foreach ($mappedHits as $h) {
+                $key = ($h['id'] ?? '') . '|' . ($h['nombreCompleto'] ?? '') . '|' . ($h['lista'] ?? '');
+                $seen[$key] = true;
+            }
+            foreach ($parsedFallback['hits'] as $h) {
+                $key = ($h['id'] ?? '') . '|' . ($h['nombreCompleto'] ?? '') . '|' . ($h['lista'] ?? '');
+                if (!isset($seen[$key])) {
+                    $mappedHits[] = $h;
+                    $seen[$key] = true;
+                }
+            }
+            $found = count($mappedHits) > 0;
         }
+    } else {
+        error_log("validate_person fallback search failed: HTTP " . ($fallbackResult['http'] ?? 0));
     }
 }
 
@@ -292,6 +348,7 @@ echo json_encode([
     'found' => $found,
     'data' => $mappedHits,
     'id_busqueda' => $id_busqueda,
+    'used_materno_fallback' => $usedMaternoFallback,
     'cached' => false,
     'quota' => buildQuotaPayload($limit, $currentCount, $currentMonth)
 ]);

@@ -88,7 +88,7 @@ include 'templates/header.php';
                             <i class="fa-solid fa-calendar-plus"></i>
                             Fecha Apertura*
                         </label>
-                        <input type="date" class="form-control" id="fecha_apertura" name="fecha_apertura" required>
+                        <input type="date" class="form-control" id="fecha_apertura" name="fecha_apertura" max="<?= date('Y-m-d') ?>" required>
                     </div>
                     
                     <!-- Estatus Fields -->

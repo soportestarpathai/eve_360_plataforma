@@ -570,7 +570,10 @@ function renderActivitySelect() {
         select.appendChild(option);
     });
 
-    container.style.display = globalActivities.length > 1 ? 'block' : 'none';
+    // Mostrar siempre el selector cuando exista al menos una fracción activa.
+    // Si solo hay una, permanece visible para transparencia del análisis.
+    container.style.display = globalActivities.length > 0 ? 'block' : 'none';
+    select.disabled = globalActivities.length <= 1;
 }
 
 function renderServiceSelect() {

@@ -77,28 +77,16 @@ try {
         $userId = $_SESSION['user_id'] ?? null;
         $userFracciones = $userId ? getUserFraccionesPLD($pdo, $userId) : [];
 
-        // Mostrar vulnerables según fracciones del usuario; si vacío, usar fracciones de la empresa (DIN, TSC, SPR)
+        // Mostrar vulnerables solo según fracciones permitidas al usuario.
         $fraccionesParaFiltrar = $userFracciones;
-        if (empty($fraccionesParaFiltrar)) {
-            $stmtCfg = $pdo->query("SELECT fracciones_activas FROM config_empresa WHERE id_config = 1");
-            $rowCfg = $stmtCfg ? $stmtCfg->fetch(PDO::FETCH_ASSOC) : null;
-            if ($rowCfg && !empty($rowCfg['fracciones_activas'])) {
-                $dec = json_decode($rowCfg['fracciones_activas'], true);
-                $fraccionesParaFiltrar = is_array($dec) ? $dec : [];
-            }
-            if (empty($fraccionesParaFiltrar)) {
-                // Todas las fracciones implementadas (umbrales/config): II, V, V Bis, VI, XI, XIII
-                $fraccionesParaFiltrar = ['II', 'V', 'V Bis', 'VI', 'XI', 'XIII'];
-            }
-        }
         if (!empty($fraccionesParaFiltrar)) {
             $placeholders = implode(',', array_fill(0, count($fraccionesParaFiltrar), '?'));
             $stmtVuln = $pdo->prepare("SELECT * FROM cat_vulnerables WHERE fraccion IN ($placeholders) ORDER BY nombre ASC");
             $stmtVuln->execute($fraccionesParaFiltrar);
+            $catalogs['vulnerables'] = $stmtVuln->fetchAll(PDO::FETCH_ASSOC);
         } else {
-            $stmtVuln = $pdo->query("SELECT * FROM cat_vulnerables ORDER BY nombre ASC");
+            $catalogs['vulnerables'] = [];
         }
-        $catalogs['vulnerables'] = $stmtVuln->fetchAll(PDO::FETCH_ASSOC);
         $catalogs['user_fracciones'] = $userFracciones;
     } catch (PDOException $e) {
         $catalogs['vulnerables'] = [];

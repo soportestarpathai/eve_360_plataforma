@@ -51,13 +51,14 @@ if (!function_exists('ensureFraccionesPLDColumn')) {
                 $decoded = json_decode($row['fracciones_activas'], true);
                 if (is_array($decoded)) $empresaFracciones = $decoded;
             }
-            // Asegurar fracciones base disponibles para asignación de usuarios
-            $fraccionesBase = ['II', 'XI', 'XIII', 'XVI', 'V', 'V Bis', 'VI'];
-            foreach ($fraccionesBase as $fb) {
-                if (!in_array($fb, $empresaFracciones, true)) $empresaFracciones[] = $fb;
-            }
-
-            if (empty($empresaFracciones)) return [];
+            // Compatibilidad: XII legado se interpreta como XI
+            $empresaFracciones = array_map(function ($f) {
+                $s = trim((string)$f);
+                if ($s === 'XII') return 'XI';
+                return $s;
+            }, $empresaFracciones);
+            $empresaFracciones = array_values(array_filter($empresaFracciones, fn($f) => $f !== ''));
+            $empresaFracciones = array_values(array_unique($empresaFracciones));
 
             ensureFraccionesPLDColumn($pdo);
 
@@ -68,8 +69,21 @@ if (!function_exists('ensureFraccionesPLDColumn')) {
 
             $userFracciones = json_decode($userRow['fracciones_pld'], true);
             if (!is_array($userFracciones)) return [];
+            $userFracciones = array_map(function ($f) {
+                $s = trim((string)$f);
+                if ($s === 'XII') return 'XI';
+                return $s;
+            }, $userFracciones);
+            $userFracciones = array_values(array_filter($userFracciones, fn($f) => $f !== ''));
+            $userFracciones = array_values(array_unique($userFracciones));
 
-            return array_values(array_intersect($userFracciones, $empresaFracciones));
+            // Regla principal: solo fracciones asignadas al usuario y habilitadas en configuración.
+            if (!empty($empresaFracciones)) {
+                return array_values(array_intersect($userFracciones, $empresaFracciones));
+            }
+
+            // Fallback: si no hay configuración activa, usar las asignadas al usuario.
+            return $userFracciones;
         } catch (Exception $e) {
             error_log("getUserFraccionesPLD error: " . $e->getMessage());
             return [];

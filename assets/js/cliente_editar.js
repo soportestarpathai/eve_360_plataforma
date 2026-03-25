@@ -8,10 +8,128 @@ const clientId = window.clientId || 0; // Get from PHP global variable
 let catalogs = {}; // Holds all DB catalogs
 let personaTypes = []; // Specific map for persona types
 let apoderadoCounter = 0; // Counter for unique apoderado form fields
+const RFC_FISICA_REGEX_EDIT = /^[A-ZÑ&]{4}\d{6}[A-Z0-9]{3}$/;
+const CURP_REGEX_EDIT = /^[A-Z][AEIOUX][A-Z]{2}\d{2}(0[1-9]|1[0-2])(0[1-9]|[12]\d|3[01])[HM](AS|BC|BS|CC|CL|CM|CS|CH|DF|DG|GT|GR|HG|JC|MC|MN|MS|NT|NL|OC|PL|QT|QR|SP|SL|SR|TC|TS|TL|VZ|YN|ZS|NE)[B-DF-HJ-NP-TV-Z]{3}[A-Z0-9]\d$/;
 
 function isPreRegistroModeEdit() {
     const checkbox = document.getElementById('es_preregistro');
     return !!(checkbox && checkbox.checked);
+}
+
+function formatTodayYmd() {
+    const now = new Date();
+    const y = now.getFullYear();
+    const m = String(now.getMonth() + 1).padStart(2, '0');
+    const d = String(now.getDate()).padStart(2, '0');
+    return `${y}-${m}-${d}`;
+}
+
+function isFutureDateInput(value) {
+    if (!value) return false;
+    const dt = new Date(value + 'T00:00:00');
+    if (Number.isNaN(dt.getTime())) return true;
+    const today = new Date();
+    today.setHours(0, 0, 0, 0);
+    return dt > today;
+}
+
+function normalizeUpperNoSpaces(value) {
+    return String(value || '').toUpperCase().replace(/\s+/g, '').trim();
+}
+
+function getMexicoCountryIdEdit() {
+    if (!catalogs.paises || !catalogs.paises.length) return '';
+    const normalize = (value) => String(value || '')
+        .toLowerCase()
+        .normalize('NFD')
+        .replace(/[\u0300-\u036f]/g, '')
+        .trim();
+    const byClave = catalogs.paises.find((p) => String(p.clave || '').toUpperCase() === 'MX');
+    if (byClave?.id_pais) return String(byClave.id_pais);
+    const byName = catalogs.paises.find((p) => normalize(p.nombre).includes('mexico'));
+    return byName?.id_pais ? String(byName.id_pais) : '';
+}
+
+function isPastDateInput(value) {
+    if (!value) return false;
+    const dt = new Date(value + 'T00:00:00');
+    if (Number.isNaN(dt.getTime())) return false;
+    const today = new Date();
+    today.setHours(0, 0, 0, 0);
+    return dt < today;
+}
+
+function applyKycExpiryMinConstraintsEdit(scope = document) {
+    const min = formatTodayYmd();
+    const selectors = [
+        'input[name="ident_vencimiento[]"]',
+        'input[name="doc_vencimiento[]"]'
+    ];
+    selectors.forEach((selector) => {
+        scope.querySelectorAll(selector).forEach((input) => {
+            input.min = min;
+        });
+    });
+}
+
+function validateKycExpiryDatesEdit() {
+    const groups = [
+        {
+            selector: 'input[name="ident_vencimiento[]"]',
+            message: 'La fecha de vencimiento de identificación no puede ser anterior a la fecha actual.'
+        },
+        {
+            selector: 'input[name="doc_vencimiento[]"]',
+            message: 'La fecha de vencimiento de documento no puede ser anterior a la fecha actual.'
+        }
+    ];
+    for (const group of groups) {
+        const inputs = Array.from(document.querySelectorAll(group.selector));
+        for (const input of inputs) {
+            const value = (input.value || '').trim();
+            input.setCustomValidity('');
+            if (!value) continue;
+            if (isPastDateInput(value)) {
+                input.setCustomValidity(group.message);
+                input.reportValidity();
+                input.focus();
+                return false;
+            }
+        }
+    }
+    return true;
+}
+
+function syncFechaBajaMinEdit() {
+    const fechaAperturaInput = document.getElementById('fecha_apertura');
+    const fechaBajaInput = document.getElementById('fecha_baja');
+    if (!fechaBajaInput) return;
+    fechaBajaInput.min = (fechaAperturaInput?.value || '').trim() || '';
+}
+
+function validateFechaBajaEdit() {
+    const status = document.getElementById('id_status')?.value;
+    const fechaAperturaInput = document.getElementById('fecha_apertura');
+    const fechaBajaInput = document.getElementById('fecha_baja');
+    if (!fechaBajaInput || status !== '3') return true;
+
+    fechaBajaInput.setCustomValidity('');
+    if (!fechaBajaInput.value) {
+        fechaBajaInput.setCustomValidity('La Fecha de Cancelación es obligatoria cuando el estatus es Cancelado.');
+        fechaBajaInput.reportValidity();
+        fechaBajaInput.focus();
+        return false;
+    }
+
+    const apertura = new Date((fechaAperturaInput?.value || '') + 'T00:00:00');
+    const baja = new Date(fechaBajaInput.value + 'T00:00:00');
+    if (!Number.isNaN(apertura.getTime()) && !Number.isNaN(baja.getTime()) && baja < apertura) {
+        fechaBajaInput.setCustomValidity('La Fecha de Cancelación no puede ser menor a la Fecha de Apertura.');
+        fechaBajaInput.reportValidity();
+        fechaBajaInput.focus();
+        return false;
+    }
+    return true;
 }
 
 // --- ON PAGE LOAD ---
@@ -20,6 +138,20 @@ document.addEventListener('DOMContentLoaded', async function() {
         alert('ID de cliente no válido');
         return;
     }
+
+    const fechaAperturaInput = document.getElementById('fecha_apertura');
+    if (fechaAperturaInput) {
+        fechaAperturaInput.max = formatTodayYmd();
+        fechaAperturaInput.addEventListener('input', () => fechaAperturaInput.setCustomValidity(''));
+        fechaAperturaInput.addEventListener('change', syncFechaBajaMinEdit);
+    }
+    const fechaBajaInput = document.getElementById('fecha_baja');
+    if (fechaBajaInput) {
+        fechaBajaInput.addEventListener('input', () => fechaBajaInput.setCustomValidity(''));
+        fechaBajaInput.addEventListener('change', validateFechaBajaEdit);
+    }
+    syncFechaBajaMinEdit();
+    applyKycExpiryMinConstraintsEdit(document);
 
     try {
         // Fetch catalogs and client details in parallel
@@ -97,10 +229,16 @@ document.addEventListener('DOMContentLoaded', async function() {
                 
                 if (status == '3') { // '3' is Cancelado
                     bajaContainer.style.display = 'block';
-                    if (bajaInput) bajaInput.required = true;
+                    if (bajaInput) {
+                        bajaInput.required = true;
+                        syncFechaBajaMinEdit();
+                    }
                 } else {
                     bajaContainer.style.display = 'none';
-                    if (bajaInput) bajaInput.required = false;
+                    if (bajaInput) {
+                        bajaInput.required = false;
+                        bajaInput.setCustomValidity('');
+                    }
                     // Don't null the value on edit, in case they mis-clicked
                 }
             });
@@ -131,6 +269,7 @@ function populateForm(data) {
     if (noContrato) noContrato.value = data.general?.no_contrato || '';
     if (alias) alias.value = data.general?.alias || '';
     if (fechaApertura) fechaApertura.value = data.general?.fecha_apertura || '';
+    syncFechaBajaMinEdit();
 
     // Populate Status
     const idStatus = document.getElementById('id_status');
@@ -225,6 +364,7 @@ function populateForm(data) {
     if (data.direcciones) data.direcciones.forEach(d => addDynamicItem('direcciones-list', d));
     if (data.contactos) data.contactos.forEach(c => addDynamicItem('contactos-list', c));
     if (data.documentos) data.documentos.forEach(d => addDocumentoItem(d));
+    applyKycExpiryMinConstraintsEdit(document);
     
     // Re-build Apoderados list
     if (data.apoderados) data.apoderados.forEach(a => addApoderadoItem(a));
@@ -249,9 +389,11 @@ function populateForm(data) {
     if (catalogs.paises?.length) {
         const fisicaPaisNac = document.getElementById('fisica_id_pais_nacimiento');
         const moralPaisNac = document.getElementById('moral_id_pais_nacionalidad');
-        const paisOpts = (sel, val) => '<option value="">-- Seleccione --</option>' + catalogs.paises.map(p => `<option value="${p.id_pais}" ${p.id_pais == val ? 'selected' : ''}>${p.nombre}</option>`).join('');
-        if (fisicaPaisNac) fisicaPaisNac.innerHTML = paisOpts(fisicaPaisNac, data.persona?.id_pais_nacimiento);
-        if (moralPaisNac) moralPaisNac.innerHTML = paisOpts(moralPaisNac, data.persona?.id_pais_nacionalidad);
+        const mexicoId = getMexicoCountryIdEdit();
+        const resolveFisicaPais = (value) => (value && String(value).trim() !== '' ? value : mexicoId);
+        const paisOpts = (val) => '<option value="">-- Seleccione --</option>' + catalogs.paises.map(p => `<option value="${p.id_pais}" ${p.id_pais == val ? 'selected' : ''}>${p.nombre}</option>`).join('');
+        if (fisicaPaisNac) fisicaPaisNac.innerHTML = paisOpts(resolveFisicaPais(data.persona?.id_pais_nacimiento));
+        if (moralPaisNac) moralPaisNac.innerHTML = paisOpts(data.persona?.id_pais_nacionalidad);
     }
     if (catalogs.anexo_7a?.length) {
         const moral7a = document.getElementById('moral_id_anexo_7a');
@@ -360,6 +502,7 @@ function addDynamicItem(listId, data = {}) {
 
     } else if (listId === 'identificaciones-list') {
         const targetVal = data.id_tipo_identificacion || '';
+        const minExpiryDate = formatTodayYmd();
         const options = catalogs.tipos_identificacion ? catalogs.tipos_identificacion.map(t => {
             const isSelected = (t.id_tipo_identificacion == targetVal) ? 'selected' : '';
             return `<option value="${t.id_tipo_identificacion}" ${isSelected}>${t.nombre}</option>`;
@@ -367,7 +510,7 @@ function addDynamicItem(listId, data = {}) {
         
         html = `<select class="form-select" name="ident_tipo[]">${options}</select>
                 <input type="text" class="form-control" name="ident_numero[]" placeholder="Número" value="${(data.numero_identificacion || '').replace(/"/g, '&quot;')}">
-                <input type="date" class="form-control" name="ident_vencimiento[]" placeholder="Vencimiento" value="${data.fecha_vencimiento || ''}">`;
+                <input type="date" class="form-control" name="ident_vencimiento[]" placeholder="Vencimiento" value="${data.fecha_vencimiento || ''}" min="${minExpiryDate}">`;
 
     } else if (listId === 'direcciones-list') {
         html = `<input type="text" class="form-control" name="dir_calle[]" placeholder="Calle y Número" value="${(data.calle || '').replace(/"/g, '&quot;')}">
@@ -393,6 +536,7 @@ function addDynamicItem(listId, data = {}) {
         </button>
     `;
     list.appendChild(item);
+    applyKycExpiryMinConstraintsEdit(item);
 
     // FORCE VALUE (Safety Net)
     if (listId === 'nacionalidades-list' && data.id_pais) {
@@ -545,6 +689,7 @@ function addDocumentoItem(data = {}) {
     const isExisting = (data.ruta && data.ruta.trim() !== '') || (data.descripcion && data.descripcion.trim() !== '');
     const readonlyAttr = isExisting ? 'readonly' : '';
     
+    const minExpiryDate = formatTodayYmd();
     item.innerHTML = `
         <div class="col-md-4">
             <input type="text" class="form-control" name="doc_tipo[]" placeholder="Tipo de Documento (ej: KYC, Identificación)" value="${(data.descripcion || '').replace(/"/g, '&quot;')}" ${readonlyAttr}>
@@ -553,7 +698,7 @@ function addDocumentoItem(data = {}) {
             ${fileInput}
         </div>
         <div class="col-md-2">
-            <input type="date" class="form-control" name="doc_vencimiento[]" value="${data.fecha_vencimiento || ''}" placeholder="Vencimiento">
+            <input type="date" class="form-control" name="doc_vencimiento[]" value="${data.fecha_vencimiento || ''}" placeholder="Vencimiento" min="${minExpiryDate}">
         </div>
         <div class="col-md-1 text-end">
             <button type="button" class="btn btn-danger" onclick="this.closest('.dynamic-list-item').remove()">
@@ -562,6 +707,7 @@ function addDocumentoItem(data = {}) {
         </div>
     `;
     list.appendChild(item);
+    applyKycExpiryMinConstraintsEdit(item);
 }
 
 // FORM SUBMIT
@@ -571,6 +717,62 @@ document.addEventListener('DOMContentLoaded', function() {
     
     editClientForm.addEventListener('submit', function(e) {
         e.preventDefault();
+
+        const fechaAperturaInput = document.getElementById('fecha_apertura');
+        if (fechaAperturaInput) {
+            fechaAperturaInput.setCustomValidity('');
+            if (!fechaAperturaInput.value) {
+                fechaAperturaInput.setCustomValidity('La Fecha de Apertura es obligatoria.');
+                fechaAperturaInput.reportValidity();
+                fechaAperturaInput.focus();
+                return;
+            }
+            if (isFutureDateInput(fechaAperturaInput.value)) {
+                fechaAperturaInput.setCustomValidity('La Fecha de Apertura no puede ser posterior a la fecha actual.');
+                fechaAperturaInput.reportValidity();
+                fechaAperturaInput.focus();
+                return;
+            }
+        }
+        if (!validateFechaBajaEdit()) {
+            return;
+        }
+        if (!validateKycExpiryDatesEdit()) {
+            return;
+        }
+
+        const personaFisica = document.getElementById('persona-fisica');
+        const isFisica = personaFisica && personaFisica.style.display !== 'none';
+        if (isFisica) {
+            const rfcInput = document.getElementById('fisica_tax_id');
+            const curpInput = document.getElementById('fisica_curp');
+            const rfc = normalizeUpperNoSpaces(rfcInput?.value);
+            const curp = normalizeUpperNoSpaces(curpInput?.value);
+            if (rfcInput) rfcInput.value = rfc;
+            if (curpInput) curpInput.value = curp;
+
+            if (!RFC_FISICA_REGEX_EDIT.test(rfc)) {
+                rfcInput?.setCustomValidity('RFC / Tax ID inválido para persona física. Formato esperado: AAAA000000AAA.');
+                rfcInput?.reportValidity();
+                rfcInput?.focus();
+                return;
+            }
+            rfcInput?.setCustomValidity('');
+
+            if (curp && !CURP_REGEX_EDIT.test(curp)) {
+                curpInput?.setCustomValidity('CURP inválida. Verifique estructura y fecha.');
+                curpInput?.reportValidity();
+                curpInput?.focus();
+                return;
+            }
+            if (curp && rfc.substring(0, 10) !== curp.substring(0, 10)) {
+                curpInput?.setCustomValidity('RFC y CURP no coinciden. Deben corresponder a la misma persona.');
+                curpInput?.reportValidity();
+                curpInput?.focus();
+                return;
+            }
+            curpInput?.setCustomValidity('');
+        }
         
         // Disable submit button to prevent double submission
         const submitBtn = this.querySelector('button[type="submit"]');

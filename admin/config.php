@@ -695,11 +695,71 @@ $listaUsuarios = $stmtUsuarios->fetchAll(PDO::FETCH_ASSOC);
                                     <label class="form-label fw-bold">
                                         <i class="fa-solid fa-list me-2"></i>Fracciones Activas
                                     </label>
-                                    <textarea id="fraccionesActivas" 
-                                              class="form-control" 
-                                              rows="3" 
-                                              placeholder='Ej: ["II", "XI", "XIII", "XVI", "V", "V Bis", "VI"] o II, XI, XIII, XVI, V, V Bis, VI'><?= htmlspecialchars($config['fracciones_activas'] ?? '') ?></textarea>
-                                    <small class="form-text text-muted">Formato JSON o separado por comas. II = TSC, XI = SPR, XIII = DON (Donativos), XVI = AVI (Activos Virtuales)</small>
+                                    <?php
+                                    $fraccionesActivasConfig = [];
+                                    $frRaw = trim((string)($config['fracciones_activas'] ?? ''));
+                                    if ($frRaw !== '') {
+                                        $dec = json_decode($frRaw, true);
+                                        if (is_array($dec)) {
+                                            $fraccionesActivasConfig = $dec;
+                                        } else {
+                                            $fraccionesActivasConfig = array_map('trim', explode(',', $frRaw));
+                                        }
+                                    }
+                                    $fraccionesActivasConfig = array_values(array_unique(array_filter(array_map(function ($f) {
+                                        $s = trim((string)$f);
+                                        if ($s === 'XII') return 'XI';
+                                        return $s;
+                                    }, $fraccionesActivasConfig))));
+
+                                    // Opciones dinámicas desde catálogo de vulnerables + configuración actual.
+                                    $fraccionesOpciones = [];
+                                    foreach (($vulnerables ?? []) as $vuln) {
+                                        $f = trim((string)($vuln['fraccion'] ?? ''));
+                                        if ($f === 'XII') $f = 'XI';
+                                        if ($f !== '') $fraccionesOpciones[$f] = $f;
+                                    }
+                                    foreach ($fraccionesActivasConfig as $fCfg) {
+                                        $f = trim((string)$fCfg);
+                                        if ($f === 'XII') $f = 'XI';
+                                        if ($f !== '') $fraccionesOpciones[$f] = $f;
+                                    }
+
+                                    // Orden recomendado de fracciones implementadas.
+                                    $ordenPreferido = ['II', 'V', 'V Bis', 'VI', 'XI', 'XIII', 'XVI'];
+                                    if (empty($fraccionesOpciones)) {
+                                        foreach ($ordenPreferido as $fo) $fraccionesOpciones[$fo] = $fo;
+                                    }
+                                    $fraccionesOpcionesLista = array_values(array_unique(array_keys($fraccionesOpciones)));
+                                    usort($fraccionesOpcionesLista, function ($a, $b) use ($ordenPreferido) {
+                                        $ia = array_search($a, $ordenPreferido, true);
+                                        $ib = array_search($b, $ordenPreferido, true);
+                                        $ia = ($ia === false) ? 999 : $ia;
+                                        $ib = ($ib === false) ? 999 : $ib;
+                                        if ($ia === $ib) return strcmp($a, $b);
+                                        return $ia <=> $ib;
+                                    });
+                                    ?>
+                                    <input type="hidden" id="fraccionesActivas" value="<?= htmlspecialchars(json_encode($fraccionesActivasConfig, JSON_UNESCAPED_UNICODE)) ?>">
+                                    <div id="fraccionesActivasChecks" class="row g-2">
+                                        <?php foreach ($fraccionesOpcionesLista as $claveFrac): ?>
+                                        <div class="col-md-4">
+                                            <div class="form-check">
+                                                <input
+                                                    class="form-check-input fraccion-activa-check"
+                                                    type="checkbox"
+                                                    value="<?= htmlspecialchars($claveFrac) ?>"
+                                                    id="frac_activa_<?= htmlspecialchars(str_replace(' ', '_', $claveFrac)) ?>"
+                                                    <?= in_array($claveFrac, $fraccionesActivasConfig, true) ? 'checked' : '' ?>
+                                                >
+                                                <label class="form-check-label" for="frac_activa_<?= htmlspecialchars(str_replace(' ', '_', $claveFrac)) ?>">
+                                                    <?= htmlspecialchars($claveFrac) ?>
+                                                </label>
+                                            </div>
+                                        </div>
+                                        <?php endforeach; ?>
+                                    </div>
+                                    <small class="form-text text-muted">Seleccione las fracciones habilitadas. Se guardan automáticamente como arreglo JSON.</small>
                                 </div>
 
                                 <div id="subfraccionesXiSection" class="mb-3 mt-3 nested-card" style="display:none;">
@@ -1131,34 +1191,50 @@ $listaUsuarios = $stmtUsuarios->fetchAll(PDO::FETCH_ASSOC);
     }
 
     // --- 3. PLD PATRÓN FUNCTIONS ---
+    function normalizeFraccionValue(fraccion) {
+        const s = String(fraccion || '').trim();
+        if (!s) return '';
+        return s === 'XII' ? 'XI' : s;
+    }
+
+    function getSelectedFraccionesActivas() {
+        const selected = [];
+        document.querySelectorAll('.fraccion-activa-check:checked').forEach((cb) => {
+            const frac = normalizeFraccionValue(cb.value);
+            if (frac) selected.push(frac);
+        });
+        return Array.from(new Set(selected));
+    }
+
+    function syncFraccionesActivasHidden() {
+        const hidden = document.getElementById('fraccionesActivas');
+        if (!hidden) return;
+        hidden.value = JSON.stringify(getSelectedFraccionesActivas());
+    }
+
     function toggleSubfraccionesXI() {
-        const ta = document.getElementById('fraccionesActivas');
         const sec = document.getElementById('subfraccionesXiSection');
-        if (!ta || !sec) return;
-        const fraccionesStr = (ta.value || '').replace(/[\s\[\]\"]/g, '');
-        const tieneXI = /\bXI\b/.test(fraccionesStr) || fraccionesStr.includes('XI');
+        if (!sec) return;
+        const fracciones = getSelectedFraccionesActivas();
+        const tieneXI = fracciones.includes('XI');
         sec.style.display = tieneXI ? 'block' : 'none';
     }
     (function initSubfraccionesXI() {
-        const ta = document.getElementById('fraccionesActivas');
-        if (ta) {
+        const checks = document.querySelectorAll('.fraccion-activa-check');
+        checks.forEach((cb) => cb.addEventListener('change', () => {
+            syncFraccionesActivasHidden();
             toggleSubfraccionesXI();
-            ta.addEventListener('input', toggleSubfraccionesXI);
-            ta.addEventListener('change', toggleSubfraccionesXI);
-        }
+        }));
+        syncFraccionesActivasHidden();
+        toggleSubfraccionesXI();
     })();
 
     function savePatronPLD() {
         const folio = document.getElementById('folioPatron').value.trim();
         const estatus = document.getElementById('estatusPatron').value;
-        let fracciones = document.getElementById('fraccionesActivas').value.trim();
-        
-        // Convertir fracciones a JSON si es necesario
-        if (fracciones && !fracciones.startsWith('[')) {
-            // Si viene separado por comas, convertir a JSON array
-            const fraccionesArray = fracciones.split(',').map(f => f.trim()).filter(f => f);
-            fracciones = JSON.stringify(fraccionesArray);
-        }
+        syncFraccionesActivasHidden();
+        const fraccionesSeleccionadas = getSelectedFraccionesActivas();
+        const fracciones = fraccionesSeleccionadas.length > 0 ? JSON.stringify(fraccionesSeleccionadas) : null;
 
         const subfraccionesChecked = [];
         document.querySelectorAll('.subfraccion-xi-check:checked').forEach(cb => subfraccionesChecked.push(cb.value));
@@ -1306,13 +1382,9 @@ $listaUsuarios = $stmtUsuarios->fetchAll(PDO::FETCH_ASSOC);
             
             const folio = document.getElementById('folioPatron').value.trim();
             const estatus = document.getElementById('estatusPatron').value;
-            let fracciones = document.getElementById('fraccionesActivas').value.trim();
-            
-            // Convertir fracciones a JSON si es necesario
-            if (fracciones && !fracciones.startsWith('[')) {
-                const fraccionesArray = fracciones.split(',').map(f => f.trim()).filter(f => f);
-                fracciones = JSON.stringify(fraccionesArray);
-            }
+            syncFraccionesActivasHidden();
+            const fraccionesSeleccionadas = getSelectedFraccionesActivas();
+            const fracciones = fraccionesSeleccionadas.length > 0 ? JSON.stringify(fraccionesSeleccionadas) : null;
             const subf = [];
             document.querySelectorAll('.subfraccion-xi-check:checked').forEach(cb => subf.push(cb.value));
             

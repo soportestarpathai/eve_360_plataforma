@@ -33,6 +33,19 @@ function requiresTaxIdUSA() {
     const hasMexico = mexPais && selectedIds.includes(String(mexPais.id_pais));
     return hasUSA && !hasMexico;
 }
+
+function getMexicoCountryId() {
+    if (!catalogs.paises || !catalogs.paises.length) return '';
+    const normalize = (value) => String(value || '')
+        .toLowerCase()
+        .normalize('NFD')
+        .replace(/[\u0300-\u036f]/g, '')
+        .trim();
+    const byClave = catalogs.paises.find((p) => String(p.clave || '').toUpperCase() === 'MX');
+    if (byClave?.id_pais) return String(byClave.id_pais);
+    const byName = catalogs.paises.find((p) => normalize(p.nombre).includes('mexico'));
+    return byName?.id_pais ? String(byName.id_pais) : '';
+}
 let dynamicRowCounter = 0;
 
 const ADDRESS_TYPE_OPTIONS = [
@@ -221,9 +234,43 @@ function showPldModalLoading() {
     }
     if (pldResults) pldResults.style.display = 'none';
     if (pldClean) pldClean.style.display = 'none';
+    document.getElementById('pldFallbackNotice')?.remove();
+    document.getElementById('pldFallbackNoticeClean')?.remove();
     if (btnConfirmPld) btnConfirmPld.style.display = 'none';
     if (btnCloseClean) btnCloseClean.style.display = 'none';
     if (fileInput) fileInput.value = '';
+}
+
+function renderPldFallbackNotice(result, isAutomatic = false) {
+    document.getElementById('pldFallbackNotice')?.remove();
+    document.getElementById('pldFallbackNoticeClean')?.remove();
+
+    if (isAutomatic || !result?.used_materno_fallback) return;
+
+    const baseHtml = `
+        <i class="fa-solid fa-circle-info me-2"></i>
+        <strong>Búsqueda flexible aplicada:</strong>
+        no hubo coincidencia exacta con apellido materno y se realizó un reintento sin apellido materno para ampliar resultados.
+    `;
+
+    if (result.found) {
+        const pldResults = document.getElementById('pldResults');
+        if (!pldResults) return;
+        const alert = document.createElement('div');
+        alert.id = 'pldFallbackNotice';
+        alert.className = 'alert alert-info';
+        alert.innerHTML = baseHtml;
+        pldResults.insertBefore(alert, pldResults.firstChild);
+        return;
+    }
+
+    const pldClean = document.getElementById('pldClean');
+    if (!pldClean) return;
+    const alert = document.createElement('div');
+    alert.id = 'pldFallbackNoticeClean';
+    alert.className = 'alert alert-info text-start mb-3';
+    alert.innerHTML = baseHtml;
+    pldClean.insertBefore(alert, pldClean.firstChild);
 }
 
 function renderPldResult(result, isAutomatic = false) {
@@ -233,6 +280,8 @@ function renderPldResult(result, isAutomatic = false) {
     if (result.id_busqueda) {
         currentSearchId = result.id_busqueda;
     }
+
+    renderPldFallbackNotice(result, isAutomatic);
 
     if (result.found) {
         statusSpan.innerHTML = '<i class="fa-solid fa-triangle-exclamation"></i> COINCIDENCIA EN LISTAS (Requiere Acción)';
@@ -664,6 +713,24 @@ async function validateStep1BeforeNext() {
         return false;
     }
 
+    const fechaAperturaInput = document.getElementById('fecha_apertura') || document.querySelector('input[name="fecha_apertura"]');
+    if (fechaAperturaInput) {
+        fechaAperturaInput.setCustomValidity('');
+        const fechaApertura = parseInputDate(fechaAperturaInput.value || '');
+        if (!fechaApertura) {
+            return invalidateField('fecha_apertura', 'La Fecha de Apertura es obligatoria y debe ser válida.');
+        }
+        const hoy = new Date();
+        hoy.setHours(0, 0, 0, 0);
+        if (fechaApertura > hoy) {
+            return invalidateField('fecha_apertura', 'La Fecha de Apertura no puede ser posterior a la fecha actual.');
+        }
+    }
+
+    if (!validateFechaBajaAgainstApertura()) {
+        return false;
+    }
+
     const contractOk = await validateContractField(true);
     if (!contractOk) {
         return false;
@@ -684,6 +751,91 @@ function parseInputDate(value) {
     const date = new Date(value + 'T00:00:00');
     if (Number.isNaN(date.getTime())) return null;
     return date;
+}
+
+function todayYmd() {
+    return formatDateForInput(new Date());
+}
+
+function isPastYmd(value) {
+    const dt = parseInputDate(value);
+    if (!dt) return false;
+    const now = new Date();
+    now.setHours(0, 0, 0, 0);
+    return dt < now;
+}
+
+function applyKycExpiryMinConstraints(scope = document) {
+    const min = todayYmd();
+    const selectors = [
+        'input[name="ident_vencimiento[]"]',
+        'input[name="doc_vencimiento[]"]'
+    ];
+    selectors.forEach((selector) => {
+        scope.querySelectorAll(selector).forEach((input) => {
+            input.min = min;
+        });
+    });
+}
+
+function validateKycExpiryDates() {
+    const checkGroups = [
+        {
+            selector: 'input[name="ident_vencimiento[]"]',
+            message: 'La fecha de vencimiento de identificación no puede ser anterior a la fecha actual.'
+        },
+        {
+            selector: 'input[name="doc_vencimiento[]"]',
+            message: 'La fecha de vencimiento de documento no puede ser anterior a la fecha actual.'
+        }
+    ];
+    for (const group of checkGroups) {
+        const inputs = Array.from(document.querySelectorAll(group.selector));
+        for (const input of inputs) {
+            const value = (input.value || '').trim();
+            input.setCustomValidity('');
+            if (!value) continue;
+            if (isPastYmd(value)) {
+                input.setCustomValidity(group.message);
+                input.reportValidity();
+                input.focus();
+                return false;
+            }
+        }
+    }
+    return true;
+}
+
+function syncFechaBajaConstraints() {
+    const fechaAperturaInput = document.getElementById('fecha_apertura') || document.querySelector('input[name="fecha_apertura"]');
+    const fechaBajaInput = document.getElementById('fecha_baja') || document.querySelector('input[name="fecha_baja"]');
+    if (!fechaBajaInput) return;
+    const apertura = (fechaAperturaInput?.value || '').trim();
+    fechaBajaInput.min = apertura || '';
+}
+
+function validateFechaBajaAgainstApertura() {
+    const status = document.getElementById('id_status')?.value;
+    const fechaAperturaInput = document.getElementById('fecha_apertura') || document.querySelector('input[name="fecha_apertura"]');
+    const fechaBajaInput = document.getElementById('fecha_baja') || document.querySelector('input[name="fecha_baja"]');
+    if (!fechaBajaInput || status !== '3') return true;
+
+    fechaBajaInput.setCustomValidity('');
+    const fechaApertura = parseInputDate(fechaAperturaInput?.value || '');
+    const fechaBaja = parseInputDate(fechaBajaInput.value || '');
+    if (!fechaBaja) {
+        fechaBajaInput.setCustomValidity('La Fecha de Cancelación es obligatoria cuando el estatus es Cancelado.');
+        fechaBajaInput.reportValidity();
+        fechaBajaInput.focus();
+        return false;
+    }
+    if (fechaApertura && fechaBaja < fechaApertura) {
+        fechaBajaInput.setCustomValidity('La Fecha de Cancelación no puede ser menor a la Fecha de Apertura.');
+        fechaBajaInput.reportValidity();
+        fechaBajaInput.focus();
+        return false;
+    }
+    return true;
 }
 
 function normalizeTaxInput(inputId) {
@@ -711,6 +863,8 @@ function clearStep2CustomValidity() {
             const el = document.getElementById(id);
             if (el) el.setCustomValidity('');
         });
+    const rfcDoc = document.querySelector('input[name="fisica_rfc_doc_file"]');
+    if (rfcDoc) rfcDoc.setCustomValidity('');
 }
 
 function validateStep2IdentityFields() {
@@ -762,6 +916,17 @@ function validateStep2IdentityFields() {
         const curp = normalizeTaxInput('fisica_curp');
         if (curp && !CURP_REGEX.test(curp)) {
             return invalidateField('fisica_curp', 'CURP inválida. Verifique estructura y fecha.');
+        }
+        if (!requiresTaxIdUSA() && curp && rfc.substring(0, 10) !== curp.substring(0, 10)) {
+            return invalidateField('fisica_curp', 'RFC y CURP no coinciden. Deben corresponder a la misma persona.');
+        }
+
+        const rfcDoc = document.querySelector('input[name="fisica_rfc_doc_file"]');
+        if (rfcDoc && (!rfcDoc.files || rfcDoc.files.length === 0)) {
+            rfcDoc.setCustomValidity('Adjunte la constancia RFC / Tax ID.');
+            rfcDoc.reportValidity();
+            rfcDoc.focus();
+            return false;
         }
     } else if (isMoral) {
         const razonSocial = document.getElementById('moral_razon_social')?.value.trim() || '';
@@ -844,6 +1009,7 @@ function validateStep3BeforeNext() {
     for (const row of identRows) {
         const tipo = row.querySelector('select[name="ident_tipo[]"]');
         const numero = row.querySelector('input[name="ident_numero[]"]');
+        const vencimiento = row.querySelector('input[name="ident_vencimiento[]"]');
         if (!tipo || !tipo.value) {
             alert('Seleccione el tipo en todas las identificaciones.');
             tipo?.focus();
@@ -854,6 +1020,14 @@ function validateStep3BeforeNext() {
             numero?.focus();
             return false;
         }
+        const vencValue = (vencimiento?.value || '').trim();
+        if (vencValue && isPastYmd(vencValue)) {
+            vencimiento?.setCustomValidity('La fecha de vencimiento de identificación no puede ser anterior a la fecha actual.');
+            vencimiento?.reportValidity();
+            vencimiento?.focus();
+            return false;
+        }
+        if (vencimiento) vencimiento.setCustomValidity('');
     }
 
     const dirRows = Array.from(document.querySelectorAll('#direcciones-list .dynamic-list-item'));
@@ -962,6 +1136,10 @@ function validateStep4BeforeSubmit() {
                 }
             }
         }
+    }
+
+    if (!validateKycExpiryDates()) {
+        return false;
     }
 
     return true;
@@ -1121,6 +1299,11 @@ function populateKycCatalogs() {
     if (catalogs.paises && catalogs.paises.length) {
         populateSelectFromCatalog('fisica_id_pais_nacimiento', catalogs.paises, 'id_pais', 'nombre', '-- Seleccione --');
         populateSelectFromCatalog('moral_id_pais_nacionalidad', catalogs.paises, 'id_pais', 'nombre', '-- Seleccione --');
+        const fisicaPaisNac = document.getElementById('fisica_id_pais_nacimiento');
+        if (fisicaPaisNac && !fisicaPaisNac.value) {
+            const mexicoId = getMexicoCountryId();
+            if (mexicoId) fisicaPaisNac.value = mexicoId;
+        }
     }
     if (catalogs.anexo_7a && catalogs.anexo_7a.length) {
         populateSelectFromCatalog('moral_id_anexo_7a', catalogs.anexo_7a, 'id_anexo_7a', 'nombre', '-- No aplica --');
@@ -1614,6 +1797,7 @@ function addDynamicItem(listId, name, catalogData, catValue, catLabel) {
         `;
     } else if (listId === 'identificaciones-list') {
         const tiposOptions = catalogs.tipos_identificacion.map(t => `<option value="${t.id_tipo_identificacion}">${t.nombre}</option>`).join('');
+        const minExpiryDate = todayYmd();
         html = `
             <div class="col-md-4">
                 <label class="form-label small">Tipo*</label>
@@ -1627,7 +1811,7 @@ function addDynamicItem(listId, name, catalogData, catValue, catLabel) {
             </div>
             <div class="col-md-4">
                 <label class="form-label small">Vencimiento</label>
-                <input type="date" class="form-control" name="ident_vencimiento[]" placeholder="Vencimiento">
+                <input type="date" class="form-control" name="ident_vencimiento[]" placeholder="Vencimiento" min="${minExpiryDate}">
             </div>
             <div class="col-md-6">
                 <label class="form-label small">Documento soporte (KYC)</label>
@@ -1802,15 +1986,17 @@ function addDocumentoItem() {
     if (!list) return;
     
     const item = document.createElement('div');
+    const minExpiryDate = todayYmd();
     item.className = 'dynamic-list-item row g-2';
     item.innerHTML = `
         <div class="col-md-4"><input type="text" class="form-control" name="doc_tipo[]" placeholder="Ej: Comprobante de domicilio"></div>
         <div class="col-md-5"><input type="file" class="form-control" name="doc_file[]"></div>
-        <div class="col-md-2"><input type="date" class="form-control" name="doc_vencimiento[]"></div>
+        <div class="col-md-2"><input type="date" class="form-control" name="doc_vencimiento[]" min="${minExpiryDate}"></div>
         <div class="col-md-1"><button type="button" class="btn btn-sm btn-danger" onclick="this.closest('.dynamic-list-item').remove()"><i class="fa-solid fa-trash"></i></button></div>
     `;
     list.appendChild(item);
     applyExamplePlaceholders(item);
+    applyKycExpiryMinConstraints(item);
 }
 
 // --- 4. INITIALIZATION ---
@@ -1834,6 +2020,19 @@ document.addEventListener('DOMContentLoaded', function() {
     if (fechaConstitucionInput) {
         fechaConstitucionInput.max = formatDateForInput(new Date());
     }
+    const fechaAperturaInput = document.getElementById('fecha_apertura') || document.querySelector('input[name="fecha_apertura"]');
+    if (fechaAperturaInput) {
+        fechaAperturaInput.max = formatDateForInput(new Date());
+        fechaAperturaInput.addEventListener('input', () => fechaAperturaInput.setCustomValidity(''));
+        fechaAperturaInput.addEventListener('change', syncFechaBajaConstraints);
+    }
+    const fechaBajaInput = document.getElementById('fecha_baja') || document.querySelector('input[name="fecha_baja"]');
+    if (fechaBajaInput) {
+        fechaBajaInput.addEventListener('input', () => fechaBajaInput.setCustomValidity(''));
+        fechaBajaInput.addEventListener('change', validateFechaBajaAgainstApertura);
+    }
+    syncFechaBajaConstraints();
+    applyKycExpiryMinConstraints(document);
 
     ['fisica_tax_id', 'fisica_curp', 'moral_tax_id'].forEach((id) => {
         const field = document.getElementById(id);
@@ -1962,6 +2161,11 @@ document.addEventListener('DOMContentLoaded', function() {
                 if (persona.es_fisica > 0) {
                     const fisicaEl = document.getElementById('persona-fisica');
                     if (fisicaEl) fisicaEl.style.display = 'block';
+                    const fisicaPaisNac = document.getElementById('fisica_id_pais_nacimiento');
+                    if (fisicaPaisNac && !fisicaPaisNac.value) {
+                        const mexicoId = getMexicoCountryId();
+                        if (mexicoId) fisicaPaisNac.value = mexicoId;
+                    }
                 }
                 if (persona.es_moral > 0) {
                     const moralEl = document.getElementById('persona-moral');
@@ -2028,12 +2232,16 @@ document.addEventListener('DOMContentLoaded', function() {
                 const bajaInput = bajaContainer.querySelector('input');
                 if (status == '3') {
                     bajaContainer.style.display = 'block';
-                    if (bajaInput) bajaInput.required = true;
+                    if (bajaInput) {
+                        bajaInput.required = true;
+                        syncFechaBajaConstraints();
+                    }
                 } else {
                     bajaContainer.style.display = 'none';
                     if (bajaInput) {
                         bajaInput.required = false;
                         bajaInput.value = null;
+                        bajaInput.setCustomValidity('');
                     }
                 }
             }
@@ -2152,6 +2360,30 @@ document.addEventListener('DOMContentLoaded', function() {
     if (newClientForm) {
         newClientForm.addEventListener('submit', function(e) {
             e.preventDefault();
+
+            const fechaAperturaInput = document.getElementById('fecha_apertura') || document.querySelector('input[name="fecha_apertura"]');
+            if (fechaAperturaInput) {
+                fechaAperturaInput.setCustomValidity('');
+                const fechaApertura = parseInputDate(fechaAperturaInput.value || '');
+                const hoy = new Date();
+                hoy.setHours(0, 0, 0, 0);
+                if (!fechaApertura || fechaApertura > hoy) {
+                    fechaAperturaInput.setCustomValidity('La Fecha de Apertura no puede ser posterior a la fecha actual.');
+                    fechaAperturaInput.reportValidity();
+                    fechaAperturaInput.focus();
+                    return;
+                }
+            }
+            if (!validateFechaBajaAgainstApertura()) {
+                return;
+            }
+            if (!validateStep2IdentityFields()) {
+                return;
+            }
+            if (!validateKycExpiryDates()) {
+                return;
+            }
+
             const isStep4Valid = validateStep4BeforeSubmit();
             if (!isStep4Valid) return;
             

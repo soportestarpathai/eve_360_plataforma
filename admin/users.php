@@ -127,6 +127,160 @@ function logUserAction($pdo, $action, $id, $oldVal, $newVal) {
     $stmt = $pdo->prepare("INSERT INTO bitacora (id_usuario, accion, tabla_afectada, id_afectado, valor_anterior, valor_nuevo, fecha) VALUES (?, ?, 'usuarios', ?, ?, ?, NOW())");
     $stmt->execute([$userId, $action, $id, json_encode($oldVal), json_encode($newVal)]);
 }
+
+function normalizeStringArray($value): array {
+    if (!is_array($value)) return [];
+    $out = [];
+    foreach ($value as $v) {
+        $s = trim((string)$v);
+        if ($s !== '') $out[$s] = true;
+    }
+    return array_keys($out);
+}
+
+function decodeJsonArrayOrEmpty($json): array {
+    if (!is_string($json) || trim($json) === '') return [];
+    $arr = json_decode($json, true);
+    return normalizeStringArray(is_array($arr) ? $arr : []);
+}
+
+function tableHasColumn(PDO $pdo, string $table, string $column): bool {
+    $stmt = $pdo->prepare("
+        SELECT COUNT(*)
+        FROM INFORMATION_SCHEMA.COLUMNS
+        WHERE TABLE_SCHEMA = DATABASE()
+          AND TABLE_NAME = ?
+          AND COLUMN_NAME = ?
+    ");
+    $stmt->execute([$table, $column]);
+    return (int)$stmt->fetchColumn() > 0;
+}
+
+/**
+ * Bloquea desasignación de fracciones con historial ya capturado.
+ * Devuelve arreglos por fracción: [fraccion => ['operaciones' => int, 'clientes' => int]]
+ */
+function getFraccionRemovalBlockers(PDO $pdo, int $idUsuario, array $fraccionesRemovidas): array {
+    $fraccionesRemovidas = normalizeStringArray($fraccionesRemovidas);
+    if ($idUsuario <= 0 || empty($fraccionesRemovidas)) return [];
+
+    $placeholders = implode(',', array_fill(0, count($fraccionesRemovidas), '?'));
+    $params = array_merge([$idUsuario], $fraccionesRemovidas);
+
+    $sql = "
+        SELECT
+            cv.fraccion,
+            COUNT(*) AS total_operaciones,
+            COUNT(DISTINCT o.id_cliente) AS total_clientes
+        FROM operaciones_pld o
+        INNER JOIN clientes c ON c.id_cliente = o.id_cliente
+        INNER JOIN cat_vulnerables cv ON cv.id_vulnerable = o.id_fraccion
+        WHERE c.id_usuario = ?
+          AND COALESCE(c.id_status, 1) <> 4
+          AND COALESCE(o.id_status, 1) <> 4
+          AND cv.fraccion IN ($placeholders)
+        GROUP BY cv.fraccion
+    ";
+    $stmt = $pdo->prepare($sql);
+    $stmt->execute($params);
+
+    $out = [];
+    while ($r = $stmt->fetch(PDO::FETCH_ASSOC)) {
+        $frac = trim((string)($r['fraccion'] ?? ''));
+        if ($frac === '') continue;
+        $out[$frac] = [
+            'operaciones' => (int)($r['total_operaciones'] ?? 0),
+            'clientes' => (int)($r['total_clientes'] ?? 0),
+        ];
+    }
+    return $out;
+}
+
+/**
+ * Bloquea recorte de subfracciones XI si ya hay operaciones históricas.
+ * Devuelve [subfraccion => ['operaciones' => int, 'clientes' => int]]
+ */
+function getSubfraccionXIRemovalBlockers(PDO $pdo, int $idUsuario, array $subfraccionesRemovidas): array {
+    $subfraccionesRemovidas = normalizeStringArray($subfraccionesRemovidas);
+    if ($idUsuario <= 0 || empty($subfraccionesRemovidas)) return [];
+    if (!tableHasColumn($pdo, 'operaciones_pld', 'subfraccion_xi')) return [];
+
+    $placeholders = implode(',', array_fill(0, count($subfraccionesRemovidas), '?'));
+    $params = array_merge([$idUsuario], $subfraccionesRemovidas);
+
+    $sql = "
+        SELECT
+            o.subfraccion_xi,
+            COUNT(*) AS total_operaciones,
+            COUNT(DISTINCT o.id_cliente) AS total_clientes
+        FROM operaciones_pld o
+        INNER JOIN clientes c ON c.id_cliente = o.id_cliente
+        INNER JOIN cat_vulnerables cv ON cv.id_vulnerable = o.id_fraccion
+        WHERE c.id_usuario = ?
+          AND COALESCE(c.id_status, 1) <> 4
+          AND COALESCE(o.id_status, 1) <> 4
+          AND cv.fraccion = 'XI'
+          AND COALESCE(o.subfraccion_xi, '') <> ''
+          AND o.subfraccion_xi IN ($placeholders)
+        GROUP BY o.subfraccion_xi
+    ";
+    $stmt = $pdo->prepare($sql);
+    $stmt->execute($params);
+
+    $out = [];
+    while ($r = $stmt->fetch(PDO::FETCH_ASSOC)) {
+        $key = trim((string)($r['subfraccion_xi'] ?? ''));
+        if ($key === '') continue;
+        $out[$key] = [
+            'operaciones' => (int)($r['total_operaciones'] ?? 0),
+            'clientes' => (int)($r['total_clientes'] ?? 0),
+        ];
+    }
+    return $out;
+}
+
+/**
+ * Caso especial: antes tenía "todas" (sin filtro) y ahora quiere restringir.
+ * Regresa subfracciones XI fuera del nuevo set permitido que ya tienen historial.
+ */
+function getSubfraccionXIOutsideAllowedBlockers(PDO $pdo, int $idUsuario, array $subfraccionesPermitidas): array {
+    $subfraccionesPermitidas = normalizeStringArray($subfraccionesPermitidas);
+    if ($idUsuario <= 0 || empty($subfraccionesPermitidas)) return [];
+    if (!tableHasColumn($pdo, 'operaciones_pld', 'subfraccion_xi')) return [];
+
+    $placeholders = implode(',', array_fill(0, count($subfraccionesPermitidas), '?'));
+    $params = array_merge([$idUsuario], $subfraccionesPermitidas);
+
+    $sql = "
+        SELECT
+            o.subfraccion_xi,
+            COUNT(*) AS total_operaciones,
+            COUNT(DISTINCT o.id_cliente) AS total_clientes
+        FROM operaciones_pld o
+        INNER JOIN clientes c ON c.id_cliente = o.id_cliente
+        INNER JOIN cat_vulnerables cv ON cv.id_vulnerable = o.id_fraccion
+        WHERE c.id_usuario = ?
+          AND COALESCE(c.id_status, 1) <> 4
+          AND COALESCE(o.id_status, 1) <> 4
+          AND cv.fraccion = 'XI'
+          AND COALESCE(o.subfraccion_xi, '') <> ''
+          AND o.subfraccion_xi NOT IN ($placeholders)
+        GROUP BY o.subfraccion_xi
+    ";
+    $stmt = $pdo->prepare($sql);
+    $stmt->execute($params);
+
+    $out = [];
+    while ($r = $stmt->fetch(PDO::FETCH_ASSOC)) {
+        $key = trim((string)($r['subfraccion_xi'] ?? ''));
+        if ($key === '') continue;
+        $out[$key] = [
+            'operaciones' => (int)($r['total_operaciones'] ?? 0),
+            'clientes' => (int)($r['total_clientes'] ?? 0),
+        ];
+    }
+    return $out;
+}
 ?>
 <title>Administración de Usuarios - EVE 360</title>
 <style>
@@ -165,9 +319,9 @@ function logUserAction($pdo, $action, $id, $oldVal, $newVal) {
     .users-page .users-card .table tbody td { padding: 0.875rem 1rem; vertical-align: middle; }
     .users-page .users-card .table-responsive { max-height: 420px; overflow-y: auto; }
     .users-page .users-card .table thead th { position: sticky; top: 0; z-index: 5; background: #f8fafc; }
-    #adminModal .modal-content, #userModal .modal-content { border-radius: 16px; border: none; box-shadow: 0 24px 48px rgba(0,0,0,0.15); }
-    #adminModal .modal-header, #userModal .modal-header { background: linear-gradient(135deg, #0B3C8A 0%, #0B486B 100%); color: #fff; border: none; padding: 1rem 1.25rem; border-radius: 16px 16px 0 0; }
-    #adminModal .modal-header .btn-close, #userModal .modal-header .btn-close { filter: brightness(0) invert(1); }
+    #adminModal .modal-content, #userModal .modal-content, #transferModal .modal-content { border-radius: 16px; border: none; box-shadow: 0 24px 48px rgba(0,0,0,0.15); }
+    #adminModal .modal-header, #userModal .modal-header, #transferModal .modal-header { background: linear-gradient(135deg, #0B3C8A 0%, #0B486B 100%); color: #fff; border: none; padding: 1rem 1.25rem; border-radius: 16px 16px 0 0; }
+    #adminModal .modal-header .btn-close, #userModal .modal-header .btn-close, #transferModal .modal-header .btn-close { filter: brightness(0) invert(1); }
     #userModal .modal-body { padding: 1.5rem 1.5rem; }
     #userModal .form-control, #userModal .form-select { border-radius: 10px; border: 2px solid #e2e8f0; padding: 0.5rem 1rem; }
     #userModal .form-control:focus, #userModal .form-select:focus { border-color: #0B3C8A; box-shadow: 0 0 0 3px rgba(11,60,138,0.15); }
@@ -181,10 +335,10 @@ function logUserAction($pdo, $action, $id, $oldVal, $newVal) {
     #userModal .perm-section { background: #f8fafc; border-radius: 12px; padding: 1rem; border: 1px solid #e2e8f0; }
     #userModal .perm-section small { color: #64748b; font-weight: 600; letter-spacing: 0.5px; }
     #userModal .form-check-input:checked { background-color: #0B3C8A; border-color: #0B3C8A; }
-    #adminModal .modal-body { padding: 1.5rem; }
-    #adminModal .form-control, #adminModal .form-select { border-radius: 10px; border: 2px solid #e2e8f0; padding: 0.5rem 1rem; }
-    #adminModal .form-control:focus, #adminModal .form-select:focus { border-color: #0B3C8A; box-shadow: 0 0 0 3px rgba(11,60,138,0.15); }
-    #adminModal .form-label { font-weight: 600; color: #334155; }
+    #adminModal .modal-body, #transferModal .modal-body { padding: 1.5rem; }
+    #adminModal .form-control, #adminModal .form-select, #transferModal .form-control, #transferModal .form-select { border-radius: 10px; border: 2px solid #e2e8f0; padding: 0.5rem 1rem; }
+    #adminModal .form-control:focus, #adminModal .form-select:focus, #transferModal .form-control:focus, #transferModal .form-select:focus { border-color: #0B3C8A; box-shadow: 0 0 0 3px rgba(11,60,138,0.15); }
+    #adminModal .form-label, #transferModal .form-label { font-weight: 600; color: #334155; }
 </style>
 
 <?php
@@ -229,6 +383,163 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
             echo '<div class="alert alert-warning mt-3">Administrador eliminado.</div>';
         } catch (Exception $e) {
             echo '<div class="alert alert-danger mt-3">Error: ' . htmlspecialchars($e->getMessage()) . '</div>';
+        }
+    }
+
+    // ─── TRANSFERENCIA DE CLIENTES ENTRE USUARIOS ────────────────────────────
+    if (isset($_POST['action']) && $_POST['action'] === 'transfer_clients_user') {
+        try {
+            $pdo->beginTransaction();
+
+            $idOrigen = (int)($_POST['id_usuario_origen'] ?? 0);
+            $idDestino = (int)($_POST['id_usuario_destino'] ?? 0);
+            $scope = trim((string)($_POST['transfer_scope'] ?? 'all'));
+            $scope = ($scope === 'historial_pld') ? 'historial_pld' : 'all';
+
+            if ($idOrigen <= 0 || $idDestino <= 0) {
+                throw new Exception('Seleccione usuario origen y destino válidos.');
+            }
+            if ($idOrigen === $idDestino) {
+                throw new Exception('El usuario destino debe ser diferente al usuario origen.');
+            }
+
+            $stmtUsers = $pdo->prepare("
+                SELECT id_usuario, nombre, login_user
+                FROM usuarios
+                WHERE id_usuario IN (?, ?)
+                  AND COALESCE(id_status_usuario, 1) <> 4
+            ");
+            $stmtUsers->execute([$idOrigen, $idDestino]);
+            $usersFound = $stmtUsers->fetchAll(PDO::FETCH_ASSOC);
+            if (count($usersFound) < 2) {
+                throw new Exception('No se encontró usuario origen o destino.');
+            }
+
+            $origenNombre = '';
+            $destinoNombre = '';
+            foreach ($usersFound as $uRow) {
+                if ((int)$uRow['id_usuario'] === $idOrigen) $origenNombre = (string)($uRow['nombre'] ?? '');
+                if ((int)$uRow['id_usuario'] === $idDestino) $destinoNombre = (string)($uRow['nombre'] ?? '');
+            }
+
+            $baseWhere = "
+                c.id_usuario = ?
+                AND COALESCE(c.id_status, 1) <> 4
+            ";
+            if ($scope === 'historial_pld') {
+                $baseWhere .= "
+                    AND (
+                        EXISTS (
+                            SELECT 1
+                            FROM operaciones_pld o
+                            WHERE o.id_cliente = c.id_cliente
+                              AND COALESCE(o.id_status, 1) <> 4
+                        )
+                        OR EXISTS (
+                            SELECT 1
+                            FROM avisos_pld a
+                            WHERE a.id_cliente = c.id_cliente
+                              AND COALESCE(a.id_status, 1) <> 4
+                        )
+                    )
+                ";
+            }
+
+            $stmtCount = $pdo->prepare("SELECT COUNT(*) FROM clientes c WHERE $baseWhere");
+            $stmtCount->execute([$idOrigen]);
+            $clientesMover = (int)$stmtCount->fetchColumn();
+            if ($clientesMover <= 0) {
+                throw new Exception('No hay clientes para transferir con el alcance seleccionado.');
+            }
+
+            // Validar compatibilidad de fracciones PLD en destino para clientes con historial.
+            $stmtReq = $pdo->prepare("
+                SELECT DISTINCT
+                    cv.fraccion AS fraccion,
+                    COALESCE(o.subfraccion_xi, '') AS subfraccion_xi
+                FROM operaciones_pld o
+                INNER JOIN clientes c ON c.id_cliente = o.id_cliente
+                INNER JOIN cat_vulnerables cv ON cv.id_vulnerable = o.id_fraccion
+                WHERE c.id_usuario = ?
+                  AND COALESCE(c.id_status, 1) <> 4
+                  AND COALESCE(o.id_status, 1) <> 4
+            ");
+            $stmtReq->execute([$idOrigen]);
+            $reqRows = $stmtReq->fetchAll(PDO::FETCH_ASSOC);
+
+            $requiredFracciones = [];
+            $requiredSubfXI = [];
+            foreach ($reqRows as $rr) {
+                $fr = trim((string)($rr['fraccion'] ?? ''));
+                $sf = trim((string)($rr['subfraccion_xi'] ?? ''));
+                if ($fr !== '') $requiredFracciones[$fr] = true;
+                if ($fr === 'XI' && $sf !== '') $requiredSubfXI[$sf] = true;
+            }
+            $requiredFracciones = array_keys($requiredFracciones);
+            $requiredSubfXI = array_keys($requiredSubfXI);
+
+            $stmtDestPerm = $pdo->prepare("SELECT fracciones_pld, subfracciones_xi FROM usuarios_permisos WHERE id_usuario = ? LIMIT 1");
+            $stmtDestPerm->execute([$idDestino]);
+            $destPerm = $stmtDestPerm->fetch(PDO::FETCH_ASSOC) ?: [];
+            $destFracciones = decodeJsonArrayOrEmpty($destPerm['fracciones_pld'] ?? null);
+            $destSubfXI = decodeJsonArrayOrEmpty($destPerm['subfracciones_xi'] ?? null);
+
+            if (!empty($requiredFracciones)) {
+                $missingFracciones = array_values(array_diff($requiredFracciones, $destFracciones));
+                if (!empty($missingFracciones)) {
+                    throw new Exception(
+                        "No se puede transferir: el usuario destino no tiene habilitadas estas fracciones PLD requeridas por el historial: "
+                        . implode(', ', $missingFracciones) . "."
+                    );
+                }
+            }
+
+            // Si destino tiene subfracciones XI definidas explícitamente, validar que cubra el historial XI.
+            if (!empty($requiredSubfXI) && !empty($destSubfXI)) {
+                $missingSubf = array_values(array_diff($requiredSubfXI, $destSubfXI));
+                if (!empty($missingSubf)) {
+                    throw new Exception(
+                        "No se puede transferir: el usuario destino no tiene estas subfracciones XI requeridas: "
+                        . implode(', ', $missingSubf) . "."
+                    );
+                }
+            }
+
+            $sqlUpdate = "UPDATE clientes c SET c.id_usuario = ? WHERE $baseWhere";
+            $stmtMove = $pdo->prepare($sqlUpdate);
+            $stmtMove->execute([$idDestino, $idOrigen]);
+            $moved = (int)$stmtMove->rowCount();
+            if ($moved <= 0) {
+                throw new Exception('No se pudo transferir ningún cliente.');
+            }
+
+            $actor = (int)($_SESSION['user_id'] ?? 0);
+            $stmtBit = $pdo->prepare("
+                INSERT INTO bitacora (id_usuario, accion, tabla_afectada, id_afectado, valor_anterior, valor_nuevo, fecha)
+                VALUES (?, ?, 'clientes', ?, ?, ?, NOW())
+            ");
+            $stmtBit->execute([
+                $actor,
+                'TRANSFERIR_CLIENTES_USUARIO',
+                $idOrigen,
+                json_encode([
+                    'id_usuario_origen' => $idOrigen,
+                    'usuario_origen' => $origenNombre,
+                    'scope' => $scope,
+                    'clientes_transferidos' => $moved
+                ], JSON_UNESCAPED_UNICODE),
+                json_encode([
+                    'id_usuario_destino' => $idDestino,
+                    'usuario_destino' => $destinoNombre
+                ], JSON_UNESCAPED_UNICODE)
+            ]);
+
+            $pdo->commit();
+            echo '<div class="alert alert-success mt-3"><i class="fa-solid fa-check me-2"></i>Transferencia completada: '
+                . (int)$moved . ' cliente(s) movidos.</div>';
+        } catch (Exception $e) {
+            if ($pdo->inTransaction()) $pdo->rollBack();
+            echo '<div class="alert alert-danger mt-3">Error al transferir clientes: ' . htmlspecialchars($e->getMessage()) . '</div>';
         }
     }
 
@@ -289,14 +600,72 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
             $permCols = ['catalogo_instituciones', 'catalogo_emisoras', 'catalogo_clientes', 'captura', 'administracion', 'reportes', 'valuacion', 'correcciones', 'rebalanceo', 'permiso_pld_modificacion'];
             $permValues = [];
             foreach ($permCols as $col) { $permValues[$col] = isset($_POST['perm_' . $col]) ? 1 : 0; }
-            $selectedFracciones = $_POST['fracciones_pld'] ?? [];
+            $selectedFracciones = normalizeStringArray($_POST['fracciones_pld'] ?? []);
             $fraccionesPldJson = !empty($selectedFracciones) ? json_encode(array_values($selectedFracciones)) : null;
-            $selectedSubfracciones = (in_array('XI', $selectedFracciones)) ? ($_POST['subfracciones_xi'] ?? []) : [];
+            $selectedSubfracciones = (in_array('XI', $selectedFracciones, true))
+                ? normalizeStringArray($_POST['subfracciones_xi'] ?? [])
+                : [];
             $subfraccionesXiJson = !empty($selectedSubfracciones) ? json_encode(array_values($selectedSubfracciones)) : null;
 
             require_once __DIR__ . '/../config/pld_permisos.php';
             ensureFraccionesPLDColumn($pdo);
             ensurePermisoPldModificacionColumn($pdo);
+
+            // Reglas de integridad PLD:
+            // 1) No permitir quitar fracciones con operaciones históricas.
+            // 2) No permitir recortar subfracciones XI con operaciones históricas en esas claves.
+            if (!empty($id_usuario)) {
+                $idUsuarioInt = (int)$id_usuario;
+                $stmtPrevPerm = $pdo->prepare("SELECT fracciones_pld, subfracciones_xi FROM usuarios_permisos WHERE id_usuario = ? LIMIT 1");
+                $stmtPrevPerm->execute([$idUsuarioInt]);
+                $prevPerm = $stmtPrevPerm->fetch(PDO::FETCH_ASSOC) ?: [];
+
+                $oldFracciones = decodeJsonArrayOrEmpty($prevPerm['fracciones_pld'] ?? null);
+                $oldSubfraccionesXI = decodeJsonArrayOrEmpty($prevPerm['subfracciones_xi'] ?? null);
+
+                $removedFracciones = array_values(array_diff($oldFracciones, $selectedFracciones));
+                if (!empty($removedFracciones)) {
+                    $blockers = getFraccionRemovalBlockers($pdo, $idUsuarioInt, $removedFracciones);
+                    if (!empty($blockers)) {
+                        $detalles = [];
+                        foreach ($blockers as $fr => $stats) {
+                            $detalles[] = $fr . ': ' . (int)$stats['operaciones'] . ' operación(es) en ' . (int)$stats['clientes'] . ' cliente(s)';
+                        }
+                        throw new Exception(
+                            "No se puede desasignar fracciones con historial PLD. " .
+                            implode(' | ', $detalles) .
+                            ". Primero transfiera esos clientes a otro usuario con la fracción correspondiente."
+                        );
+                    }
+                }
+
+                $oldHasXI = in_array('XI', $oldFracciones, true);
+                $newHasXI = in_array('XI', $selectedFracciones, true);
+                if ($oldHasXI && $newHasXI && !empty($selectedSubfracciones)) {
+                    $subfBlockers = [];
+                    if (!empty($oldSubfraccionesXI)) {
+                        $removedSubf = array_values(array_diff($oldSubfraccionesXI, $selectedSubfracciones));
+                        if (!empty($removedSubf)) {
+                            $subfBlockers = getSubfraccionXIRemovalBlockers($pdo, $idUsuarioInt, $removedSubf);
+                        }
+                    } else {
+                        // Antes sin restricción (todas). Si ahora restringe, bloquear si deja fuera subfracciones con historial.
+                        $subfBlockers = getSubfraccionXIOutsideAllowedBlockers($pdo, $idUsuarioInt, $selectedSubfracciones);
+                    }
+
+                    if (!empty($subfBlockers)) {
+                        $detalles = [];
+                        foreach ($subfBlockers as $subf => $stats) {
+                            $detalles[] = $subf . ': ' . (int)$stats['operaciones'] . ' operación(es) en ' . (int)$stats['clientes'] . ' cliente(s)';
+                        }
+                        throw new Exception(
+                            "No se puede recortar subfracciones XI con historial PLD. " .
+                            implode(' | ', $detalles) .
+                            ". Primero transfiera esos clientes a otro usuario con esas subfracciones habilitadas."
+                        );
+                    }
+                }
+            }
 
             $stmtCheckPerm = $pdo->prepare("SELECT id_permiso FROM usuarios_permisos WHERE id_usuario = ?");
             $stmtCheckPerm->execute([$id_usuario]);
@@ -374,13 +743,16 @@ if ($configRow && !empty($configRow['fracciones_activas'])) {
     $decoded = json_decode($configRow['fracciones_activas'], true);
     if (is_array($decoded)) $fraccionesActivas = $decoded;
 }
-// Asegurar fracciones base siempre disponibles; reemplazar XII por XI
-$fraccionesActivas = array_values(array_filter($fraccionesActivas, fn($f) => $f !== 'XII'));
-if (!in_array('II', $fraccionesActivas, true)) array_unshift($fraccionesActivas, 'II');
-if (!in_array('XI', $fraccionesActivas, true)) $fraccionesActivas[] = 'XI';
-if (!in_array('XIII', $fraccionesActivas, true)) $fraccionesActivas[] = 'XIII';
-if (!in_array('XVI', $fraccionesActivas, true)) $fraccionesActivas[] = 'XVI';
+// Usar solo fracciones activas en configuración (compatibilidad: XII legado -> XI)
+$fraccionesActivas = array_map(function ($f) {
+    $s = trim((string)$f);
+    if ($s === 'XII') return 'XI';
+    return $s;
+}, $fraccionesActivas);
+$fraccionesActivas = array_values(array_filter($fraccionesActivas, fn($f) => $f !== ''));
 $fraccionesActivas = array_values(array_unique($fraccionesActivas));
+$fraccionesCatalogoSistema = ['II', 'V', 'V Bis', 'VI', 'XI', 'XIII', 'XVI'];
+$fraccionesRender = array_values(array_unique(array_merge($fraccionesActivas, $fraccionesCatalogoSistema)));
 
 $adminUsers = [];
 try {
@@ -390,12 +762,32 @@ try {
 $stmt = $pdo->query("
     SELECT u.*, up.catalogo_instituciones, up.catalogo_emisoras, up.catalogo_clientes,
            up.captura, up.administracion, up.reportes, up.valuacion, up.correcciones, up.rebalanceo,
-           up.fracciones_pld, up.subfracciones_xi, COALESCE(up.permiso_pld_modificacion, 0) AS permiso_pld_modificacion
+           up.fracciones_pld, up.subfracciones_xi, COALESCE(up.permiso_pld_modificacion, 0) AS permiso_pld_modificacion,
+           ceu.fracciones_activas AS fracciones_activas_cfg
     FROM usuarios u
     LEFT JOIN usuarios_permisos up ON u.id_usuario = up.id_usuario
+    LEFT JOIN config_empresa_usuario ceu ON ceu.id_usuario = u.id_usuario
     ORDER BY u.nombre ASC
 ");
 $users = $stmt->fetchAll(PDO::FETCH_ASSOC);
+
+$clientCountByUser = [];
+try {
+    $stmtCC = $pdo->query("
+        SELECT id_usuario, COUNT(*) AS total
+        FROM clientes
+        WHERE COALESCE(id_status, 1) <> 4
+        GROUP BY id_usuario
+    ");
+    while ($cc = $stmtCC->fetch(PDO::FETCH_ASSOC)) {
+        $clientCountByUser[(int)$cc['id_usuario']] = (int)$cc['total'];
+    }
+} catch (Exception $e) { }
+
+foreach ($users as &$uRef) {
+    $uRef['clientes_asignados'] = $clientCountByUser[(int)($uRef['id_usuario'] ?? 0)] ?? 0;
+}
+unset($uRef);
 ?>
 
 <div class="users-page container mt-4 mb-5">
@@ -471,7 +863,7 @@ $users = $stmt->fetchAll(PDO::FETCH_ASSOC);
                         <table class="table table-hover mb-0 align-middle">
                             <thead class="table-light">
                                 <tr>
-                                    <th>Nombre</th><th>Email (Login)</th><th>Status</th><th class="text-center">Permisos</th><th class="text-end">Acciones</th>
+                                    <th>Nombre</th><th>Email (Login)</th><th>Status</th><th class="text-center">Permisos</th><th class="text-center">Clientes</th><th class="text-end">Acciones</th>
                                 </tr>
                             </thead>
                             <tbody>
@@ -489,7 +881,23 @@ $users = $stmt->fetchAll(PDO::FETCH_ASSOC);
                                         echo $countP > 0 ? '<span class="badge bg-info">' . $countP . ' roles</span>' : '<span class="text-muted">-</span>';
                                         ?>
                                     </td>
+                                    <td class="text-center">
+                                        <span class="badge bg-secondary"><?= (int)($u['clientes_asignados'] ?? 0) ?></span>
+                                    </td>
                                     <td class="text-end">
+                                        <button
+                                            class="btn btn-sm btn-outline-secondary border-0"
+                                            onclick='openTransferModal(<?= htmlspecialchars(json_encode([
+                                                "id_usuario" => $u["id_usuario"],
+                                                "nombre" => $u["nombre"],
+                                                "login_user" => $u["login_user"],
+                                                "clientes_asignados" => (int)($u["clientes_asignados"] ?? 0)
+                                            ]), ENT_QUOTES) ?>)'
+                                            title="Transferir clientes"
+                                            <?= ((int)($u['clientes_asignados'] ?? 0) <= 0 ? 'disabled' : '') ?>
+                                        >
+                                            <i class="fa-solid fa-right-left"></i>
+                                        </button>
                                         <button class="btn btn-sm btn-outline-primary border-0" onclick='editUser(<?= htmlspecialchars(json_encode($u), ENT_QUOTES) ?>)'><i class="fa-solid fa-pen"></i></button>
                                         <form method="POST" class="d-inline" onsubmit="return confirm('¿Eliminar este usuario?');">
                                             <input type="hidden" name="action" value="delete_user">
@@ -500,7 +908,7 @@ $users = $stmt->fetchAll(PDO::FETCH_ASSOC);
                                 </tr>
                                 <?php endforeach; ?>
                                 <?php if (empty($users)): ?>
-                                <tr><td colspan="5" class="text-center py-5 text-muted">No hay usuarios. <a href="#" onclick="openUserModal(); return false;">Crear uno</a></td></tr>
+                                <tr><td colspan="6" class="text-center py-5 text-muted">No hay usuarios. <a href="#" onclick="openUserModal(); return false;">Crear uno</a></td></tr>
                                 <?php endif; ?>
                             </tbody>
                         </table>
@@ -621,13 +1029,18 @@ $users = $stmt->fetchAll(PDO::FETCH_ASSOC);
                         </div>
                     </div>
 
-                    <?php if (!empty($fraccionesActivas)): ?>
+                    <?php if (!empty($fraccionesRender)): ?>
                     <hr class="my-4">
                     <h6 class="mb-3 fw-bold" style="color:#0B3C8A;"><i class="fa-solid fa-shield-halved me-2"></i>Fracciones PLD</h6>
+                    <div class="alert alert-warning small mb-3 py-2">
+                        <i class="fa-solid fa-triangle-exclamation me-2"></i>
+                        Si el usuario ya tiene clientes con operaciones PLD registradas, no se puede desasignar la fracción/subfracción correspondiente.
+                        Primero transfiera esos clientes a otro usuario con los permisos correctos.
+                    </div>
                     <div class="perm-section mb-0">
                         <div class="row g-2">
-                            <?php foreach ($fraccionesActivas as $frac): $fracId = str_replace(' ', '_', $frac); ?>
-                            <div class="col-md-4"><div class="form-check">
+                            <?php foreach ($fraccionesRender as $frac): $fracId = str_replace(' ', '_', $frac); ?>
+                            <div class="col-md-4 pld-fraccion-item" data-fraccion="<?= htmlspecialchars($frac) ?>"><div class="form-check">
                                 <input class="form-check-input pld-fraccion-check" type="checkbox" name="fracciones_pld[]" value="<?= htmlspecialchars($frac) ?>" id="pld_frac_<?= htmlspecialchars($fracId) ?>" data-fraccion="<?= htmlspecialchars($frac) ?>" onchange="toggleUserSubfraccionesXI()">
                                 <label class="form-check-label" for="pld_frac_<?= htmlspecialchars($fracId) ?>"><?= htmlspecialchars($frac) ?></label>
                             </div></div>
@@ -661,6 +1074,66 @@ $users = $stmt->fetchAll(PDO::FETCH_ASSOC);
     </div>
 </div>
 
+<!-- Modal Transferir Clientes -->
+<div class="modal fade" id="transferModal" tabindex="-1">
+    <div class="modal-dialog">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h5 class="modal-title"><i class="fa-solid fa-right-left me-2"></i>Transferir Clientes</h5>
+                <button type="button" class="btn-close btn-close-white" data-bs-dismiss="modal"></button>
+            </div>
+            <form method="POST" onsubmit="return confirm('¿Confirmar transferencia de clientes?');">
+                <div class="modal-body">
+                    <input type="hidden" name="action" value="transfer_clients_user">
+                    <input type="hidden" name="id_usuario_origen" id="transferSourceId">
+
+                    <div class="alert alert-warning small py-2">
+                        <i class="fa-solid fa-triangle-exclamation me-2"></i>
+                        Esta acción reasigna la propiedad de los clientes al usuario destino.
+                    </div>
+
+                    <div class="mb-3">
+                        <label class="form-label fw-bold">Usuario origen</label>
+                        <input type="text" id="transferSourceLabel" class="form-control" readonly>
+                    </div>
+
+                    <div class="mb-3">
+                        <label class="form-label fw-bold">Clientes asignados (actual)</label>
+                        <input type="text" id="transferClientCount" class="form-control" readonly>
+                    </div>
+
+                    <div class="mb-3">
+                        <label class="form-label fw-bold">Usuario destino</label>
+                        <select name="id_usuario_destino" id="transferDest" class="form-select" required>
+                            <option value="">Seleccione usuario destino</option>
+                            <?php foreach ($users as $destU): ?>
+                            <option value="<?= (int)$destU['id_usuario'] ?>">
+                                <?= htmlspecialchars($destU['nombre'] . ' (' . $destU['login_user'] . ')') ?>
+                            </option>
+                            <?php endforeach; ?>
+                        </select>
+                    </div>
+
+                    <div class="mb-2">
+                        <label class="form-label fw-bold">Alcance</label>
+                        <select name="transfer_scope" id="transferScope" class="form-select">
+                            <option value="all">Todos los clientes activos del usuario origen</option>
+                            <option value="historial_pld">Solo clientes con historial PLD (operaciones/avisos)</option>
+                        </select>
+                    </div>
+                    <small class="text-muted d-block">
+                        Se validará compatibilidad de fracciones/subfracciones PLD del usuario destino cuando exista historial.
+                    </small>
+                </div>
+                <div class="modal-footer">
+                    <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Cancelar</button>
+                    <button type="submit" class="btn btn-primary">Transferir</button>
+                </div>
+            </form>
+        </div>
+    </div>
+</div>
+
 <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/js/bootstrap.bundle.min.js"></script>
 <script>
 function togglePassVisibility(inputId, btn) {
@@ -681,6 +1154,57 @@ function togglePassVisibility(inputId, btn) {
 
 const adminModal = new bootstrap.Modal(document.getElementById('adminModal'));
 const userModal = new bootstrap.Modal(document.getElementById('userModal'));
+const transferModalEl = document.getElementById('transferModal');
+const transferModal = transferModalEl ? new bootstrap.Modal(transferModalEl) : null;
+const GLOBAL_FRACCIONES_ACTIVAS = <?= json_encode(array_values($fraccionesActivas), JSON_UNESCAPED_UNICODE) ?>;
+
+function normalizeFraccion(fraccion) {
+    let s = String(fraccion || '').trim();
+    if (s === 'XII') s = 'XI';
+    return s;
+}
+
+function parseFraccionesConfig(raw) {
+    if (!raw) return [];
+    if (Array.isArray(raw)) {
+        return Array.from(new Set(raw.map(normalizeFraccion).filter(Boolean)));
+    }
+    let parsed = raw;
+    if (typeof raw === 'string') {
+        const t = raw.trim();
+        if (!t) return [];
+        try {
+            parsed = JSON.parse(t);
+        } catch (_) {
+            parsed = t.split(',').map(v => v.trim()).filter(Boolean);
+        }
+    }
+    if (!Array.isArray(parsed)) return [];
+    return Array.from(new Set(parsed.map(normalizeFraccion).filter(Boolean)));
+}
+
+function resolveFraccionesActivasUsuario(u) {
+    const byUserConfig = parseFraccionesConfig((u && u.fracciones_activas_cfg) ? u.fracciones_activas_cfg : null);
+    if (byUserConfig.length > 0) return byUserConfig;
+    const byGlobalConfig = parseFraccionesConfig(GLOBAL_FRACCIONES_ACTIVAS);
+    if (byGlobalConfig.length > 0) return byGlobalConfig;
+
+    // Fallback de seguridad si aún no hay configuración activa
+    const byPermisosUsuario = parseFraccionesConfig((u && u.fracciones_pld) ? u.fracciones_pld : null);
+    return byPermisosUsuario;
+}
+
+function applyFraccionesVisibles(fraccionesActivas) {
+    const visibles = new Set(parseFraccionesConfig(fraccionesActivas));
+    document.querySelectorAll('#userModal .pld-fraccion-item').forEach((item) => {
+        const frac = normalizeFraccion(item.getAttribute('data-fraccion') || '');
+        const mostrar = visibles.has(frac);
+        item.style.display = mostrar ? '' : 'none';
+        const cb = item.querySelector('.pld-fraccion-check');
+        if (cb && !mostrar) cb.checked = false;
+    });
+    toggleUserSubfraccionesXI();
+}
 
 function openAdminModal() {
     document.getElementById('adminModalTitle').textContent = 'Nuevo Administrador';
@@ -714,6 +1238,7 @@ function openUserModal() {
     document.getElementById('userStatus').value = '1';
     document.getElementById('userStatus').disabled = true;
     document.querySelectorAll('#userModal .form-check-input').forEach(el => el.checked = false);
+    applyFraccionesVisibles(GLOBAL_FRACCIONES_ACTIVAS);
     const subfEl = document.getElementById('userSubfraccionesXiSection'); if (subfEl) subfEl.style.display = 'none';
     userModal.show();
 }
@@ -737,6 +1262,7 @@ function editUser(u) {
     setP('perm_corr', u.correcciones); setP('perm_rep', u.reportes); setP('perm_pld_mod', u.permiso_pld_modificacion);
     document.querySelectorAll('#userModal .pld-fraccion-check').forEach(el => el.checked = false);
     document.querySelectorAll('#userModal .user-subfraccion-xi').forEach(el => el.checked = false);
+    applyFraccionesVisibles(resolveFraccionesActivasUsuario(u));
     const subfSec = document.getElementById('userSubfraccionesXiSection');
     if (u.fracciones_pld) {
         let f = u.fracciones_pld;
@@ -749,6 +1275,25 @@ function editUser(u) {
         if (Array.isArray(sf)) sf.forEach(x => { const e = document.getElementById('user_subf_' + x); if (e) e.checked = true; });
     }
     userModal.show();
+}
+
+function openTransferModal(u) {
+    if (!transferModal) return;
+    const sourceId = parseInt(u.id_usuario, 10) || 0;
+    document.getElementById('transferSourceId').value = sourceId;
+    document.getElementById('transferSourceLabel').value = `${u.nombre || ''} (${u.login_user || ''})`;
+    document.getElementById('transferClientCount').value = String(parseInt(u.clientes_asignados ?? 0, 10) || 0);
+    document.getElementById('transferScope').value = 'all';
+
+    const sel = document.getElementById('transferDest');
+    if (sel) {
+        sel.value = '';
+        Array.from(sel.options).forEach(opt => {
+            if (!opt.value) return;
+            opt.disabled = (parseInt(opt.value, 10) === sourceId);
+        });
+    }
+    transferModal.show();
 }
 
 function toggleUserSubfraccionesXI() {

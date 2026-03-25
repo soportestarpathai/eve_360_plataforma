@@ -1,8 +1,9 @@
 <?php
 /**
- * Limpia clientes de QA creados para pruebas con prefijo QA-MTX-.
+ * Limpia clientes de QA creados para pruebas.
  * Uso:
  *   php tools/cleanup_qa_clients.php
+ *   php tools/cleanup_qa_clients.php "QA-MTX-%"
  */
 
 if (PHP_SAPI !== 'cli') {
@@ -11,6 +12,11 @@ if (PHP_SAPI !== 'cli') {
 }
 
 require_once __DIR__ . '/../config/db.php';
+
+$pattern = 'QA-%';
+if (isset($argv[1]) && is_string($argv[1]) && trim($argv[1]) !== '') {
+    $pattern = trim($argv[1]);
+}
 
 function tableExists(PDO $pdo, string $tableName): bool
 {
@@ -26,9 +32,11 @@ function tableExists(PDO $pdo, string $tableName): bool
 }
 
 try {
-    $rows = $pdo->query("SELECT id_cliente, no_contrato FROM clientes WHERE no_contrato LIKE 'QA-MTX-%' ORDER BY id_cliente")->fetchAll(PDO::FETCH_ASSOC);
+    $stmtClients = $pdo->prepare("SELECT id_cliente, no_contrato FROM clientes WHERE no_contrato LIKE ? ORDER BY id_cliente");
+    $stmtClients->execute([$pattern]);
+    $rows = $stmtClients->fetchAll(PDO::FETCH_ASSOC);
     if (empty($rows)) {
-        fwrite(STDOUT, "No hay clientes QA-MTX para limpiar.\n");
+        fwrite(STDOUT, "No hay clientes QA para limpiar con patrón: {$pattern}\n");
         exit(0);
     }
 
@@ -93,6 +101,7 @@ try {
     $pdo->commit();
 
     fwrite(STDOUT, "Limpieza completada.\n");
+    fwrite(STDOUT, "Patrón: {$pattern}\n");
     fwrite(STDOUT, "Clientes objetivo: " . count($clientIds) . "\n");
     foreach ($summary as $table => $count) {
         fwrite(STDOUT, $table . ": " . $count . "\n");
@@ -105,4 +114,3 @@ try {
     fwrite(STDERR, "Error en limpieza QA: " . $e->getMessage() . "\n");
     exit(1);
 }
-
