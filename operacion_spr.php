@@ -1275,7 +1275,53 @@ function v(id) {
 }
 let kycDataCache = null;
 
+function inferInputPlaceholder(input) {
+    const type = String(input.getAttribute('type') || 'text').toLowerCase();
+    const id = String(input.id || '').toLowerCase();
+    const name = String(input.getAttribute('name') || '').toLowerCase();
+    const cls = String(input.className || '').toLowerCase();
+    const token = `${id} ${name} ${cls}`;
+    const holder = input.closest('div');
+    const labelEl = holder ? holder.querySelector('label.form-label, label') : null;
+    const label = String(labelEl ? labelEl.textContent : '').toLowerCase()
+        .replace(/\*/g, '')
+        .replace(/\s+/g, ' ')
+        .trim();
+
+    if (type === 'date') return 'AAAA-MM-DD';
+    if (label.includes('rfc') || token.includes('rfc')) return 'Ej: ABCD900101A1B';
+    if (label.includes('curp') || token.includes('curp')) return 'Ej: ABCD900101HDFRRL09';
+    if (label.includes('c.p') || label.includes('código postal') || token.includes('codigo_postal') || token.includes('-cp') || token.includes(' cp')) return 'Ej: 01030';
+    if (label.includes('correo') || token.includes('correo') || token.includes('email')) return 'Ej: usuario@correo.com';
+    if (label.includes('teléfono') || label.includes('telefono') || token.includes('telefono') || token.includes('tel_')) return 'Ej: 5512345678';
+    if (label.includes('folio') || token.includes('folio')) return 'Ej: FOL-12345';
+    if (label.includes('referencia') || token.includes('referencia')) return 'Ej: REF202603001';
+    if (label.includes('denominación') || label.includes('denominacion') || label.includes('razón social') || label.includes('razon social')) return 'Ej: EMPRESA SA DE CV';
+    if (label.includes('apellido paterno')) return 'Ej: PEREZ';
+    if (label.includes('apellido materno')) return 'Ej: GARCIA';
+    if (label.includes('nombre')) return 'Ej: JUAN';
+    if (label.includes('colonia')) return 'Ej: CENTRO';
+    if (label.includes('calle')) return 'Ej: AV INSURGENTES';
+    if (label.includes('número exterior') || label.includes('numero exterior') || token.includes('numext')) return 'Ej: 123';
+    if (label.includes('número interior') || label.includes('numero interior') || token.includes('numint')) return 'Ej: 4B';
+    if (label.includes('identificador fideicomiso') || token.includes('fid-id') || token.includes('identificador')) return 'Ej: FID-12345';
+    if (label.includes('instrumento público') || label.includes('instrumento publico')) return 'Ej: ESCRITURA-12345';
+    if (type === 'number' || label.includes('monto') || label.includes('importe') || label.includes('valor') || label.includes('capital') || label.includes('cantidad') || token.includes('monto') || token.includes('importe')) return 'Ej: 15000.00';
+    return 'Ejemplo';
+}
+
+function applyExamplePlaceholders(root = document) {
+    const scope = (root && root.querySelectorAll) ? root : document;
+    scope.querySelectorAll('input:not([type="hidden"]):not([type="checkbox"]):not([type="radio"])').forEach((input) => {
+        if (input.readOnly || input.disabled) return;
+        const current = String(input.getAttribute('placeholder') || '').trim();
+        if (current !== '') return;
+        input.setAttribute('placeholder', inferInputPlaceholder(input));
+    });
+}
+
 document.addEventListener('DOMContentLoaded', function() {
+    applyExamplePlaceholders(document.getElementById('formSPR') || document);
     cargarClientes();
     document.getElementById('id_cliente').addEventListener('change', cargarKYC);
     document.getElementById('tipo_persona').addEventListener('change', toggleTipoPersona);
@@ -1344,6 +1390,16 @@ document.addEventListener('DOMContentLoaded', function() {
         if (e.target.matches('.inmueble-contrato-tipo')) toggleInmuebleContrato(e.target.closest('.inmueble-item'));
         if (e.target.matches('.datos-fin-activo-virt')) toggleActivoVirtual(e.target.closest('.datos-fin-item'));
     });
+
+    const form = document.getElementById('formSPR');
+    if (form && window.MutationObserver) {
+        const mo = new MutationObserver((mutations) => {
+            mutations.forEach((m) => m.addedNodes.forEach((node) => {
+                if (node && node.nodeType === 1) applyExamplePlaceholders(node);
+            }));
+        });
+        mo.observe(form, { childList: true, subtree: true });
+    }
 });
 function toggleTipoDomicilio() {
     const tipo = document.getElementById('tipo_domicilio').value;

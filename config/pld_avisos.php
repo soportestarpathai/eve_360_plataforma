@@ -49,7 +49,7 @@ if (!function_exists('validateAvisoUmbralIndividual')) {
      * @param string|null $fechaOperacion Fecha de la transacción (Y-m-d). Se usa para deadline.
      * @return array Resultado de la validación
      */
-    function validateAvisoUmbralIndividual($pdo, $id_cliente, $monto, $id_fraccion = null, $fechaOperacion = null) {
+    function validateAvisoUmbralIndividual($pdo, $id_cliente, $monto, $id_fraccion = null, $fechaOperacion = null, $umbralAvisoUmaOverride = null) {
         try {
             // Obtener umbral configurado (en UMAs)
             $stmt = $pdo->query("SELECT valor FROM indicadores WHERE nombre LIKE '%UMA%' ORDER BY fecha DESC LIMIT 1");
@@ -66,6 +66,11 @@ if (!function_exists('validateAvisoUmbralIndividual')) {
                 $umbralUMA = ($rawUmbral === null || $rawUmbral === '') ? null : floatval($rawUmbral);
             }
             
+            if ($umbralAvisoUmaOverride !== null && $umbralAvisoUmaOverride !== '') {
+                $ov = floatval($umbralAvisoUmaOverride);
+                if ($ov > 0) $umbralUMA = $ov;
+            }
+
             // Si no hay umbral específico, usar umbral general (configurable)
             if ($umbralUMA === null) {
                 $stmt = $pdo->query("SELECT umbral_aviso_uma FROM config_empresa WHERE id_config = 1");
@@ -127,7 +132,7 @@ if (!function_exists('validateAvisoAcumulacion')) {
      * @param string|null $tipoActo Tipo de acto
      * @return array Resultado de la validación
      */
-    function validateAvisoAcumulacion($pdo, $id_cliente, $monto, $fechaOperacion, $id_fraccion = null, $tipoActo = null) {
+    function validateAvisoAcumulacion($pdo, $id_cliente, $monto, $fechaOperacion, $id_fraccion = null, $tipoActo = null, $umbralAcumulacionUmaOverride = null) {
         try {
             // Obtener valor UMA
             $stmt = $pdo->query("SELECT valor FROM indicadores WHERE nombre LIKE '%UMA%' ORDER BY fecha DESC LIMIT 1");
@@ -144,6 +149,11 @@ if (!function_exists('validateAvisoAcumulacion')) {
                 $umbralUMA = ($rawUmbral === null || $rawUmbral === '') ? null : floatval($rawUmbral);
             }
             
+            if ($umbralAcumulacionUmaOverride !== null && $umbralAcumulacionUmaOverride !== '') {
+                $ov = floatval($umbralAcumulacionUmaOverride);
+                if ($ov > 0) $umbralUMA = $ov;
+            }
+
             // Si no hay umbral específico, usar umbral general (configurable)
             if ($umbralUMA === null) {
                 $stmt = $pdo->query("SELECT umbral_acumulacion_uma FROM config_empresa WHERE id_config = 1");
@@ -746,6 +756,11 @@ if (!function_exists('registrarOperacionPLD')) {
             $fecha_conocimiento_sospecha = $data['fecha_conocimiento_sospecha'] ?? null;
             $match_listas_restringidas = $data['match_listas_restringidas'] ?? 0;
             $fecha_conocimiento_match = $data['fecha_conocimiento_match'] ?? null;
+            $umbralAvisoUmaOverride = $data['umbral_aviso_uma_override'] ?? null;
+            $umbralAcumulacionUmaOverride = $data['umbral_acumulacion_uma_override'] ?? null;
+            if (($umbralAcumulacionUmaOverride === null || $umbralAcumulacionUmaOverride === '') && ($umbralAvisoUmaOverride !== null && $umbralAvisoUmaOverride !== '')) {
+                $umbralAcumulacionUmaOverride = $umbralAvisoUmaOverride;
+            }
             
             if (!$id_cliente || $monto <= 0) {
                 return [
@@ -798,7 +813,14 @@ if (!function_exists('registrarOperacionPLD')) {
             $montoUMA = $monto / $valorUMA;
             
             // Validar umbral individual (VAL-PLD-008)
-            $validacionUmbral = validateAvisoUmbralIndividual($pdo, $id_cliente, $monto, $id_fraccion, $fecha_operacion);
+            $validacionUmbral = validateAvisoUmbralIndividual(
+                $pdo,
+                $id_cliente,
+                $monto,
+                $id_fraccion,
+                $fecha_operacion,
+                $umbralAvisoUmaOverride
+            );
             $requiere_aviso = $validacionUmbral['requiere_aviso'] ?? false;
             $tipo_aviso = null;
             $fecha_deadline_aviso = null;
@@ -811,7 +833,15 @@ if (!function_exists('registrarOperacionPLD')) {
             // Validar acumulación (VAL-PLD-009)
             // IMPORTANTE: La acumulación se valida independientemente del umbral individual
             // Puede haber acumulación aunque ninguna operación individual rebase el umbral
-            $validacionAcumulacion = validateAvisoAcumulacion($pdo, $id_cliente, $monto, $fecha_operacion, $id_fraccion, $tipo_operacion);
+            $validacionAcumulacion = validateAvisoAcumulacion(
+                $pdo,
+                $id_cliente,
+                $monto,
+                $fecha_operacion,
+                $id_fraccion,
+                $tipo_operacion,
+                $umbralAcumulacionUmaOverride
+            );
             if ($validacionAcumulacion['requiere_aviso'] ?? false) {
                 // Si ya hay un aviso por umbral individual, mantenerlo
                 // Si no, crear aviso por acumulación

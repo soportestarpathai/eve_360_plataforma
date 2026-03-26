@@ -28,11 +28,23 @@ function ensureContractFolioColumns(PDO $pdo): void {
 
 ensureContractFolioColumns($pdo);
 
-// Asegurar columna subfracciones_xi
+// Asegurar columna subfracciones_xi y subfracciones_ii
 try {
     $chk = $pdo->query("SELECT COUNT(*) FROM INFORMATION_SCHEMA.COLUMNS WHERE TABLE_SCHEMA = DATABASE() AND TABLE_NAME = 'config_empresa' AND COLUMN_NAME = 'subfracciones_xi'");
     if ($chk && $chk->fetchColumn() == 0) {
         $pdo->exec("ALTER TABLE config_empresa ADD COLUMN subfracciones_xi JSON DEFAULT NULL COMMENT 'Subfracciones XI (SPR) activas'");
+    }
+    $chk2 = $pdo->query("SELECT COUNT(*) FROM INFORMATION_SCHEMA.COLUMNS WHERE TABLE_SCHEMA = DATABASE() AND TABLE_NAME = 'config_empresa' AND COLUMN_NAME = 'subfracciones_ii'");
+    if ($chk2 && $chk2->fetchColumn() == 0) {
+        $pdo->exec("ALTER TABLE config_empresa ADD COLUMN subfracciones_ii JSON DEFAULT NULL COMMENT 'Subfracciones II activas'");
+    }
+    $chk3 = $pdo->query("SELECT COUNT(*) FROM INFORMATION_SCHEMA.COLUMNS WHERE TABLE_SCHEMA = DATABASE() AND TABLE_NAME = 'config_empresa_usuario' AND COLUMN_NAME = 'subfracciones_xi'");
+    if ($chk3 && $chk3->fetchColumn() == 0) {
+        $pdo->exec("ALTER TABLE config_empresa_usuario ADD COLUMN subfracciones_xi JSON DEFAULT NULL");
+    }
+    $chk4 = $pdo->query("SELECT COUNT(*) FROM INFORMATION_SCHEMA.COLUMNS WHERE TABLE_SCHEMA = DATABASE() AND TABLE_NAME = 'config_empresa_usuario' AND COLUMN_NAME = 'subfracciones_ii'");
+    if ($chk4 && $chk4->fetchColumn() == 0) {
+        $pdo->exec("ALTER TABLE config_empresa_usuario ADD COLUMN subfracciones_ii JSON DEFAULT NULL");
     }
 } catch (Exception $e) { /* ignorar */ }
 
@@ -205,7 +217,7 @@ if ($id_usuario_seleccionado > 0) {
         $stmtU->execute([$id_usuario_seleccionado]);
         $configU = $stmtU->fetch(PDO::FETCH_ASSOC);
         if ($configU) {
-            foreach (['nombre_empresa','logo_url','color_primario','max_usuarios','max_busquedas_api','id_tipo_empresa','id_vulnerable','contrato_prefijo','contrato_siguiente','contrato_longitud','contrato_rellenar_ceros','folio_patron_pld','estatus_patron_pld','fecha_revalidacion_patron','fracciones_activas','subfracciones_xi','no_habilitado_pld'] as $k) {
+            foreach (['nombre_empresa','logo_url','color_primario','max_usuarios','max_busquedas_api','id_tipo_empresa','id_vulnerable','contrato_prefijo','contrato_siguiente','contrato_longitud','contrato_rellenar_ceros','folio_patron_pld','estatus_patron_pld','fecha_revalidacion_patron','fracciones_activas','subfracciones_xi','subfracciones_ii','no_habilitado_pld'] as $k) {
                 if (isset($configU[$k]) && $configU[$k] !== null) {
                     $config[$k] = $configU[$k];
                 }
@@ -726,9 +738,11 @@ $listaUsuarios = $stmtUsuarios->fetchAll(PDO::FETCH_ASSOC);
                                     }
 
                                     // Orden recomendado de fracciones implementadas.
+                                    // Siempre incluirlas para evitar que desaparezcan del panel
+                                    // cuando el catálogo venga incompleto temporalmente.
                                     $ordenPreferido = ['II', 'V', 'V Bis', 'VI', 'XI', 'XIII', 'XVI'];
-                                    if (empty($fraccionesOpciones)) {
-                                        foreach ($ordenPreferido as $fo) $fraccionesOpciones[$fo] = $fo;
+                                    foreach ($ordenPreferido as $fo) {
+                                        $fraccionesOpciones[$fo] = $fo;
                                     }
                                     $fraccionesOpcionesLista = array_values(array_unique(array_keys($fraccionesOpciones)));
                                     usort($fraccionesOpcionesLista, function ($a, $b) use ($ordenPreferido) {
@@ -784,6 +798,31 @@ $listaUsuarios = $stmtUsuarios->fetchAll(PDO::FETCH_ASSOC);
                                         <?php endforeach; ?>
                                     </div>
                                     <small class="form-text text-muted d-block mt-2">Si no selecciona ninguna, se mostrarán todas en el formulario SPR.</small>
+                                </div>
+
+                                <div id="subfraccionesIiSection" class="mb-3 mt-3 nested-card" style="display:none;">
+                                    <label class="form-label fw-bold"><i class="fa-solid fa-credit-card me-2"></i>Subfracciones II</label>
+                                    <p class="small text-muted mb-2">Seleccione las subfracciones de Fracción II habilitadas para su empresa:</p>
+                                    <div class="row g-2">
+                                        <?php
+                                        require_once __DIR__ . '/../config/pld_fraccion_ii.php';
+                                        $subfraccionesIIConfig = [];
+                                        if (!empty($config['subfracciones_ii'])) {
+                                            $dec = json_decode($config['subfracciones_ii'], true);
+                                            if (is_array($dec)) $subfraccionesIIConfig = $dec;
+                                        }
+                                        $subfraccionesIIDef = function_exists('getSubfraccionesIIDefinition') ? getSubfraccionesIIDefinition() : [];
+                                        foreach ($subfraccionesIIDef as $clave => $meta):
+                                            $etiqueta = is_array($meta) ? ($meta['nombre'] ?? $clave) : $clave;
+                                            $chk = in_array($clave, $subfraccionesIIConfig, true) ? ' checked' : '';
+                                        ?>
+                                        <div class="col-md-6"><div class="form-check">
+                                            <input class="form-check-input subfraccion-ii-check" type="checkbox" value="<?= htmlspecialchars($clave) ?>" id="subf_ii_<?= htmlspecialchars($clave) ?>"<?= $chk ?>>
+                                            <label class="form-check-label" for="subf_ii_<?= htmlspecialchars($clave) ?>"><?= htmlspecialchars($etiqueta) ?></label>
+                                        </div></div>
+                                        <?php endforeach; ?>
+                                    </div>
+                                    <small class="form-text text-muted d-block mt-2">Si no selecciona ninguna, se permitirán todas en el formulario de Fracción II.</small>
                                 </div>
                                 
                                 <div class="d-flex flex-wrap gap-2 mt-3">
@@ -1219,14 +1258,23 @@ $listaUsuarios = $stmtUsuarios->fetchAll(PDO::FETCH_ASSOC);
         const tieneXI = fracciones.includes('XI');
         sec.style.display = tieneXI ? 'block' : 'none';
     }
+    function toggleSubfraccionesII() {
+        const sec = document.getElementById('subfraccionesIiSection');
+        if (!sec) return;
+        const fracciones = getSelectedFraccionesActivas();
+        const tieneII = fracciones.includes('II');
+        sec.style.display = tieneII ? 'block' : 'none';
+    }
     (function initSubfraccionesXI() {
         const checks = document.querySelectorAll('.fraccion-activa-check');
         checks.forEach((cb) => cb.addEventListener('change', () => {
             syncFraccionesActivasHidden();
             toggleSubfraccionesXI();
+            toggleSubfraccionesII();
         }));
         syncFraccionesActivasHidden();
         toggleSubfraccionesXI();
+        toggleSubfraccionesII();
     })();
 
     function savePatronPLD() {
@@ -1239,6 +1287,9 @@ $listaUsuarios = $stmtUsuarios->fetchAll(PDO::FETCH_ASSOC);
         const subfraccionesChecked = [];
         document.querySelectorAll('.subfraccion-xi-check:checked').forEach(cb => subfraccionesChecked.push(cb.value));
         const subfracciones = document.getElementById('subfraccionesXiSection').style.display !== 'none' ? subfraccionesChecked : null;
+        const subfraccionesIIChecked = [];
+        document.querySelectorAll('.subfraccion-ii-check:checked').forEach(cb => subfraccionesIIChecked.push(cb.value));
+        const subfraccionesII = document.getElementById('subfraccionesIiSection').style.display !== 'none' ? subfraccionesIIChecked : null;
         
         fetch('../api/revalidate_patron_pld.php', {
             method: 'POST',
@@ -1248,6 +1299,7 @@ $listaUsuarios = $stmtUsuarios->fetchAll(PDO::FETCH_ASSOC);
                 estatus: estatus || null,
                 fracciones: fracciones || null,
                 subfracciones_xi: subfracciones,
+                subfracciones_ii: subfraccionesII,
                 confirmar: true,
                 id_usuario: window.idUsuarioConfig || 0
             })
@@ -1387,6 +1439,8 @@ $listaUsuarios = $stmtUsuarios->fetchAll(PDO::FETCH_ASSOC);
             const fracciones = fraccionesSeleccionadas.length > 0 ? JSON.stringify(fraccionesSeleccionadas) : null;
             const subf = [];
             document.querySelectorAll('.subfraccion-xi-check:checked').forEach(cb => subf.push(cb.value));
+            const subfII = [];
+            document.querySelectorAll('.subfraccion-ii-check:checked').forEach(cb => subfII.push(cb.value));
             
             fetch('../api/revalidate_patron_pld.php', {
                 method: 'POST',
@@ -1396,6 +1450,7 @@ $listaUsuarios = $stmtUsuarios->fetchAll(PDO::FETCH_ASSOC);
                     estatus: estatus || null,
                     fracciones: fracciones || null,
                     subfracciones_xi: subf,
+                    subfracciones_ii: subfII,
                     confirmar: false,
                     id_usuario: window.idUsuarioConfig || 0
                 })
@@ -1439,6 +1494,8 @@ $listaUsuarios = $stmtUsuarios->fetchAll(PDO::FETCH_ASSOC);
                                     folio: folio || null,
                                     estatus: estatus || null,
                                     fracciones: fracciones || null,
+                                    subfracciones_xi: subf,
+                                    subfracciones_ii: subfII,
                                     confirmar: true,
                                     id_usuario: window.idUsuarioConfig || 0
                                 })

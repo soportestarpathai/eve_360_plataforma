@@ -281,6 +281,108 @@ function getSubfraccionXIOutsideAllowedBlockers(PDO $pdo, int $idUsuario, array 
     }
     return $out;
 }
+
+function parseSubfraccionIIFromTipoOperacion(?string $tipoOperacion): string {
+    $tipo = trim((string)$tipoOperacion);
+    if ($tipo === '') return '';
+    if (stripos($tipo, 'II:') === 0) {
+        $parts = explode(':', $tipo);
+        $cand = trim((string)($parts[1] ?? ''));
+        return $cand;
+    }
+    // Compatibilidad con histórico previo (antes de subfracciones explícitas)
+    if (strcasecmp($tipo, 'TSC') === 0) return 'servicio_credito';
+    if (strcasecmp($tipo, 'TPP') === 0) return 'prepago_cupones';
+    if (strcasecmp($tipo, 'TDR') === 0) return 'devolucion_recompensas';
+    return '';
+}
+
+/**
+ * Bloquea recorte de subfracciones II si ya hay operaciones históricas en esas claves.
+ * Se infiere subfracción desde operaciones_pld.tipo_operacion (formato II:<subfraccion>:...).
+ * Devuelve [subfraccion => ['operaciones' => int, 'clientes' => int]]
+ */
+function getSubfraccionIIRemovalBlockers(PDO $pdo, int $idUsuario, array $subfraccionesRemovidas): array {
+    $subfraccionesRemovidas = normalizeStringArray($subfraccionesRemovidas);
+    if ($idUsuario <= 0 || empty($subfraccionesRemovidas)) return [];
+
+    $sql = "
+        SELECT
+            o.tipo_operacion,
+            COUNT(*) AS total_operaciones,
+            COUNT(DISTINCT o.id_cliente) AS total_clientes
+        FROM operaciones_pld o
+        INNER JOIN clientes c ON c.id_cliente = o.id_cliente
+        INNER JOIN cat_vulnerables cv ON cv.id_vulnerable = o.id_fraccion
+        WHERE c.id_usuario = ?
+          AND COALESCE(c.id_status, 1) <> 4
+          AND COALESCE(o.id_status, 1) <> 4
+          AND cv.fraccion = 'II'
+        GROUP BY o.tipo_operacion
+    ";
+    $stmt = $pdo->prepare($sql);
+    $stmt->execute([$idUsuario]);
+
+    $out = [];
+    while ($r = $stmt->fetch(PDO::FETCH_ASSOC)) {
+        $subf = parseSubfraccionIIFromTipoOperacion((string)($r['tipo_operacion'] ?? ''));
+        if ($subf === '' || !in_array($subf, $subfraccionesRemovidas, true)) continue;
+        $out[$subf] = [
+            'operaciones' => (int)($r['total_operaciones'] ?? 0),
+            'clientes' => (int)($r['total_clientes'] ?? 0),
+        ];
+    }
+    return $out;
+}
+
+/**
+ * Caso especial: antes tenía "todas" (sin filtro) y ahora quiere restringir subfracciones II.
+ * Regresa subfracciones II fuera del nuevo set permitido que ya tienen historial.
+ */
+function getSubfraccionIIOutsideAllowedBlockers(PDO $pdo, int $idUsuario, array $subfraccionesPermitidas): array {
+    $subfraccionesPermitidas = normalizeStringArray($subfraccionesPermitidas);
+    if ($idUsuario <= 0 || empty($subfraccionesPermitidas)) return [];
+
+    $sql = "
+        SELECT
+            o.tipo_operacion,
+            COUNT(*) AS total_operaciones,
+            COUNT(DISTINCT o.id_cliente) AS total_clientes
+        FROM operaciones_pld o
+        INNER JOIN clientes c ON c.id_cliente = o.id_cliente
+        INNER JOIN cat_vulnerables cv ON cv.id_vulnerable = o.id_fraccion
+        WHERE c.id_usuario = ?
+          AND COALESCE(c.id_status, 1) <> 4
+          AND COALESCE(o.id_status, 1) <> 4
+          AND cv.fraccion = 'II'
+        GROUP BY o.tipo_operacion
+    ";
+    $stmt = $pdo->prepare($sql);
+    $stmt->execute([$idUsuario]);
+
+    $out = [];
+    while ($r = $stmt->fetch(PDO::FETCH_ASSOC)) {
+        $subf = parseSubfraccionIIFromTipoOperacion((string)($r['tipo_operacion'] ?? ''));
+        if ($subf === '' || in_array($subf, $subfraccionesPermitidas, true)) continue;
+        $out[$subf] = [
+            'operaciones' => (int)($r['total_operaciones'] ?? 0),
+            'clientes' => (int)($r['total_clientes'] ?? 0),
+        ];
+    }
+    return $out;
+}
+
+// Garantizar columnas de subfracciones en permisos antes de procesar acciones del formulario.
+try {
+    $chk = $pdo->query("SELECT COUNT(*) FROM INFORMATION_SCHEMA.COLUMNS WHERE TABLE_SCHEMA = DATABASE() AND TABLE_NAME = 'usuarios_permisos' AND COLUMN_NAME = 'subfracciones_xi'");
+    if ($chk && $chk->fetchColumn() == 0) {
+        $pdo->exec("ALTER TABLE usuarios_permisos ADD COLUMN subfracciones_xi JSON DEFAULT NULL");
+    }
+    $chk2 = $pdo->query("SELECT COUNT(*) FROM INFORMATION_SCHEMA.COLUMNS WHERE TABLE_SCHEMA = DATABASE() AND TABLE_NAME = 'usuarios_permisos' AND COLUMN_NAME = 'subfracciones_ii'");
+    if ($chk2 && $chk2->fetchColumn() == 0) {
+        $pdo->exec("ALTER TABLE usuarios_permisos ADD COLUMN subfracciones_ii JSON DEFAULT NULL");
+    }
+} catch (Exception $e) { /* noop */ }
 ?>
 <title>Administración de Usuarios - EVE 360</title>
 <style>
@@ -456,7 +558,8 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
             $stmtReq = $pdo->prepare("
                 SELECT DISTINCT
                     cv.fraccion AS fraccion,
-                    COALESCE(o.subfraccion_xi, '') AS subfraccion_xi
+                    COALESCE(o.subfraccion_xi, '') AS subfraccion_xi,
+                    COALESCE(o.tipo_operacion, '') AS tipo_operacion
                 FROM operaciones_pld o
                 INNER JOIN clientes c ON c.id_cliente = o.id_cliente
                 INNER JOIN cat_vulnerables cv ON cv.id_vulnerable = o.id_fraccion
@@ -469,20 +572,25 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
 
             $requiredFracciones = [];
             $requiredSubfXI = [];
+            $requiredSubfII = [];
             foreach ($reqRows as $rr) {
                 $fr = trim((string)($rr['fraccion'] ?? ''));
                 $sf = trim((string)($rr['subfraccion_xi'] ?? ''));
+                $sfII = parseSubfraccionIIFromTipoOperacion((string)($rr['tipo_operacion'] ?? ''));
                 if ($fr !== '') $requiredFracciones[$fr] = true;
                 if ($fr === 'XI' && $sf !== '') $requiredSubfXI[$sf] = true;
+                if ($fr === 'II' && $sfII !== '') $requiredSubfII[$sfII] = true;
             }
             $requiredFracciones = array_keys($requiredFracciones);
             $requiredSubfXI = array_keys($requiredSubfXI);
+            $requiredSubfII = array_keys($requiredSubfII);
 
-            $stmtDestPerm = $pdo->prepare("SELECT fracciones_pld, subfracciones_xi FROM usuarios_permisos WHERE id_usuario = ? LIMIT 1");
+            $stmtDestPerm = $pdo->prepare("SELECT fracciones_pld, subfracciones_xi, subfracciones_ii FROM usuarios_permisos WHERE id_usuario = ? LIMIT 1");
             $stmtDestPerm->execute([$idDestino]);
             $destPerm = $stmtDestPerm->fetch(PDO::FETCH_ASSOC) ?: [];
             $destFracciones = decodeJsonArrayOrEmpty($destPerm['fracciones_pld'] ?? null);
             $destSubfXI = decodeJsonArrayOrEmpty($destPerm['subfracciones_xi'] ?? null);
+            $destSubfII = decodeJsonArrayOrEmpty($destPerm['subfracciones_ii'] ?? null);
 
             if (!empty($requiredFracciones)) {
                 $missingFracciones = array_values(array_diff($requiredFracciones, $destFracciones));
@@ -501,6 +609,16 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
                     throw new Exception(
                         "No se puede transferir: el usuario destino no tiene estas subfracciones XI requeridas: "
                         . implode(', ', $missingSubf) . "."
+                    );
+                }
+            }
+            // Si destino tiene subfracciones II definidas explícitamente, validar que cubra el historial II.
+            if (!empty($requiredSubfII) && !empty($destSubfII)) {
+                $missingSubfII = array_values(array_diff($requiredSubfII, $destSubfII));
+                if (!empty($missingSubfII)) {
+                    throw new Exception(
+                        "No se puede transferir: el usuario destino no tiene estas subfracciones II requeridas: "
+                        . implode(', ', $missingSubfII) . "."
                     );
                 }
             }
@@ -606,6 +724,10 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
                 ? normalizeStringArray($_POST['subfracciones_xi'] ?? [])
                 : [];
             $subfraccionesXiJson = !empty($selectedSubfracciones) ? json_encode(array_values($selectedSubfracciones)) : null;
+            $selectedSubfraccionesII = (in_array('II', $selectedFracciones, true))
+                ? normalizeStringArray($_POST['subfracciones_ii'] ?? [])
+                : [];
+            $subfraccionesIiJson = !empty($selectedSubfraccionesII) ? json_encode(array_values($selectedSubfraccionesII)) : null;
 
             require_once __DIR__ . '/../config/pld_permisos.php';
             ensureFraccionesPLDColumn($pdo);
@@ -616,12 +738,13 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
             // 2) No permitir recortar subfracciones XI con operaciones históricas en esas claves.
             if (!empty($id_usuario)) {
                 $idUsuarioInt = (int)$id_usuario;
-                $stmtPrevPerm = $pdo->prepare("SELECT fracciones_pld, subfracciones_xi FROM usuarios_permisos WHERE id_usuario = ? LIMIT 1");
+                $stmtPrevPerm = $pdo->prepare("SELECT fracciones_pld, subfracciones_xi, subfracciones_ii FROM usuarios_permisos WHERE id_usuario = ? LIMIT 1");
                 $stmtPrevPerm->execute([$idUsuarioInt]);
                 $prevPerm = $stmtPrevPerm->fetch(PDO::FETCH_ASSOC) ?: [];
 
                 $oldFracciones = decodeJsonArrayOrEmpty($prevPerm['fracciones_pld'] ?? null);
                 $oldSubfraccionesXI = decodeJsonArrayOrEmpty($prevPerm['subfracciones_xi'] ?? null);
+                $oldSubfraccionesII = decodeJsonArrayOrEmpty($prevPerm['subfracciones_ii'] ?? null);
 
                 $removedFracciones = array_values(array_diff($oldFracciones, $selectedFracciones));
                 if (!empty($removedFracciones)) {
@@ -665,14 +788,46 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
                         );
                     }
                 }
+
+                $oldHasII = in_array('II', $oldFracciones, true);
+                $newHasII = in_array('II', $selectedFracciones, true);
+                if ($oldHasII && $newHasII && !empty($selectedSubfraccionesII)) {
+                    $subfIIBlockers = [];
+                    if (!empty($oldSubfraccionesII)) {
+                        $removedSubfII = array_values(array_diff($oldSubfraccionesII, $selectedSubfraccionesII));
+                        if (!empty($removedSubfII)) {
+                            $subfIIBlockers = getSubfraccionIIRemovalBlockers($pdo, $idUsuarioInt, $removedSubfII);
+                        }
+                    } else {
+                        // Antes sin restricción (todas). Si ahora restringe, bloquear si deja fuera subfracciones con historial.
+                        $subfIIBlockers = getSubfraccionIIOutsideAllowedBlockers($pdo, $idUsuarioInt, $selectedSubfraccionesII);
+                    }
+
+                    if (!empty($subfIIBlockers)) {
+                        $detalles = [];
+                        foreach ($subfIIBlockers as $subf => $stats) {
+                            $detalles[] = $subf . ': ' . (int)$stats['operaciones'] . ' operación(es) en ' . (int)$stats['clientes'] . ' cliente(s)';
+                        }
+                        throw new Exception(
+                            "No se puede recortar subfracciones II con historial PLD. " .
+                            implode(' | ', $detalles) .
+                            ". Primero transfiera esos clientes a otro usuario con esas subfracciones habilitadas."
+                        );
+                    }
+                }
             }
 
             $stmtCheckPerm = $pdo->prepare("SELECT id_permiso FROM usuarios_permisos WHERE id_usuario = ?");
             $stmtCheckPerm->execute([$id_usuario]);
             $hasSubfCol = false;
+            $hasSubfIICol = false;
             try {
                 $chk = $pdo->query("SELECT COUNT(*) FROM INFORMATION_SCHEMA.COLUMNS WHERE TABLE_SCHEMA = DATABASE() AND TABLE_NAME = 'usuarios_permisos' AND COLUMN_NAME = 'subfracciones_xi'");
                 $hasSubfCol = $chk && $chk->fetchColumn() > 0;
+            } catch (Exception $e) { }
+            try {
+                $chk = $pdo->query("SELECT COUNT(*) FROM INFORMATION_SCHEMA.COLUMNS WHERE TABLE_SCHEMA = DATABASE() AND TABLE_NAME = 'usuarios_permisos' AND COLUMN_NAME = 'subfracciones_ii'");
+                $hasSubfIICol = $chk && $chk->fetchColumn() > 0;
             } catch (Exception $e) { }
             if ($stmtCheckPerm->fetchColumn()) {
                 $setParts = [];
@@ -681,13 +836,19 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
                 $setParts[] = "fracciones_pld = ?";
                 $execParams[] = $fraccionesPldJson;
                 if ($hasSubfCol) { $setParts[] = "subfracciones_xi = ?"; $execParams[] = $subfraccionesXiJson; }
+                if ($hasSubfIICol) { $setParts[] = "subfracciones_ii = ?"; $execParams[] = $subfraccionesIiJson; }
                 $execParams[] = $id_usuario;
                 $pdo->prepare("UPDATE usuarios_permisos SET " . implode(', ', $setParts) . " WHERE id_usuario = ?")->execute($execParams);
             } else {
-                $cols = "id_usuario, " . implode(', ', array_keys($permValues)) . ", fracciones_pld" . ($hasSubfCol ? ", subfracciones_xi" : "");
-                $placeholders = "?, " . str_repeat('?, ', count($permValues)) . "?" . ($hasSubfCol ? ", ?" : "");
+                $cols = "id_usuario, " . implode(', ', array_keys($permValues)) . ", fracciones_pld"
+                    . ($hasSubfCol ? ", subfracciones_xi" : "")
+                    . ($hasSubfIICol ? ", subfracciones_ii" : "");
+                $placeholders = "?, " . str_repeat('?, ', count($permValues)) . "?"
+                    . ($hasSubfCol ? ", ?" : "")
+                    . ($hasSubfIICol ? ", ?" : "");
                 $execParams = array_merge([$id_usuario], array_values($permValues), [$fraccionesPldJson]);
                 if ($hasSubfCol) $execParams[] = $subfraccionesXiJson;
+                if ($hasSubfIICol) $execParams[] = $subfraccionesIiJson;
                 $pdo->prepare("INSERT INTO usuarios_permisos ($cols) VALUES ($placeholders)")->execute($execParams);
             }
 
@@ -734,6 +895,10 @@ try {
     if ($chk && $chk->fetchColumn() == 0) {
         $pdo->exec("ALTER TABLE usuarios_permisos ADD COLUMN subfracciones_xi JSON DEFAULT NULL");
     }
+    $chk2 = $pdo->query("SELECT COUNT(*) FROM INFORMATION_SCHEMA.COLUMNS WHERE TABLE_SCHEMA = DATABASE() AND TABLE_NAME = 'usuarios_permisos' AND COLUMN_NAME = 'subfracciones_ii'");
+    if ($chk2 && $chk2->fetchColumn() == 0) {
+        $pdo->exec("ALTER TABLE usuarios_permisos ADD COLUMN subfracciones_ii JSON DEFAULT NULL");
+    }
 } catch (Exception $e) { }
 
 $stmtConfig = $pdo->query("SELECT fracciones_activas FROM config_empresa WHERE id_config = 1");
@@ -762,7 +927,7 @@ try {
 $stmt = $pdo->query("
     SELECT u.*, up.catalogo_instituciones, up.catalogo_emisoras, up.catalogo_clientes,
            up.captura, up.administracion, up.reportes, up.valuacion, up.correcciones, up.rebalanceo,
-           up.fracciones_pld, up.subfracciones_xi, COALESCE(up.permiso_pld_modificacion, 0) AS permiso_pld_modificacion,
+           up.fracciones_pld, up.subfracciones_xi, up.subfracciones_ii, COALESCE(up.permiso_pld_modificacion, 0) AS permiso_pld_modificacion,
            ceu.fracciones_activas AS fracciones_activas_cfg
     FROM usuarios u
     LEFT JOIN usuarios_permisos up ON u.id_usuario = up.id_usuario
@@ -1041,7 +1206,7 @@ unset($uRef);
                         <div class="row g-2">
                             <?php foreach ($fraccionesRender as $frac): $fracId = str_replace(' ', '_', $frac); ?>
                             <div class="col-md-4 pld-fraccion-item" data-fraccion="<?= htmlspecialchars($frac) ?>"><div class="form-check">
-                                <input class="form-check-input pld-fraccion-check" type="checkbox" name="fracciones_pld[]" value="<?= htmlspecialchars($frac) ?>" id="pld_frac_<?= htmlspecialchars($fracId) ?>" data-fraccion="<?= htmlspecialchars($frac) ?>" onchange="toggleUserSubfraccionesXI()">
+                                <input class="form-check-input pld-fraccion-check" type="checkbox" name="fracciones_pld[]" value="<?= htmlspecialchars($frac) ?>" id="pld_frac_<?= htmlspecialchars($fracId) ?>" data-fraccion="<?= htmlspecialchars($frac) ?>" onchange="toggleUserSubfraccionesXI(); toggleUserSubfraccionesII();">
                                 <label class="form-check-label" for="pld_frac_<?= htmlspecialchars($fracId) ?>"><?= htmlspecialchars($frac) ?></label>
                             </div></div>
                             <?php endforeach; ?>
@@ -1057,6 +1222,23 @@ unset($uRef);
                                 <div class="col-md-6"><div class="form-check">
                                     <input class="form-check-input user-subfraccion-xi" type="checkbox" name="subfracciones_xi[]" value="<?= htmlspecialchars($clave) ?>" id="user_subf_<?= htmlspecialchars($clave) ?>">
                                     <label class="form-check-label" for="user_subf_<?= htmlspecialchars($clave) ?>"><?= htmlspecialchars($etiqueta) ?></label>
+                                </div></div>
+                                <?php endforeach; ?>
+                            </div>
+                        </div>
+                        <div id="userSubfraccionesIiSection" class="mt-3 p-3 rounded" style="display:none; background:#ecfeff; border-left:3px solid #0891b2;">
+                            <label class="form-label fw-bold"><i class="fa-solid fa-credit-card me-2"></i>Subfracciones II</label>
+                            <p class="small text-muted mb-2">Seleccione las subfracciones de Fracción II para este usuario:</p>
+                            <div class="row g-2">
+                                <?php
+                                require_once __DIR__ . '/../config/pld_fraccion_ii.php';
+                                $subfIIDef = function_exists('getSubfraccionesIIDefinition') ? getSubfraccionesIIDefinition() : [];
+                                foreach ($subfIIDef as $clave => $meta):
+                                    $etiqueta = is_array($meta) ? ($meta['nombre'] ?? $clave) : $clave;
+                                ?>
+                                <div class="col-md-6"><div class="form-check">
+                                    <input class="form-check-input user-subfraccion-ii" type="checkbox" name="subfracciones_ii[]" value="<?= htmlspecialchars($clave) ?>" id="user_subf_ii_<?= htmlspecialchars($clave) ?>">
+                                    <label class="form-check-label" for="user_subf_ii_<?= htmlspecialchars($clave) ?>"><?= htmlspecialchars($etiqueta) ?></label>
                                 </div></div>
                                 <?php endforeach; ?>
                             </div>
@@ -1204,6 +1386,7 @@ function applyFraccionesVisibles(fraccionesActivas) {
         if (cb && !mostrar) cb.checked = false;
     });
     toggleUserSubfraccionesXI();
+    toggleUserSubfraccionesII();
 }
 
 function openAdminModal() {
@@ -1240,6 +1423,7 @@ function openUserModal() {
     document.querySelectorAll('#userModal .form-check-input').forEach(el => el.checked = false);
     applyFraccionesVisibles(GLOBAL_FRACCIONES_ACTIVAS);
     const subfEl = document.getElementById('userSubfraccionesXiSection'); if (subfEl) subfEl.style.display = 'none';
+    const subfIIEl = document.getElementById('userSubfraccionesIiSection'); if (subfIIEl) subfIIEl.style.display = 'none';
     userModal.show();
 }
 function editUser(u) {
@@ -1262,17 +1446,34 @@ function editUser(u) {
     setP('perm_corr', u.correcciones); setP('perm_rep', u.reportes); setP('perm_pld_mod', u.permiso_pld_modificacion);
     document.querySelectorAll('#userModal .pld-fraccion-check').forEach(el => el.checked = false);
     document.querySelectorAll('#userModal .user-subfraccion-xi').forEach(el => el.checked = false);
+    document.querySelectorAll('#userModal .user-subfraccion-ii').forEach(el => el.checked = false);
     applyFraccionesVisibles(resolveFraccionesActivasUsuario(u));
     const subfSec = document.getElementById('userSubfraccionesXiSection');
+    const subfSecII = document.getElementById('userSubfraccionesIiSection');
     if (u.fracciones_pld) {
         let f = u.fracciones_pld;
         if (typeof f === 'string') { try { f = JSON.parse(f); } catch(e) { f = []; } }
-        if (Array.isArray(f)) f.forEach(x => { const e = document.getElementById('pld_frac_' + String(x).replace(/ /g, '_')); if (e) { e.checked = true; if (x === 'XI' && subfSec) subfSec.style.display = 'block'; } });
+        if (Array.isArray(f)) f.forEach(x => {
+            const e = document.getElementById('pld_frac_' + String(x).replace(/ /g, '_'));
+            if (e) {
+                e.checked = true;
+                if (x === 'XI' && subfSec) subfSec.style.display = 'block';
+                if (x === 'II' && subfSecII) subfSecII.style.display = 'block';
+            }
+        });
     }
     if (u.subfracciones_xi) {
         let sf = u.subfracciones_xi;
         if (typeof sf === 'string') { try { sf = JSON.parse(sf); } catch(e) { sf = []; } }
         if (Array.isArray(sf)) sf.forEach(x => { const e = document.getElementById('user_subf_' + x); if (e) e.checked = true; });
+    }
+    if (u.subfracciones_ii) {
+        let sf2 = u.subfracciones_ii;
+        if (typeof sf2 === 'string') { try { sf2 = JSON.parse(sf2); } catch(e) { sf2 = []; } }
+        if (Array.isArray(sf2)) sf2.forEach(x => {
+            const e = document.getElementById('user_subf_ii_' + x);
+            if (e) e.checked = true;
+        });
     }
     userModal.show();
 }
@@ -1300,6 +1501,12 @@ function toggleUserSubfraccionesXI() {
     const xiCb = document.getElementById('pld_frac_XI');
     const sec = document.getElementById('userSubfraccionesXiSection');
     if (xiCb && sec) sec.style.display = xiCb.checked ? 'block' : 'none';
+}
+
+function toggleUserSubfraccionesII() {
+    const iiCb = document.getElementById('pld_frac_II');
+    const sec = document.getElementById('userSubfraccionesIiSection');
+    if (iiCb && sec) sec.style.display = iiCb.checked ? 'block' : 'none';
 }
 </script>
 <?php include '../templates/footer.php'; ?>

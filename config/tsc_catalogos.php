@@ -9,11 +9,22 @@
 $TSC_CATALOGOS = [];
 
 /* ═══════════════════════════════════════════
- * 0. CLAVE DE ACTIVIDAD (clave_actividad)
- *    Para TSC siempre es "TSC"
+ * 0. SUBFRACCIÓN II (selección funcional en la plataforma)
+ * ═══════════════════════════════════════════ */
+$TSC_CATALOGOS['subfraccion_ii'] = [
+    'servicio_credito' => 'Tarjetas de Servicio y Crédito',
+    'prepago_cupones' => 'Tarjetas de Prepago y Cupones',
+    'devolucion_recompensas' => 'Tarjetas de Devolución y Recompensas',
+];
+
+/* ═══════════════════════════════════════════
+ * 0b. CLAVE DE ACTIVIDAD (clave_actividad)
+ *    TSC/TPP/TDR según subfracción II
  * ═══════════════════════════════════════════ */
 $TSC_CATALOGOS['clave_actividad'] = [
     'TSC' => 'Tarjetas de Servicio y de Crédito (emisión o comercialización habitual/profesional)',
+    'TPP' => 'La emisión o comercialización, habitual o profesional de tarjetas prepagadas, vales o cupones, impresos o electrónicos, que puedan ser utilizados o canjeados para la adquisición de bienes o servicios, que no sean emitidos o comercializados por Entidades Financieras.',
+    'TDR' => 'La emisión o comercialización, habitual o profesional, de monederos electrónicos, certificados o cupones, en los que sean abonados recursos provenientes de premios, promociones o devoluciones derivadas de recompensas comerciales.',
 ];
 
 /* ═══════════════════════════════════════════
@@ -35,6 +46,25 @@ $TSC_CATALOGOS['tipo_operacion'] = [
     '1703' => 'Recarga de tarjeta de prepago',
     '1704' => 'Actividad u operación con tarjeta de servicios o de crédito',
     '9999' => 'Otro (especificar)',
+];
+
+/* ═══════════════════════════════════════════
+ * 2b. TIPO DE OPERACIÓN — TPP (catálogo UIF específico)
+ *    Campo: tipo_operacion — digito_3-4_type
+ * ═══════════════════════════════════════════ */
+$TSC_CATALOGOS['tipo_operacion_tpp'] = [
+    '231' => 'Comercialización de Tarjetas Prepagadas (Carga o recarga)',
+    '232' => 'Comercialización de vales o cupones',
+];
+
+/* ═══════════════════════════════════════════
+ * 2c. TIPO DE OPERACIÓN — TDR (catálogo UIF específico)
+ *    Campo: tipo_operacion — digito_3-4_type
+ * ═══════════════════════════════════════════ */
+$TSC_CATALOGOS['tipo_operacion_tdr'] = [
+    '261' => 'Abono de recursos por devoluciones',
+    '262' => 'Abono de recursos por premios o promociones',
+    '263' => 'Abono de recursos por programa de recompensas comerciales',
 ];
 
 /* ═══════════════════════════════════════════
@@ -79,6 +109,67 @@ $TSC_CATALOGOS['tipo_alerta'] = [
     '2215' => 'El cliente solicita varias tarjetas con características similares sin que exista justificación para ello',
     '2216' => 'Otorgamiento de múltiples tarjetas adicionales o suplementarias sin causa justificada',
     '9999' => 'Otra alerta',
+];
+
+/* ═══════════════════════════════════════════
+ * 5d. TIPO DE ALERTA — TPP (catálogo UIF específico)
+ *    Campo: tipo_alerta — digito_3-4_type
+ * ═══════════════════════════════════════════ */
+$TSC_CATALOGOS['tipo_alerta_tpp'] = [
+    '100'  => 'Sin alerta',
+    '2301' => 'El cliente o usuario realiza operaciones de carga en diferentes tarjetas de forma periódica rebasando el umbral de aviso.',
+    '2302' => 'El cliente o usuario realiza la operación de carga o recarga por montos elevados liquidando en efectivo',
+    '2303' => 'Se observa que el cliente o usuario realiza operaciones de carga o recarga por montos por arriba del umbral de identificación utilizando diversas tarjetas',
+    '2304' => 'El cliente o usuario realiza diversas operaciones de carga o recarga por montos elevados en un periodo corto de tiempo.',
+    '2305' => 'Se observa que diferentes clientes o usuarios realizan operaciones de carga o recarga por arriba del umbral de identificación en la misma tarjeta.',
+    '2306' => 'Se observa que se realizan operaciones de carga o recarga en diferentes localidades, estados o jurisdicciones por arriba del umbral de identificación en la misma tarjeta',
+    '2307' => 'El cliente o usuario se rehúsa a proporcionar documentos personales que lo identifiquen.',
+    '2308' => 'De acuerdo con medios informativos u otras fuentes de información pública, se tiene conocimiento o sospecha de que el cliente, un familiar o persona relacionada, está vinculado con actividades ilícitas o se encuentra bajo proceso de investigación.',
+    '2309' => 'El monto de carga o recarga no es acorde con la actividad económica o giro mercantil declarado por el cliente o usuario.',
+    '2310' => 'Hay indicios, o certeza, que las partes no están actuando en nombre propio y están tratando de ocultar la identidad del cliente o usuario real',
+    '2311' => 'Uso de divisas en efectivo sin justificación alguna.',
+    '2312' => 'El cliente o usuario intenta sobornar, extorsionar o amenaza con el fin de realizar la operación fuera de los parámetros establecidos, o con la finalidad de evitar el envío del Aviso.',
+    '2313' => 'La información y documentación presentada por el cliente o usuario es inconsistente o de difícil verificación por parte del Sujeto Obligado.',
+    '2314' => 'El cliente o usuario no quiere ser relacionado con la operación realizada.',
+    '2315' => 'La operación la paga un tercero sin relación aparente con el cliente o usuario.',
+    '2316' => 'El cliente o usuario liquida la operación por medio de una transferencia proveniente de un país extranjero.',
+    '9999' => 'Otra alerta',
+];
+
+/* ═══════════════════════════════════════════
+ * 5f. TIPO DE ALERTA — TDR (catálogo UIF específico)
+ *    Campo: tipo_alerta — digito_3-4_type
+ * ═══════════════════════════════════════════ */
+$TSC_CATALOGOS['tipo_alerta_tdr'] = [
+    '100'  => 'Sin alerta.',
+    '3701' => 'El cliente o usuario se rehúsa a proporcionar documentos personales que lo identifiquen.',
+    '3702' => 'De acuerdo con medios informativos u otras fuentes de información pública, se tiene conocimiento o sospecha de que el cliente, un familiar o persona relacionada, está vinculado con actividades ilícitas o se encuentra bajo proceso de investigación.',
+    '3703' => 'El monto disponible en la tarjeta no es acorde con la actividad económica o giro mercantil declarado por el cliente o usuario.',
+    '3704' => 'Hay indicios, o certeza, que las partes no están actuando en nombre propio y están tratando de ocultar la identidad del cliente o usuario real.',
+    '3705' => 'El cliente o usuario intenta sobornar, extorsionar o amenaza al vendedor con el fin de realizar la operación fuera de los parámetros establecidos, o con la finalidad de evitar el envío del Aviso.',
+    '3706' => 'La información y documentación presentada por el cliente o usuario es inconsistente o de difícil verificación por parte del Sujeto Obligado.',
+    '3707' => 'El cliente o usuario realiza una o más compras por un valor significativamente elevado sin lógica aparente, con el objeto de retirar efectivo con las recompensas ganadas.',
+    '3708' => 'El cliente o usuario realiza una o más compras por un valor significativamente elevado, con el objeto de obtener la devolución del monto pagado.',
+    '3709' => 'Uso de divisas en efectivo para la adquisición de un bien con el único propósito de obtener la devolución en moneda nacional en un periodo corto de tiempo.',
+    '3710' => 'El cliente o usuario no quiere ser relacionado con la operación realizada.',
+    '3711' => 'El cliente o usuario o personas relacionadas con él realizan múltiples operaciones en un periodo muy corto sin razón aparente.',
+    '3712' => 'La operación la realiza un tercero sin relación aparente con el cliente o usuario.',
+    '9999' => 'Otra alerta.',
+];
+
+/* ═══════════════════════════════════════════
+ * 5e. INSTRUMENTO MONETARIO (catálogo UIF general)
+ *    Usado en detalle de liquidación de TPP.
+ * ═══════════════════════════════════════════ */
+$TSC_CATALOGOS['instrumento_monetario'] = [
+    '1' => 'Efectivo',
+    '2' => 'Tarjeta de crédito',
+    '3' => 'Tarjeta de débito',
+    '4' => 'Transferencia interbancaria',
+    '5' => 'Transferencia internacional',
+    '6' => 'Fondos de la cuenta en la plataforma',
+    '7' => 'Activos virtuales',
+    '99' => 'Otros',
 ];
 
 /* ═══════════════════════════════════════════

@@ -94,13 +94,20 @@ if (!function_exists('checkRevalidationDue')) {
     function comparePatronData($pdo, $nuevosDatos, $id_usuario = 0) {
         try {
             $datosActuales = null;
-            $tieneColSubf = false;
+            $tieneColSubfXI = false;
+            $tieneColSubfII = false;
             $tabla = ($id_usuario > 0) ? 'config_empresa_usuario' : 'config_empresa';
             try {
                 $chk = $pdo->query("SELECT COUNT(*) FROM INFORMATION_SCHEMA.COLUMNS WHERE TABLE_SCHEMA = DATABASE() AND TABLE_NAME = '{$tabla}' AND COLUMN_NAME = 'subfracciones_xi'");
-                $tieneColSubf = $chk && $chk->fetchColumn() > 0;
+                $tieneColSubfXI = $chk && $chk->fetchColumn() > 0;
             } catch (Exception $e) { }
-            $cols = 'folio_patron_pld, estatus_patron_pld, fracciones_activas' . ($tieneColSubf ? ', subfracciones_xi' : '');
+            try {
+                $chk = $pdo->query("SELECT COUNT(*) FROM INFORMATION_SCHEMA.COLUMNS WHERE TABLE_SCHEMA = DATABASE() AND TABLE_NAME = '{$tabla}' AND COLUMN_NAME = 'subfracciones_ii'");
+                $tieneColSubfII = $chk && $chk->fetchColumn() > 0;
+            } catch (Exception $e) { }
+            $cols = 'folio_patron_pld, estatus_patron_pld, fracciones_activas'
+                . ($tieneColSubfXI ? ', subfracciones_xi' : '')
+                . ($tieneColSubfII ? ', subfracciones_ii' : '');
             if ($id_usuario > 0) {
                 $stmtU = $pdo->prepare("SELECT {$cols} FROM config_empresa_usuario WHERE id_usuario = ?");
                 $stmtU->execute([$id_usuario]);
@@ -109,9 +116,15 @@ if (!function_exists('checkRevalidationDue')) {
                     $tabla = 'config_empresa';
                     try {
                         $chk = $pdo->query("SELECT COUNT(*) FROM INFORMATION_SCHEMA.COLUMNS WHERE TABLE_SCHEMA = DATABASE() AND TABLE_NAME = 'config_empresa' AND COLUMN_NAME = 'subfracciones_xi'");
-                        $tieneColSubf = $chk && $chk->fetchColumn() > 0;
+                        $tieneColSubfXI = $chk && $chk->fetchColumn() > 0;
                     } catch (Exception $e) { }
-                    $cols = 'folio_patron_pld, estatus_patron_pld, fracciones_activas' . ($tieneColSubf ? ', subfracciones_xi' : '');
+                    try {
+                        $chk = $pdo->query("SELECT COUNT(*) FROM INFORMATION_SCHEMA.COLUMNS WHERE TABLE_SCHEMA = DATABASE() AND TABLE_NAME = 'config_empresa' AND COLUMN_NAME = 'subfracciones_ii'");
+                        $tieneColSubfII = $chk && $chk->fetchColumn() > 0;
+                    } catch (Exception $e) { }
+                    $cols = 'folio_patron_pld, estatus_patron_pld, fracciones_activas'
+                        . ($tieneColSubfXI ? ', subfracciones_xi' : '')
+                        . ($tieneColSubfII ? ', subfracciones_ii' : '');
                 }
             }
             if (!$datosActuales) {
@@ -179,7 +192,7 @@ if (!function_exists('checkRevalidationDue')) {
             }
 
             // Comparar subfracciones XI (solo si existe la columna)
-            if ($tieneColSubf && isset($nuevosDatos['subfracciones_xi'])) {
+            if ($tieneColSubfXI && isset($nuevosDatos['subfracciones_xi'])) {
                 $subfAnteriores = json_decode($datosActuales['subfracciones_xi'] ?? '[]', true);
                 $subfNuevas = is_array($nuevosDatos['subfracciones_xi'])
                     ? $nuevosDatos['subfracciones_xi']
@@ -193,6 +206,27 @@ if (!function_exists('checkRevalidationDue')) {
                         'campo' => 'subfracciones_xi',
                         'anterior' => $subfAnteriores,
                         'nuevo' => $subfNuevas,
+                        'tipo' => 'MODIFICACION'
+                    ];
+                    $hayCambios = true;
+                }
+            }
+
+            // Comparar subfracciones II (solo si existe la columna)
+            if ($tieneColSubfII && isset($nuevosDatos['subfracciones_ii'])) {
+                $subfIIAnteriores = json_decode($datosActuales['subfracciones_ii'] ?? '[]', true);
+                $subfIINuevas = is_array($nuevosDatos['subfracciones_ii'])
+                    ? $nuevosDatos['subfracciones_ii']
+                    : json_decode($nuevosDatos['subfracciones_ii'] ?? '[]', true);
+                $subfIIAnteriores = is_array($subfIIAnteriores) ? $subfIIAnteriores : [];
+                $subfIINuevas = is_array($subfIINuevas) ? $subfIINuevas : [];
+                sort($subfIIAnteriores);
+                sort($subfIINuevas);
+                if ($subfIIAnteriores !== $subfIINuevas) {
+                    $cambios[] = [
+                        'campo' => 'subfracciones_ii',
+                        'anterior' => $subfIIAnteriores,
+                        'nuevo' => $subfIINuevas,
                         'tipo' => 'MODIFICACION'
                     ];
                     $hayCambios = true;
@@ -285,12 +319,21 @@ if (!function_exists('checkRevalidationDue')) {
                     $params[] = $fracciones;
                 }
                 
-                $subfracciones = $nuevosDatos['subfracciones_xi'] ?? null;
+                $subfraccionesXI = $nuevosDatos['subfracciones_xi'] ?? null;
                 try {
                     $chk = $pdo->query("SELECT COUNT(*) FROM INFORMATION_SCHEMA.COLUMNS WHERE TABLE_SCHEMA = DATABASE() AND TABLE_NAME = 'config_empresa' AND COLUMN_NAME = 'subfracciones_xi'");
                     if ($chk && $chk->fetchColumn() > 0) {
                         $updates[] = "subfracciones_xi = ?";
-                        $params[] = ($subfracciones === null || $subfracciones === '') ? null : (is_string($subfracciones) ? $subfracciones : json_encode($subfracciones));
+                        $params[] = ($subfraccionesXI === null || $subfraccionesXI === '') ? null : (is_string($subfraccionesXI) ? $subfraccionesXI : json_encode($subfraccionesXI));
+                    }
+                } catch (Exception $e) { /* ignorar */ }
+
+                $subfraccionesII = $nuevosDatos['subfracciones_ii'] ?? null;
+                try {
+                    $chk = $pdo->query("SELECT COUNT(*) FROM INFORMATION_SCHEMA.COLUMNS WHERE TABLE_SCHEMA = DATABASE() AND TABLE_NAME = 'config_empresa' AND COLUMN_NAME = 'subfracciones_ii'");
+                    if ($chk && $chk->fetchColumn() > 0) {
+                        $updates[] = "subfracciones_ii = ?";
+                        $params[] = ($subfraccionesII === null || $subfraccionesII === '') ? null : (is_string($subfraccionesII) ? $subfraccionesII : json_encode($subfraccionesII));
                     }
                 } catch (Exception $e) { /* ignorar */ }
                 
@@ -310,15 +353,27 @@ if (!function_exists('checkRevalidationDue')) {
                         $folioFin = $folio !== null && $folio !== '' ? $folio : ($existentes['folio_patron_pld'] ?? null);
                         $estatusFin = $estatus !== null && $estatus !== '' ? $estatus : ($existentes['estatus_patron_pld'] ?? null);
                         $fraccionesFin = $fracciones !== null && $fracciones !== '' ? $fracciones : ($existentes['fracciones_activas'] ?? null);
-                        $subfVal = ($subfracciones === null || $subfracciones === '') ? null : (is_array($subfracciones) ? json_encode($subfracciones) : $subfracciones);
-                        $hasSubf = false;
+                        $subfXIVal = ($subfraccionesXI === null || $subfraccionesXI === '') ? null : (is_array($subfraccionesXI) ? json_encode($subfraccionesXI) : $subfraccionesXI);
+                        $subfIIVal = ($subfraccionesII === null || $subfraccionesII === '') ? null : (is_array($subfraccionesII) ? json_encode($subfraccionesII) : $subfraccionesII);
+                        $hasSubfXI = false;
+                        $hasSubfII = false;
                         try {
                             $chkU = $pdo->query("SELECT COUNT(*) FROM INFORMATION_SCHEMA.COLUMNS WHERE TABLE_SCHEMA = DATABASE() AND TABLE_NAME = 'config_empresa_usuario' AND COLUMN_NAME = 'subfracciones_xi'");
-                            $hasSubf = $chkU && $chkU->fetchColumn() > 0;
+                            $hasSubfXI = $chkU && $chkU->fetchColumn() > 0;
                         } catch (Exception $e) { }
-                        if ($hasSubf) {
+                        try {
+                            $chkU = $pdo->query("SELECT COUNT(*) FROM INFORMATION_SCHEMA.COLUMNS WHERE TABLE_SCHEMA = DATABASE() AND TABLE_NAME = 'config_empresa_usuario' AND COLUMN_NAME = 'subfracciones_ii'");
+                            $hasSubfII = $chkU && $chkU->fetchColumn() > 0;
+                        } catch (Exception $e) { }
+                        if ($hasSubfXI && $hasSubfII) {
+                            $stmt = $pdo->prepare("INSERT INTO config_empresa_usuario (id_usuario, folio_patron_pld, estatus_patron_pld, fracciones_activas, subfracciones_xi, subfracciones_ii, fecha_revalidacion_patron) VALUES (?, ?, ?, ?, ?, ?, CURDATE()) ON DUPLICATE KEY UPDATE folio_patron_pld = VALUES(folio_patron_pld), estatus_patron_pld = VALUES(estatus_patron_pld), fracciones_activas = VALUES(fracciones_activas), subfracciones_xi = VALUES(subfracciones_xi), subfracciones_ii = VALUES(subfracciones_ii), fecha_revalidacion_patron = VALUES(fecha_revalidacion_patron)");
+                            $stmt->execute([$id_usuario, $folioFin, $estatusFin, $fraccionesFin, $subfXIVal, $subfIIVal]);
+                        } elseif ($hasSubfXI) {
                             $stmt = $pdo->prepare("INSERT INTO config_empresa_usuario (id_usuario, folio_patron_pld, estatus_patron_pld, fracciones_activas, subfracciones_xi, fecha_revalidacion_patron) VALUES (?, ?, ?, ?, ?, CURDATE()) ON DUPLICATE KEY UPDATE folio_patron_pld = VALUES(folio_patron_pld), estatus_patron_pld = VALUES(estatus_patron_pld), fracciones_activas = VALUES(fracciones_activas), subfracciones_xi = VALUES(subfracciones_xi), fecha_revalidacion_patron = VALUES(fecha_revalidacion_patron)");
-                            $stmt->execute([$id_usuario, $folioFin, $estatusFin, $fraccionesFin, $subfVal]);
+                            $stmt->execute([$id_usuario, $folioFin, $estatusFin, $fraccionesFin, $subfXIVal]);
+                        } elseif ($hasSubfII) {
+                            $stmt = $pdo->prepare("INSERT INTO config_empresa_usuario (id_usuario, folio_patron_pld, estatus_patron_pld, fracciones_activas, subfracciones_ii, fecha_revalidacion_patron) VALUES (?, ?, ?, ?, ?, CURDATE()) ON DUPLICATE KEY UPDATE folio_patron_pld = VALUES(folio_patron_pld), estatus_patron_pld = VALUES(estatus_patron_pld), fracciones_activas = VALUES(fracciones_activas), subfracciones_ii = VALUES(subfracciones_ii), fecha_revalidacion_patron = VALUES(fecha_revalidacion_patron)");
+                            $stmt->execute([$id_usuario, $folioFin, $estatusFin, $fraccionesFin, $subfIIVal]);
                         } else {
                             $stmt = $pdo->prepare("INSERT INTO config_empresa_usuario (id_usuario, folio_patron_pld, estatus_patron_pld, fracciones_activas, fecha_revalidacion_patron) VALUES (?, ?, ?, ?, CURDATE()) ON DUPLICATE KEY UPDATE folio_patron_pld = VALUES(folio_patron_pld), estatus_patron_pld = VALUES(estatus_patron_pld), fracciones_activas = VALUES(fracciones_activas), fecha_revalidacion_patron = VALUES(fecha_revalidacion_patron)");
                             $stmt->execute([$id_usuario, $folioFin, $estatusFin, $fraccionesFin]);

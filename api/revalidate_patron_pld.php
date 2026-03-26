@@ -70,7 +70,8 @@ try {
             'folio' => $data['folio'] ?? null,
             'estatus' => $data['estatus'] ?? null,
             'fracciones' => $data['fracciones'] ?? null,
-            'subfracciones_xi' => isset($data['subfracciones_xi']) ? $data['subfracciones_xi'] : null
+            'subfracciones_xi' => isset($data['subfracciones_xi']) ? $data['subfracciones_xi'] : null,
+            'subfracciones_ii' => isset($data['subfracciones_ii']) ? $data['subfracciones_ii'] : null
         ];
         $confirmarCambios = isset($data['confirmar']) && $data['confirmar'] === true;
         $id_usuario = isset($data['id_usuario']) ? (int)$data['id_usuario'] : 0;

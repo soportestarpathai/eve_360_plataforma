@@ -18,7 +18,7 @@ if (!userCanAccessTSC($pdo, $userId)) {
     exit;
 }
 
-$page_title = 'Aviso TSC - Tarjetas de Servicio y de Crédito';
+$page_title = 'Aviso Fracción II - TSC/TPP/TDR';
 include 'templates/header.php';
 
 $clave_sujeto_obligado = '';
@@ -37,7 +37,21 @@ try {
 } catch (Exception $e) { /* fallback vacío */ }
 
 require_once 'config/tsc_catalogos.php';
+require_once 'config/pld_fraccion_ii.php';
 $paisOptions = tscCatalogoOptions('pais', 'MX');
+$subfraccionesIIDef = function_exists('getSubfraccionesIIDefinition') ? getSubfraccionesIIDefinition() : [];
+$subfraccionesIIActivas = function_exists('getSubfraccionesIIActivas') ? getSubfraccionesIIActivas($pdo, (int)$userId) : [];
+if (!empty($subfraccionesIIActivas)) {
+    $subfraccionesIIDef = array_filter(
+        $subfraccionesIIDef,
+        static fn($k) => in_array($k, $subfraccionesIIActivas, true),
+        ARRAY_FILTER_USE_KEY
+    );
+}
+if (empty($subfraccionesIIDef)) {
+    $subfraccionesIIDef = function_exists('getSubfraccionesIIDefinition') ? getSubfraccionesIIDefinition() : [];
+}
+$subfraccionesIIJson = json_encode($subfraccionesIIDef, JSON_UNESCAPED_UNICODE | JSON_UNESCAPED_SLASHES);
 ?>
 <title><?= htmlspecialchars($page_title) ?> - <?= htmlspecialchars($appConfig['nombre_empresa']) ?></title>
 <link rel="stylesheet" href="assets/css/operaciones_pld.css">
@@ -117,8 +131,8 @@ $paisOptions = tscCatalogoOptions('pais', 'MX');
     <div class="tsc-page-header">
         <div class="d-flex justify-content-between align-items-center flex-wrap gap-3">
             <div>
-                <h2><i class="fa-solid fa-credit-card me-2"></i>Aviso TSC</h2>
-                <p>Tarjetas de Servicio y de Crédito — Fracción II
+                <h2><i class="fa-solid fa-credit-card me-2"></i>Aviso Fracción II</h2>
+                <p>Tarjetas (TSC), Prepago/Cupones (TPP) y Devolución/Recompensas (TDR)
                     <a href="https://www.sat.gob.mx/consulta/44891/portal-de-prevencion-de-lavado-de-dinero" target="_blank" rel="noopener" class="ms-2">
                         <i class="fa-solid fa-external-link-alt"></i> Portal PLD
                     </a>
@@ -135,7 +149,7 @@ $paisOptions = tscCatalogoOptions('pais', 'MX');
         <div class="tsc-step" data-target="sec-informe"><div class="tsc-step-num">2</div><div>Informe</div></div>
         <div class="tsc-step" data-target="sec-aviso"><div class="tsc-step-num">3</div><div>Aviso</div></div>
         <div class="tsc-step" data-target="sec-persona"><div class="tsc-step-num">4</div><div>Persona</div></div>
-        <div class="tsc-step" data-target="sec-detalle"><div class="tsc-step-num">5</div><div>Detalle TSC</div></div>
+        <div class="tsc-step" data-target="sec-detalle"><div class="tsc-step-num">5</div><div>Detalle F-II</div></div>
     </nav>
 
     <form id="formTSC" novalidate>
@@ -196,7 +210,7 @@ $paisOptions = tscCatalogoOptions('pais', 'MX');
                     <div class="col-md-4 mb-2">
                         <label class="form-label">Clave Actividad * <span class="badge bg-danger badge-xsd">Obl.</span></label>
                         <input type="text" class="form-control" id="clave_actividad" value="TSC" readonly maxlength="3">
-                        <div class="section-help">Fijo "TSC" para Tarjetas de Servicio y de Crédito</div>
+                        <div class="section-help" id="clave-actividad-help">Se ajusta automáticamente según la subfracción II seleccionada</div>
                     </div>
                     <div class="col-md-4 mb-2">
                         <label class="form-label">Entidad Colegiada <span class="badge bg-warning text-dark badge-xsd">Opc.</span></label>
@@ -500,19 +514,29 @@ $paisOptions = tscCatalogoOptions('pais', 'MX');
             </div>
         </div>
 
-        <!-- SECCIÓN 5: Detalle operaciones TSC -->
+        <!-- SECCIÓN 5: Detalle operaciones Fracción II -->
         <div class="tsc-card" id="sec-detalle">
             <div class="tsc-card-header" onclick="toggleTscCard(this)">
                 <div class="tsc-icon icon-detalle"><i class="fa-solid fa-credit-card"></i></div>
-                <div><h5>Detalle de la operación</h5><small>Periodo, tipo, tarjeta y monto</small></div>
+                <div><h5>Detalle de la operación</h5><small id="detalle-card-subtitle">Periodo, tipo, tarjeta y monto</small></div>
                 <i class="fa-solid fa-chevron-down tsc-chevron"></i>
             </div>
             <div class="tsc-card-body">
                 <div class="row g-3">
                     <div class="col-md-6 mb-2">
-                        <label class="form-label">Periodo a reportar (AAAAMM) * <span class="badge bg-danger badge-xsd">Obl.</span></label>
-                        <input type="text" class="form-control" id="fecha_periodo" pattern="\d{6}" maxlength="6" required placeholder="202602" value="<?= date('Ym') ?>">
-                        <div class="section-help">6 dígitos numéricos</div>
+                        <label class="form-label">Subfracción II * <span class="badge bg-danger badge-xsd">Obl.</span></label>
+                        <select class="form-select" id="subfraccion_ii" required>
+                            <?php foreach ($subfraccionesIIDef as $claveSubf => $metaSubf): ?>
+                                <option value="<?= htmlspecialchars($claveSubf) ?>">
+                                    <?= htmlspecialchars((is_array($metaSubf) ? ($metaSubf['nombre'] ?? $claveSubf) : $claveSubf)) ?>
+                                </option>
+                            <?php endforeach; ?>
+                        </select>
+                        <div class="section-help">Fracción II: Servicio/Crédito, Prepago/Cupones, Devolución/Recompensas</div>
+                    </div>
+                    <div class="col-md-6 mb-2">
+                        <label class="form-label">Umbrales aplicables (UMA)</label>
+                        <div class="form-control bg-light" id="umbral_subfraccion_info">Identificación: 805 UMA | Aviso: 1,285 UMA</div>
                     </div>
                     <div class="col-md-6 mb-2">
                         <label class="form-label">Tipo de Operación * <span class="badge bg-danger badge-xsd">Obl.</span></label>
@@ -520,21 +544,94 @@ $paisOptions = tscCatalogoOptions('pais', 'MX');
                             <?= tscCatalogoOptions('tipo_operacion', '1701') ?>
                         </select>
                     </div>
-                    <div class="col-md-6 mb-2">
+                    <div class="col-md-6 mb-2" id="detalle_tsc_fields">
+                        <label class="form-label">Periodo a reportar (AAAAMM) * <span class="badge bg-danger badge-xsd">Obl.</span></label>
+                        <input type="text" class="form-control" id="fecha_periodo" pattern="\d{6}" maxlength="6" required placeholder="202602" value="<?= date('Ym') ?>">
+                        <div class="section-help">6 dígitos numéricos</div>
+                    </div>
+                    <div class="col-md-6 mb-2" id="detalle_tsc_tipo_tarjeta">
                         <label class="form-label">Tipo de Tarjeta * <span class="badge bg-danger badge-xsd">Obl.</span></label>
                         <select class="form-select" id="tipo_tarjeta" required>
                             <?= tscCatalogoOptions('tipo_tarjeta', '1') ?>
                         </select>
                     </div>
-                    <div class="col-md-6 mb-2">
+                    <div class="col-md-6 mb-2" id="detalle_tsc_numero">
                         <label class="form-label">Número Tarjeta/Cuenta/Identificador * <span class="badge bg-danger badge-xsd">Obl.</span></label>
                         <input type="text" class="form-control text-uppercase" id="numero_identificador" maxlength="18" required placeholder="Solo A-Z, 0-9 (1-18 car.)" pattern="[A-Za-z0-9]{1,18}" title="Solo letras y números, máx 18 caracteres">
                         <div class="section-help">XSD: referencia_1-18 [A-Z0-9]{1,18}</div>
                     </div>
-                    <div class="col-md-6 mb-2">
+                    <div class="col-md-6 mb-2" id="detalle_tsc_monto">
                         <label class="form-label">Monto Total gasto acumulado (periodo) * <span class="badge bg-danger badge-xsd">Obl.</span></label>
                         <input type="number" class="form-control" id="monto_gasto" step="0.01" min="0" required placeholder="Ej: 15000.50 (monto en MXN)">
                         <div class="section-help">4-17 dígitos, formato decimal</div>
+                    </div>
+
+                    <div id="detalle_tpp_fields" class="col-12" style="display:none;">
+                        <div class="row g-3">
+                            <div class="col-md-6 mb-2">
+                                <label class="form-label">Fecha de operación * <span class="badge bg-danger badge-xsd">Obl.</span></label>
+                                <input type="date" class="form-control" id="fecha_operacion_tpp">
+                                <div class="section-help">Se enviará en formato AAAAMMDD</div>
+                            </div>
+                            <div class="col-md-6 mb-2">
+                                <label class="form-label">C.P. de la operación * <span class="badge bg-danger badge-xsd">Obl.</span></label>
+                                <input type="text" class="form-control" id="codigo_postal_tpp" maxlength="5" pattern="\d{5}" placeholder="Ej: 01030">
+                            </div>
+                            <div class="col-md-6 mb-2">
+                                <label class="form-label">Cantidad de tarjetas/cupones * <span class="badge bg-danger badge-xsd">Obl.</span></label>
+                                <input type="number" class="form-control" id="cantidad_tpp" min="1" step="1" placeholder="Ej: 10">
+                            </div>
+                            <div class="col-md-6 mb-2">
+                                <label class="form-label">Fecha de pago * <span class="badge bg-danger badge-xsd">Obl.</span></label>
+                                <input type="date" class="form-control" id="fecha_pago_tpp">
+                                <div class="section-help">Se enviará en formato AAAAMMDD</div>
+                            </div>
+                            <div class="col-md-6 mb-2">
+                                <label class="form-label">Instrumento monetario * <span class="badge bg-danger badge-xsd">Obl.</span></label>
+                                <select class="form-select" id="instrumento_monetario_tpp">
+                                    <?= tscCatalogoOptions('instrumento_monetario', '1') ?>
+                                </select>
+                            </div>
+                            <div class="col-md-6 mb-2">
+                                <label class="form-label">Moneda/Divisa * <span class="badge bg-danger badge-xsd">Obl.</span></label>
+                                <select class="form-select" id="moneda_tpp">
+                                    <?= tscCatalogoOptions('moneda', '1') ?>
+                                </select>
+                            </div>
+                            <div class="col-md-6 mb-2">
+                                <label class="form-label">Monto de operación * <span class="badge bg-danger badge-xsd">Obl.</span></label>
+                                <input type="number" class="form-control" id="monto_operacion_tpp" step="0.01" min="0" placeholder="Ej: 15000.00">
+                            </div>
+                        </div>
+                    </div>
+
+                    <div id="detalle_tdr_fields" class="col-12" style="display:none;">
+                        <div class="row g-3">
+                            <div class="col-md-6 mb-2">
+                                <label class="form-label">Fecha de operación * <span class="badge bg-danger badge-xsd">Obl.</span></label>
+                                <input type="date" class="form-control" id="fecha_operacion_tdr">
+                                <div class="section-help">Se enviará en formato AAAAMMDD</div>
+                            </div>
+                            <div class="col-md-6 mb-2">
+                                <label class="form-label">C.P. de la operación * <span class="badge bg-danger badge-xsd">Obl.</span></label>
+                                <input type="text" class="form-control" id="codigo_postal_tdr" maxlength="5" pattern="\d{5}" placeholder="Ej: 06920">
+                            </div>
+                            <div class="col-md-6 mb-2">
+                                <label class="form-label">Cantidad de tarjetas * <span class="badge bg-danger badge-xsd">Obl.</span></label>
+                                <input type="number" class="form-control" id="cantidad_tdr" min="1" step="1" placeholder="Ej: 50">
+                            </div>
+                            <div class="col-md-6 mb-2">
+                                <label class="form-label">Moneda/Divisa * <span class="badge bg-danger badge-xsd">Obl.</span></label>
+                                <select class="form-select" id="moneda_tdr">
+                                    <?= tscCatalogoOptions('moneda', '1') ?>
+                                </select>
+                            </div>
+                            <div class="col-md-6 mb-2">
+                                <label class="form-label">Monto de operación * <span class="badge bg-danger badge-xsd">Obl.</span></label>
+                                <input type="number" class="form-control" id="monto_operacion_tdr" step="0.01" min="0" placeholder="Ej: 18575.00">
+                                <div class="section-help">Liquidación TDR: moneda + monto (sin fecha de pago ni instrumento monetario)</div>
+                            </div>
+                        </div>
                     </div>
                 </div>
             </div>
@@ -546,7 +643,7 @@ $paisOptions = tscCatalogoOptions('pais', 'MX');
             </button>
             <a href="operaciones_pld.php" class="btn btn-outline-secondary">Cancelar</a>
             <span class="text-muted ms-auto d-none d-md-inline" style="font-size:.82rem;">
-                <i class="fa-solid fa-info-circle me-1"></i>Se generará el XML según instructivo Tarjetas de Servicio y de Crédito
+                <i class="fa-solid fa-info-circle me-1"></i>Se generará el XML según instructivo de la subfracción II seleccionada
             </span>
         </div>
     </form>
@@ -556,6 +653,7 @@ $paisOptions = tscCatalogoOptions('pais', 'MX');
 <script src="https://cdn.jsdelivr.net/npm/sweetalert2@11"></script>
 <script>
 const TSC_CATALOGOS = <?= tscCatalogosJson() ?>;
+const SUBFRACCIONES_II = <?= $subfraccionesIIJson ?: '{}' ?>;
 
 /** Mapa nombre actividad (KYC/cat_actividades) -> codigo SCIAN TSC */
 function buildActividadNombreToCodigo() {
@@ -595,7 +693,148 @@ function v(id) {
 
 let kycDataCache = null;
 
+function formatUmaNumber(n) {
+    const val = Number(n || 0);
+    if (!Number.isFinite(val) || val <= 0) return '0';
+    return val.toLocaleString('es-MX', { minimumFractionDigits: 0, maximumFractionDigits: 3 });
+}
+
+function escapeHtml(s) {
+    return String(s == null ? '' : s)
+        .replace(/&/g, '&amp;')
+        .replace(/</g, '&lt;')
+        .replace(/>/g, '&gt;')
+        .replace(/\"/g, '&quot;')
+        .replace(/'/g, '&#39;');
+}
+
+function setSelectOptionsFromCatalog(selectId, catalogName, selectedValue = '') {
+    const sel = document.getElementById(selectId);
+    if (!sel) return;
+    const cat = (TSC_CATALOGOS && TSC_CATALOGOS[catalogName]) ? TSC_CATALOGOS[catalogName] : {};
+    const prev = String(selectedValue || sel.value || '').trim();
+    let html = '<option value="">-- Seleccione --</option>';
+    Object.entries(cat).forEach(([clave, desc]) => {
+        const selected = (String(clave) === prev) ? ' selected' : '';
+        html += `<option value="${escapeHtml(clave)}"${selected}>${escapeHtml(String(clave) + ' - ' + String(desc || ''))}</option>`;
+    });
+    sel.innerHTML = html;
+    if (!sel.value && sel.options.length > 1) {
+        sel.selectedIndex = 1;
+    }
+}
+
+function setRequiredByIds(ids, required) {
+    ids.forEach((id) => {
+        const el = document.getElementById(id);
+        if (el) el.required = !!required;
+    });
+}
+
+function inferInputPlaceholder(input) {
+    const type = String(input.getAttribute('type') || 'text').toLowerCase();
+    const id = String(input.id || '').toLowerCase();
+    const name = String(input.getAttribute('name') || '').toLowerCase();
+    const cls = String(input.className || '').toLowerCase();
+    const token = `${id} ${name} ${cls}`;
+    const holder = input.closest('div');
+    const labelEl = holder ? holder.querySelector('label.form-label, label') : null;
+    const label = String(labelEl ? labelEl.textContent : '').toLowerCase()
+        .replace(/\*/g, '')
+        .replace(/\s+/g, ' ')
+        .trim();
+
+    if (type === 'date') return 'AAAA-MM-DD';
+    if (label.includes('rfc') || token.includes('rfc')) return 'Ej: ABCD900101A1B';
+    if (label.includes('curp') || token.includes('curp')) return 'Ej: ABCD900101HDFRRL09';
+    if (label.includes('c.p') || label.includes('código postal') || token.includes('codigo_postal') || token.includes('cp')) return 'Ej: 01030';
+    if (label.includes('correo') || token.includes('correo') || token.includes('email')) return 'Ej: usuario@correo.com';
+    if (label.includes('teléfono') || label.includes('telefono') || token.includes('telefono') || token.includes('tel_')) return 'Ej: 5512345678';
+    if (label.includes('folio') || token.includes('folio')) return 'Ej: FOL-12345';
+    if (label.includes('referencia') || token.includes('referencia')) return 'Ej: REF202603001';
+    if (label.includes('denominación') || label.includes('denominacion') || label.includes('razón social') || label.includes('razon social')) return 'Ej: EMPRESA SA DE CV';
+    if (label.includes('apellido paterno')) return 'Ej: PEREZ';
+    if (label.includes('apellido materno')) return 'Ej: GARCIA';
+    if (label.includes('nombre')) return 'Ej: JUAN';
+    if (label.includes('colonia')) return 'Ej: CENTRO';
+    if (label.includes('calle')) return 'Ej: AV INSURGENTES';
+    if (label.includes('número exterior') || label.includes('numero exterior') || token.includes('numext')) return 'Ej: 123';
+    if (label.includes('número interior') || label.includes('numero interior') || token.includes('numint')) return 'Ej: 4B';
+    if (label.includes('identificador') || token.includes('identificador')) return 'Ej: ID-12345';
+    if (type === 'number' || label.includes('monto') || label.includes('importe') || label.includes('valor') || token.includes('monto') || token.includes('importe')) return 'Ej: 15000.00';
+    return 'Ejemplo';
+}
+
+function applyExamplePlaceholders(root = document) {
+    const scope = (root && root.querySelectorAll) ? root : document;
+    scope.querySelectorAll('input:not([type="hidden"]):not([type="checkbox"]):not([type="radio"])').forEach((input) => {
+        if (input.readOnly || input.disabled) return;
+        const current = String(input.getAttribute('placeholder') || '').trim();
+        if (current !== '') return;
+        input.setAttribute('placeholder', inferInputPlaceholder(input));
+    });
+}
+
+function applySubfraccionIIUI() {
+    const sel = document.getElementById('subfraccion_ii');
+    if (!sel) return;
+    const key = String(sel.value || '').trim();
+    const meta = (SUBFRACCIONES_II && SUBFRACCIONES_II[key]) ? SUBFRACCIONES_II[key] : null;
+    const claveAct = (meta && meta.clave) ? String(meta.clave).trim() : 'TSC';
+    const umi = meta ? Number(meta.umbral_identificacion_uma || 0) : 0;
+    const uma = meta ? Number(meta.umbral_aviso_uma || 0) : 0;
+
+    const claveActEl = document.getElementById('clave_actividad');
+    if (claveActEl) claveActEl.value = claveAct || 'TSC';
+
+    const info = document.getElementById('umbral_subfraccion_info');
+    if (info) {
+        info.textContent = `Identificación: ${formatUmaNumber(umi)} UMA | Aviso: ${formatUmaNumber(uma)} UMA`;
+    }
+
+    const help = document.getElementById('clave-actividad-help');
+    if (help) {
+        const nombre = meta && meta.nombre ? String(meta.nombre) : '';
+        help.textContent = nombre
+            ? `Clave de actividad: ${claveAct}. Subfracción activa: ${nombre}`
+            : `Clave de actividad: ${claveAct}`;
+    }
+
+    const detalleTipo = meta && meta.detalle_tipo ? String(meta.detalle_tipo).trim().toLowerCase() : '';
+    const isTPP = detalleTipo === 'tpp' || key === 'prepago_cupones';
+    const isTDR = detalleTipo === 'tdr' || key === 'devolucion_recompensas';
+    const detalleSub = document.getElementById('detalle-card-subtitle');
+    if (detalleSub) {
+        detalleSub.textContent = isTPP
+            ? 'Operación, cantidad y liquidación'
+            : (isTDR ? 'Operación, cantidad, moneda y monto' : 'Periodo, tipo, tarjeta y monto');
+    }
+
+    const secTPP = document.getElementById('detalle_tpp_fields');
+    const secTDR = document.getElementById('detalle_tdr_fields');
+    const secTSC = document.getElementById('detalle_tsc_fields');
+    const secTSCTarjeta = document.getElementById('detalle_tsc_tipo_tarjeta');
+    const secTSCNum = document.getElementById('detalle_tsc_numero');
+    const secTSCMonto = document.getElementById('detalle_tsc_monto');
+    if (secTPP) secTPP.style.display = isTPP ? '' : 'none';
+    if (secTDR) secTDR.style.display = isTDR ? '' : 'none';
+    if (secTSC) secTSC.style.display = (isTPP || isTDR) ? 'none' : '';
+    if (secTSCTarjeta) secTSCTarjeta.style.display = (isTPP || isTDR) ? 'none' : '';
+    if (secTSCNum) secTSCNum.style.display = (isTPP || isTDR) ? 'none' : '';
+    if (secTSCMonto) secTSCMonto.style.display = (isTPP || isTDR) ? 'none' : '';
+
+    setRequiredByIds(['fecha_periodo', 'tipo_tarjeta', 'numero_identificador', 'monto_gasto'], !(isTPP || isTDR));
+    setRequiredByIds(['fecha_operacion_tpp', 'codigo_postal_tpp', 'cantidad_tpp', 'fecha_pago_tpp', 'instrumento_monetario_tpp', 'moneda_tpp', 'monto_operacion_tpp'], isTPP);
+    setRequiredByIds(['fecha_operacion_tdr', 'codigo_postal_tdr', 'cantidad_tdr', 'moneda_tdr', 'monto_operacion_tdr'], isTDR);
+
+    const tipoOperacionCatalogo = isTPP ? 'tipo_operacion_tpp' : (isTDR ? 'tipo_operacion_tdr' : 'tipo_operacion');
+    setSelectOptionsFromCatalog('tipo_operacion', tipoOperacionCatalogo);
+    const tipoAlertaCatalogo = isTPP ? 'tipo_alerta_tpp' : (isTDR ? 'tipo_alerta_tdr' : 'tipo_alerta');
+    setSelectOptionsFromCatalog('tipo_alerta', tipoAlertaCatalogo, '100');
+}
+
 document.addEventListener('DOMContentLoaded', function() {
+    applyExamplePlaceholders(document.getElementById('formTSC') || document);
     cargarClientes();
     document.getElementById('id_cliente').addEventListener('change', cargarKYC);
     document.getElementById('tipo_persona').addEventListener('change', toggleTipoPersona);
@@ -613,8 +852,10 @@ document.addEventListener('DOMContentLoaded', function() {
     });
     document.getElementById('db_tipo_persona').addEventListener('change', toggleDuenoTipoPersona);
     document.getElementById('db_tipo_domicilio').addEventListener('change', toggleDuenoTipoDomicilio);
+    document.getElementById('subfraccion_ii').addEventListener('change', applySubfraccionIIUI);
 
     document.getElementById('formTSC').addEventListener('submit', guardarAvisoTSC);
+    applySubfraccionIIUI();
 
     // Progress steps
     const steps = document.querySelectorAll('.tsc-step');
@@ -638,6 +879,16 @@ document.addEventListener('DOMContentLoaded', function() {
             if (target) target.scrollIntoView({ behavior: 'smooth', block: 'start' });
         });
     });
+
+    const form = document.getElementById('formTSC');
+    if (form && window.MutationObserver) {
+        const mo = new MutationObserver((mutations) => {
+            mutations.forEach((m) => m.addedNodes.forEach((node) => {
+                if (node && node.nodeType === 1) applyExamplePlaceholders(node);
+            }));
+        });
+        mo.observe(form, { childList: true, subtree: true });
+    }
 });
 
 function toggleTipoPersona() {
@@ -965,6 +1216,9 @@ function validarFormularioTSC() {
     if (!mesRep || !/^\d{6}$/.test(mesRep)) { Swal.fire('Error', 'Mes reportado debe ser 6 dígitos (AAAAMM)', 'error'); return false; }
     const mm = parseInt(mesRep.substring(4, 6), 10);
     if (mm < 1 || mm > 12) { Swal.fire('Error', 'Mes reportado: mes inválido (01-12)', 'error'); return false; }
+    const hoy = new Date();
+    const mesActual = `${hoy.getFullYear()}${String(hoy.getMonth() + 1).padStart(2, '0')}`;
+    if (mesRep < '201309' || mesRep > mesActual) { Swal.fire('Error', 'Mes reportado fuera de rango (201309 a mes actual)', 'error'); return false; }
     const claveSO = (v('clave_sujeto_obligado') || '').replace(/[^A-Za-z0-9Ñ&]/g, '').toUpperCase();
     if (!claveSO) { Swal.fire('Error', 'Clave Sujeto Obligado es obligatoria', 'error'); return false; }
     if (!/^[A-ZÑ&]{3,4}\d{6}[A-Z0-9]{3}$/.test(claveSO)) {
@@ -976,17 +1230,52 @@ function validarFormularioTSC() {
     if (!/^[A-ZÑ0-9]{1,14}$/i.test(refAviso)) { Swal.fire('Error', 'Referencia: solo A-Z, Ñ, 0-9, máx 14 caracteres', 'error'); return false; }
     if (!v('prioridad')) { Swal.fire('Error', 'Prioridad es obligatoria', 'error'); return false; }
     if (!v('tipo_alerta')) { Swal.fire('Error', 'Tipo de alerta es obligatorio', 'error'); return false; }
-    const fechaPer = v('fecha_periodo');
-    if (!fechaPer || !/^\d{6}$/.test(fechaPer)) { Swal.fire('Error', 'Periodo a reportar debe ser 6 dígitos (AAAAMM)', 'error'); return false; }
-    const fpMm = parseInt(fechaPer.substring(4, 6), 10);
-    if (fpMm < 1 || fpMm > 12) { Swal.fire('Error', 'Periodo a reportar: mes inválido (01-12)', 'error'); return false; }
+    if (!v('subfraccion_ii')) { Swal.fire('Error', 'Seleccione la subfracción II', 'error'); return false; }
     if (!v('tipo_operacion')) { Swal.fire('Error', 'Tipo de operación es obligatorio', 'error'); return false; }
-    if (!v('tipo_tarjeta')) { Swal.fire('Error', 'Tipo de tarjeta es obligatorio', 'error'); return false; }
-    const numId = v('numero_identificador');
-    if (!numId) { Swal.fire('Error', 'Número identificador es obligatorio', 'error'); return false; }
-    if (!/^[A-Z0-9]{1,18}$/i.test(numId)) { Swal.fire('Error', 'Número identificador: solo A-Z, 0-9, máx 18 caracteres', 'error'); return false; }
-    const monto = parseFloat(v('monto_gasto'));
-    if (isNaN(monto) || monto < 0) { Swal.fire('Error', 'Monto gasto es obligatorio y debe ser mayor o igual a 0', 'error'); return false; }
+    const isTPP = v('subfraccion_ii') === 'prepago_cupones';
+    const isTDR = v('subfraccion_ii') === 'devolucion_recompensas';
+    if (isTPP) {
+        const fechaOp = (v('fecha_operacion_tpp') || '').replace(/-/g, '');
+        if (!/^\d{8}$/.test(fechaOp)) { Swal.fire('Error', 'Fecha de operación TPP es obligatoria', 'error'); return false; }
+        if (fechaOp < '20130901') { Swal.fire('Error', 'Fecha de operación TPP debe ser >= 20130901', 'error'); return false; }
+        const hoyYmd = `${hoy.getFullYear()}${String(hoy.getMonth() + 1).padStart(2, '0')}${String(hoy.getDate()).padStart(2, '0')}`;
+        if (fechaOp > hoyYmd) { Swal.fire('Error', 'Fecha de operación TPP no puede ser futura', 'error'); return false; }
+        const cpOp = v('codigo_postal_tpp');
+        if (!/^\d{5}$/.test(cpOp)) { Swal.fire('Error', 'C.P. de la operación TPP debe tener 5 dígitos', 'error'); return false; }
+        const cantidad = parseInt(v('cantidad_tpp') || '0', 10);
+        if (!Number.isInteger(cantidad) || cantidad <= 0) { Swal.fire('Error', 'Cantidad de tarjetas/cupones debe ser un entero mayor a 0', 'error'); return false; }
+        const fechaPago = (v('fecha_pago_tpp') || '').replace(/-/g, '');
+        if (!/^\d{8}$/.test(fechaPago)) { Swal.fire('Error', 'Fecha de pago TPP es obligatoria', 'error'); return false; }
+        if (fechaPago > hoyYmd) { Swal.fire('Error', 'Fecha de pago TPP no puede ser futura', 'error'); return false; }
+        if (!v('instrumento_monetario_tpp')) { Swal.fire('Error', 'Instrumento monetario es obligatorio', 'error'); return false; }
+        if (!v('moneda_tpp')) { Swal.fire('Error', 'Moneda es obligatoria', 'error'); return false; }
+        const montoTpp = parseFloat(v('monto_operacion_tpp'));
+        if (isNaN(montoTpp) || montoTpp <= 0) { Swal.fire('Error', 'Monto de operación TPP debe ser mayor a 0', 'error'); return false; }
+    } else if (isTDR) {
+        const fechaOp = (v('fecha_operacion_tdr') || '').replace(/-/g, '');
+        if (!/^\d{8}$/.test(fechaOp)) { Swal.fire('Error', 'Fecha de operación TDR es obligatoria', 'error'); return false; }
+        if (fechaOp < '20130901') { Swal.fire('Error', 'Fecha de operación TDR debe ser >= 20130901', 'error'); return false; }
+        const hoyYmd = `${hoy.getFullYear()}${String(hoy.getMonth() + 1).padStart(2, '0')}${String(hoy.getDate()).padStart(2, '0')}`;
+        if (fechaOp > hoyYmd) { Swal.fire('Error', 'Fecha de operación TDR no puede ser futura', 'error'); return false; }
+        const cpOp = v('codigo_postal_tdr');
+        if (!/^\d{5}$/.test(cpOp)) { Swal.fire('Error', 'C.P. de la operación TDR debe tener 5 dígitos', 'error'); return false; }
+        const cantidad = parseInt(v('cantidad_tdr') || '0', 10);
+        if (!Number.isInteger(cantidad) || cantidad <= 0) { Swal.fire('Error', 'Cantidad de tarjetas TDR debe ser un entero mayor a 0', 'error'); return false; }
+        if (!v('moneda_tdr')) { Swal.fire('Error', 'Moneda es obligatoria', 'error'); return false; }
+        const montoTdr = parseFloat(v('monto_operacion_tdr'));
+        if (isNaN(montoTdr) || montoTdr <= 0) { Swal.fire('Error', 'Monto de operación TDR debe ser mayor a 0', 'error'); return false; }
+    } else {
+        const fechaPer = v('fecha_periodo');
+        if (!fechaPer || !/^\d{6}$/.test(fechaPer)) { Swal.fire('Error', 'Periodo a reportar debe ser 6 dígitos (AAAAMM)', 'error'); return false; }
+        const fpMm = parseInt(fechaPer.substring(4, 6), 10);
+        if (fpMm < 1 || fpMm > 12) { Swal.fire('Error', 'Periodo a reportar: mes inválido (01-12)', 'error'); return false; }
+        if (!v('tipo_tarjeta')) { Swal.fire('Error', 'Tipo de tarjeta es obligatorio', 'error'); return false; }
+        const numId = v('numero_identificador');
+        if (!numId) { Swal.fire('Error', 'Número identificador es obligatorio', 'error'); return false; }
+        if (!/^[A-Z0-9]{1,18}$/i.test(numId)) { Swal.fire('Error', 'Número identificador: solo A-Z, 0-9, máx 18 caracteres', 'error'); return false; }
+        const monto = parseFloat(v('monto_gasto'));
+        if (isNaN(monto) || monto <= 0) { Swal.fire('Error', 'Monto gasto debe ser mayor a 0', 'error'); return false; }
+    }
 
     if (v('es_modificatorio') === '1') {
         const folio = v('folio_modificacion');
@@ -1102,12 +1391,50 @@ function guardarAvisoTSC(e) {
     if (!validarFormularioTSC()) return;
 
     const idCliente = v('id_cliente');
+    const subfraccionII = v('subfraccion_ii');
     const btn = e.target.querySelector('button[type="submit"]');
     if (btn && btn.disabled) return;
     if (btn) {
         btn.disabled = true;
         btn.innerHTML = '<i class="fa-solid fa-spinner fa-spin me-2"></i>Registrando...';
     }
+
+    const isTPP = subfraccionII === 'prepago_cupones';
+    const isTDR = subfraccionII === 'devolucion_recompensas';
+    const detalleOperacion = isTPP
+        ? {
+            subfraccion_ii: subfraccionII,
+            fecha_operacion: (v('fecha_operacion_tpp') || '').replace(/-/g, ''),
+            codigo_postal: v('codigo_postal_tpp'),
+            tipo_operacion: v('tipo_operacion'),
+            cantidad: parseInt(v('cantidad_tpp') || '0', 10),
+            datos_liquidacion: [{
+                fecha_pago: (v('fecha_pago_tpp') || '').replace(/-/g, ''),
+                instrumento_monetario: v('instrumento_monetario_tpp'),
+                moneda: v('moneda_tpp'),
+                monto_operacion: parseFloat(v('monto_operacion_tpp')) || 0
+            }]
+        }
+        : (isTDR
+            ? {
+                subfraccion_ii: subfraccionII,
+                fecha_operacion: (v('fecha_operacion_tdr') || '').replace(/-/g, ''),
+                codigo_postal: v('codigo_postal_tdr'),
+                tipo_operacion: v('tipo_operacion'),
+                cantidad: parseInt(v('cantidad_tdr') || '0', 10),
+                datos_liquidacion: [{
+                    moneda: v('moneda_tdr'),
+                    monto_operacion: parseFloat(v('monto_operacion_tdr')) || 0
+                }]
+            }
+        : {
+            subfraccion_ii: subfraccionII,
+            fecha_periodo: v('fecha_periodo'),
+            tipo_operacion: v('tipo_operacion'),
+            tipo_tarjeta: v('tipo_tarjeta'),
+            numero_identificador: v('numero_identificador'),
+            monto_gasto: parseFloat(v('monto_gasto')) || 0
+        });
 
     const aviso = {
         referencia_aviso: v('referencia_aviso'),
@@ -1132,13 +1459,7 @@ function guardarAvisoTSC(e) {
             return pa;
         })(),
         detalle_operaciones: [{
-            datos_operacion: [{
-                fecha_periodo: v('fecha_periodo'),
-                tipo_operacion: v('tipo_operacion'),
-                tipo_tarjeta: v('tipo_tarjeta'),
-                numero_identificador: v('numero_identificador'),
-                monto_gasto: parseFloat(v('monto_gasto')) || 0
-            }]
+            datos_operacion: [detalleOperacion]
         }]
     };
 
@@ -1158,6 +1479,7 @@ function guardarAvisoTSC(e) {
 
     const payload = {
         id_cliente: parseInt(idCliente),
+        subfraccion_ii: subfraccionII,
         informe: [{
             mes_reportado: v('mes_reportado'),
             sujeto_obligado: sujetoObligado,
@@ -1189,7 +1511,7 @@ function guardarAvisoTSC(e) {
             if (data.requiere_aviso) html += '<p><strong>Requiere aviso.</strong> Deadline: ' + (data.fecha_deadline || '') + '</p>';
             html += data.xml_generado ? '<p>XML almacenado.</p>' : '<p class="text-warning">XML no generado.</p>';
             if (data.xml_advertencia) html += '<p class="text-warning small">' + (data.xml_advertencia.replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;').replace(/"/g, '&quot;')) + '</p>';
-            Swal.fire({ icon: 'success', title: 'Aviso TSC registrado', html }).then(() => {
+            Swal.fire({ icon: 'success', title: 'Aviso Fracción II registrado', html }).then(() => {
                 window.location.href = 'operaciones_pld.php';
             });
         } else {
