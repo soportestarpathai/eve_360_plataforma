@@ -836,6 +836,14 @@ function operacionObj() {
 
 function payload() {
   const personasFinal = getPersonasAvisoFinal();
+  const sujetoObligado = {
+    clave_entidad_colegiada: up(v('clave_entidad_colegiada')),
+    clave_sujeto_obligado: up(v('clave_sujeto_obligado')),
+    clave_actividad: 'DON'
+  };
+  if (v('exento') === '1') {
+    sujetoObligado.exento = '1';
+  }
   const av = {
     referencia_aviso: up(v('referencia_aviso')),
     prioridad: v('prioridad'),
@@ -850,12 +858,7 @@ function payload() {
     id_cliente: Number(v('id_cliente')),
     informe: [{
       mes_reportado: v('mes_reportado'),
-      sujeto_obligado: {
-        clave_entidad_colegiada: up(v('clave_entidad_colegiada')),
-        clave_sujeto_obligado: up(v('clave_sujeto_obligado')),
-        clave_actividad: 'DON',
-        exento: v('exento') === '1' ? '1' : null
-      },
+      sujeto_obligado: sujetoObligado,
       aviso: [av]
     }]
   };

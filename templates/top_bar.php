@@ -3,6 +3,20 @@ $topbarUserName = trim((string)($_SESSION['user_name'] ?? 'Usuario'));
 if ($topbarUserName === '') {
     $topbarUserName = 'Usuario';
 }
+$topbarAlertSessionKey = session_id();
+$existingAlertNonce = trim((string)($_SESSION['pending_alert_nonce'] ?? ''));
+if ($existingAlertNonce === '') {
+    try {
+        $_SESSION['pending_alert_nonce'] = bin2hex(random_bytes(8));
+    } catch (Throwable $e) {
+        $_SESSION['pending_alert_nonce'] = (string)time();
+    }
+}
+$topbarAlertNonce = trim((string)($_SESSION['pending_alert_nonce'] ?? ''));
+$topbarAlertUserId = (int)($_SESSION['user_id'] ?? 0);
+if ($topbarAlertNonce !== '') {
+    $topbarAlertSessionKey .= ':' . $topbarAlertUserId . ':' . $topbarAlertNonce;
+}
 
 if (!function_exists('buildTopbarAvatarDataUri')) {
     function buildTopbarAvatarDataUri(string $name): string {
@@ -125,6 +139,8 @@ $topbarAvatarFallback = buildTopbarAvatarDataUri($topbarUserName);
 
 <!-- All JS logic for the Top Bar -->
 <script>
+    window.EVE_PENDING_ALERT_SESSION_KEY = <?= json_encode($topbarAlertSessionKey) ?>;
+
     document.addEventListener('DOMContentLoaded', function() {
         // Initialize all top-bar functions
         initUserAndNav();

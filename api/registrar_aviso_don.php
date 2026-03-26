@@ -164,6 +164,7 @@ function _donTableExists(PDO $pdo, string $table): bool
 function _donCpExisteSepomex(PDO $pdo, string $cp): bool
 {
     static $cpCache = [];
+    static $postalCols = null;
     if (!preg_match('/^\d{5}$/', $cp)) {
         return false;
     }
@@ -174,10 +175,45 @@ function _donCpExisteSepomex(PDO $pdo, string $cp): bool
         $cpCache[$cp] = true; // No bloquear si el catálogo no existe.
         return true;
     }
+
+    if ($postalCols === null) {
+        $postalCols = [];
+        try {
+            $stmtCols = $pdo->prepare("
+                SELECT COLUMN_NAME
+                FROM INFORMATION_SCHEMA.COLUMNS
+                WHERE TABLE_SCHEMA = DATABASE()
+                  AND TABLE_NAME = 'cat_sepomex'
+            ");
+            $stmtCols->execute();
+            $allCols = array_map('strtolower', array_column($stmtCols->fetchAll(PDO::FETCH_ASSOC), 'COLUMN_NAME'));
+            foreach (['codigo_postal', 'd_codigo', 'cp', 'codigo_postal_sat', 'codigo_postal_sepomex'] as $candidate) {
+                if (in_array($candidate, $allCols, true)) {
+                    $postalCols[] = $candidate;
+                }
+            }
+        } catch (Throwable $e) {
+            $postalCols = [];
+        }
+    }
+
+    if (empty($postalCols)) {
+        $cpCache[$cp] = true; // fail-open para no romper operación por variaciones de esquema.
+        return true;
+    }
+
     try {
-        $stmt = $pdo->prepare("SELECT 1 FROM cat_sepomex WHERE codigo_postal = ? LIMIT 1");
-        $stmt->execute([$cp]);
-        $cpCache[$cp] = (bool)$stmt->fetch(PDO::FETCH_NUM);
+        $ok = false;
+        foreach ($postalCols as $col) {
+            $sql = "SELECT 1 FROM cat_sepomex WHERE TRIM(`{$col}`) = ? LIMIT 1";
+            $stmt = $pdo->prepare($sql);
+            $stmt->execute([$cp]);
+            if ($stmt->fetch(PDO::FETCH_NUM)) {
+                $ok = true;
+                break;
+            }
+        }
+        $cpCache[$cp] = $ok;
         return $cpCache[$cp];
     } catch (Throwable $e) {
         $cpCache[$cp] = true; // fail-open para no romper operación
@@ -377,6 +413,9 @@ function _donValidateCatalogs(array $data, array $catalogs): void
                 continue;
             }
             $norm = trim((string)$v);
+            if ((string)$k === 'exento' && $norm === '') {
+                continue;
+            }
             if (!_donCatalogHas($cat, $norm)) {
                 $issues[] = "{$curr}: valor {$norm} fuera de catálogo {$catalogName}";
             }

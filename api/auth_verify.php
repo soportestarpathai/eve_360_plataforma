@@ -36,8 +36,10 @@ try {
     }
 
     // 4. Start Session
+    session_regenerate_id(true);
     $_SESSION['user_id'] = $user['id_usuario'];
     $_SESSION['user_name'] = $user['nombre'];
+    $_SESSION['pending_alert_nonce'] = bin2hex(random_bytes(8));
 
     echo json_encode(['status' => 'success']);
 

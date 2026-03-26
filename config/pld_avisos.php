@@ -769,13 +769,38 @@ if (!function_exists('registrarOperacionPLD')) {
                 ];
             }
 
+            // Permitir operación para clientes en pre-registro (expediente incompleto por diseño).
+            // Aplica a alta rápida/minima para no bloquear captura de avisos iniciales.
+            $permitirPreregistro = false;
+            try {
+                $stmtCli = $pdo->prepare("
+                    SELECT
+                        COALESCE(id_status, 1) AS id_status,
+                        COALESCE(identificacion_incompleta, 0) AS identificacion_incompleta,
+                        COALESCE(expediente_completo, 0) AS expediente_completo
+                    FROM clientes
+                    WHERE id_cliente = ?
+                    LIMIT 1
+                ");
+                $stmtCli->execute([(int)$id_cliente]);
+                $cli = $stmtCli->fetch(PDO::FETCH_ASSOC) ?: null;
+                if ($cli) {
+                    $esPendiente = ((int)($cli['id_status'] ?? 0) === 2);
+                    $expIncompleto = ((int)($cli['identificacion_incompleta'] ?? 0) === 1)
+                        || ((int)($cli['expediente_completo'] ?? 0) === 0);
+                    $permitirPreregistro = $esPendiente && $expIncompleto;
+                }
+            } catch (Throwable $e) {
+                $permitirPreregistro = false;
+            }
+
             // Bloqueo operativo PLD: no permitir operaciones con expediente incompleto/vencido
             // o con beneficiario controlador pendiente (cuando aplique).
             try {
-                if (function_exists('requireExpedienteCompleto')) {
+                if (!$permitirPreregistro && function_exists('requireExpedienteCompleto')) {
                     requireExpedienteCompleto($pdo, (int)$id_cliente, false);
                 }
-                if (function_exists('requireBeneficiarioControlador')) {
+                if (!$permitirPreregistro && function_exists('requireBeneficiarioControlador')) {
                     requireBeneficiarioControlador($pdo, (int)$id_cliente, false);
                 }
                 if (function_exists('requireNoNegativaIdentificacion')) {

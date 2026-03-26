@@ -9,40 +9,57 @@ if (!isset($_SESSION['user_id'])) {
     exit;
 }
 
-function ensureContractFolioColumns(PDO $pdo): void {
+function tableHasContractColumns(PDO $pdo, string $table): bool {
     $requiredColumns = [
-        'contrato_prefijo' => "VARCHAR(20) NOT NULL DEFAULT ''",
-        'contrato_siguiente' => "INT NOT NULL DEFAULT 1",
-        'contrato_longitud' => "INT NOT NULL DEFAULT 6",
-        'contrato_rellenar_ceros' => "TINYINT(1) NOT NULL DEFAULT 1"
+        'contrato_prefijo',
+        'contrato_siguiente',
+        'contrato_longitud',
+        'contrato_rellenar_ceros'
     ];
 
-    foreach ($requiredColumns as $column => $definition) {
+    $stmtTable = $pdo->prepare("
+        SELECT COUNT(*)
+        FROM INFORMATION_SCHEMA.TABLES
+        WHERE TABLE_SCHEMA = DATABASE()
+          AND TABLE_NAME = ?
+    ");
+    $stmtTable->execute([$table]);
+    if ((int)$stmtTable->fetchColumn() <= 0) {
+        return false;
+    }
+
+    foreach ($requiredColumns as $column) {
         $stmt = $pdo->prepare("
             SELECT COUNT(*)
             FROM INFORMATION_SCHEMA.COLUMNS
             WHERE TABLE_SCHEMA = DATABASE()
-              AND TABLE_NAME = 'config_empresa'
+              AND TABLE_NAME = ?
               AND COLUMN_NAME = ?
         ");
-        $stmt->execute([$column]);
-        $exists = (int)$stmt->fetchColumn() > 0;
-        if (!$exists) {
-            $pdo->exec("ALTER TABLE config_empresa ADD COLUMN {$column} {$definition}");
+        $stmt->execute([$table, $column]);
+        if ((int)$stmt->fetchColumn() <= 0) {
+            return false;
         }
     }
+
+    return true;
 }
 
 try {
-    ensureContractFolioColumns($pdo);
+    if (!tableHasContractColumns($pdo, 'config_empresa')) {
+        throw new RuntimeException('Falta configuración de folios de contrato en config_empresa. Ejecute migración de esquema.');
+    }
+
     $pdo->beginTransaction();
 
     $userId = $_SESSION['user_id'] ?? 0;
     $cfg = null;
-    if ($userId > 0) {
+    $useUserConfig = false;
+    if ($userId > 0 && tableHasContractColumns($pdo, 'config_empresa_usuario')) {
         $stmtU = $pdo->prepare("SELECT contrato_prefijo, contrato_siguiente, contrato_longitud, contrato_rellenar_ceros FROM config_empresa_usuario WHERE id_usuario = ? FOR UPDATE");
         $stmtU->execute([$userId]);
         $cfg = $stmtU->fetch(PDO::FETCH_ASSOC);
+        $useUserConfig = ($cfg !== false && $cfg !== null);
     }
     if (!$cfg) {
         $stmtCfg = $pdo->query("SELECT id_config, contrato_prefijo, contrato_siguiente, contrato_longitud, contrato_rellenar_ceros FROM config_empresa WHERE id_config = 1 FOR UPDATE");
@@ -85,9 +102,13 @@ try {
         throw new RuntimeException('No fue posible generar un No. de contrato disponible.');
     }
 
-    if ($userId > 0) {
-        $pdo->prepare("UPDATE config_empresa_usuario SET contrato_siguiente = ? WHERE id_usuario = ?")
-            ->execute([$usedSequence + 1, $userId]);
+    if ($useUserConfig) {
+        $stmtUpdateUser = $pdo->prepare("UPDATE config_empresa_usuario SET contrato_siguiente = ? WHERE id_usuario = ?");
+        $stmtUpdateUser->execute([$usedSequence + 1, $userId]);
+        if ($stmtUpdateUser->rowCount() < 1) {
+            $pdo->prepare("UPDATE config_empresa SET contrato_siguiente = ? WHERE id_config = 1")
+                ->execute([$usedSequence + 1]);
+        }
     } else {
         $pdo->prepare("UPDATE config_empresa SET contrato_siguiente = ? WHERE id_config = 1")
             ->execute([$usedSequence + 1]);
