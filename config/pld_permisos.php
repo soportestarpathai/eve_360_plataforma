@@ -140,6 +140,15 @@ if (!function_exists('ensureFraccionesPLDColumn')) {
         $fracciones = getUserFraccionesPLD($pdo, $userId);
         return in_array('XVI', $fracciones);
     }
+
+    /**
+     * Verifica si el usuario tiene acceso al formulario VEH (requiere Fracción VIII).
+     * Comercialización o distribución de vehículos.
+     */
+    function userCanAccessVEH($pdo, $userId) {
+        $fracciones = getUserFraccionesPLD($pdo, $userId);
+        return in_array('VIII', $fracciones);
+    }
 }
 
 if (!function_exists('canModifyPLD')) {

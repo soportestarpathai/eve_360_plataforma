@@ -916,7 +916,7 @@ $fraccionesActivas = array_map(function ($f) {
 }, $fraccionesActivas);
 $fraccionesActivas = array_values(array_filter($fraccionesActivas, fn($f) => $f !== ''));
 $fraccionesActivas = array_values(array_unique($fraccionesActivas));
-$fraccionesCatalogoSistema = ['II', 'V', 'V Bis', 'VI', 'XI', 'XIII', 'XVI'];
+$fraccionesCatalogoSistema = ['II', 'V', 'V Bis', 'VI', 'VIII', 'XI', 'XIII', 'XVI'];
 $fraccionesRender = array_values(array_unique(array_merge($fraccionesActivas, $fraccionesCatalogoSistema)));
 
 $adminUsers = [];

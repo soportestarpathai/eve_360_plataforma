@@ -2675,3 +2675,5 @@ window.toggleApoderadoType = toggleApoderadoType;
 window.toggleExtraerIne = toggleExtraerIne;
 window.extraerDatosIne = extraerDatosIne;
 window.captureLocationForRow = captureLocationForRow;
+
+window.captureLocationForRow = captureLocationForRow;

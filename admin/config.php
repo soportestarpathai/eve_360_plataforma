@@ -740,7 +740,7 @@ $listaUsuarios = $stmtUsuarios->fetchAll(PDO::FETCH_ASSOC);
                                     // Orden recomendado de fracciones implementadas.
                                     // Siempre incluirlas para evitar que desaparezcan del panel
                                     // cuando el catálogo venga incompleto temporalmente.
-                                    $ordenPreferido = ['II', 'V', 'V Bis', 'VI', 'XI', 'XIII', 'XVI'];
+                                    $ordenPreferido = ['II', 'V', 'V Bis', 'VI', 'VIII', 'XI', 'XIII', 'XVI'];
                                     foreach ($ordenPreferido as $fo) {
                                         $fraccionesOpciones[$fo] = $fo;
                                     }

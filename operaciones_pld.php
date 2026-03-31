@@ -20,6 +20,7 @@ $canAccessTSC = userCanAccessTSC($pdo, $userId);
 $canAccessSPR = userCanAccessSPR($pdo, $userId);
 $canAccessDON = function_exists('userCanAccessDON') ? userCanAccessDON($pdo, $userId) : false;
 $canAccessAVI = function_exists('userCanAccessAVI') ? userCanAccessAVI($pdo, $userId) : false;
+$canAccessVEH = function_exists('userCanAccessVEH') ? userCanAccessVEH($pdo, $userId) : false;
 
 $page_title = 'Transacciones PLD';
 include 'templates/header.php'; 
@@ -45,7 +46,7 @@ include 'templates/top_bar.php';
         </div>
         <div class="page-header-actions">
             <div class="btn-group shadow-sm">
-                <?php if ($canAccessDIN || $canAccessTSC || $canAccessSPR || $canAccessDON || $canAccessAVI): ?>
+                <?php if ($canAccessDIN || $canAccessTSC || $canAccessSPR || $canAccessDON || $canAccessVEH || $canAccessAVI): ?>
                 <?php if ($canAccessDIN): ?>
                 <a href="operacion_din.php" class="btn btn-primary">
                     <i class="fa-solid fa-building me-2"></i>Registro DIN (V/V Bis)
@@ -66,8 +67,13 @@ include 'templates/top_bar.php';
                     <i class="fa-solid fa-hand-holding-heart me-2"></i>Aviso DON (Fracción XIII)
                 </a>
                 <?php endif; ?>
+                <?php if ($canAccessVEH): ?>
+                <a href="operacion_veh.php" class="btn btn-<?= ($canAccessDIN || $canAccessTSC || $canAccessSPR || $canAccessDON) ? 'outline-primary' : 'primary' ?>">
+                    <i class="fa-solid fa-car-side me-2"></i>Aviso VEH (Fracción VIII)
+                </a>
+                <?php endif; ?>
                 <?php if ($canAccessAVI): ?>
-                <a href="operacion_avi.php" class="btn btn-<?= ($canAccessDIN || $canAccessTSC || $canAccessSPR || $canAccessDON) ? 'outline-primary' : 'primary' ?>">
+                <a href="operacion_avi.php" class="btn btn-<?= ($canAccessDIN || $canAccessTSC || $canAccessSPR || $canAccessDON || $canAccessVEH) ? 'outline-primary' : 'primary' ?>">
                     <i class="fa-solid fa-coins me-2"></i>Aviso AVI (Fracción XVI)
                 </a>
                 <?php endif; ?>
@@ -77,6 +83,7 @@ include 'templates/top_bar.php';
                     <?php if ($canAccessTSC): ?><li><a class="dropdown-item" href="operacion_tsc.php"><i class="fa-solid fa-credit-card me-2"></i>Formulario Fracción II (TSC/TPP/TDR)</a></li><?php endif; ?>
                     <?php if ($canAccessSPR): ?><li><a class="dropdown-item" href="operacion_spr.php"><i class="fa-solid fa-briefcase me-2"></i>Formulario SPR (Servicios Profesionales)</a></li><?php endif; ?>
                     <?php if ($canAccessDON): ?><li><a class="dropdown-item" href="operacion_don.php"><i class="fa-solid fa-hand-holding-heart me-2"></i>Formulario DON (Donativos)</a></li><?php endif; ?>
+                    <?php if ($canAccessVEH): ?><li><a class="dropdown-item" href="operacion_veh.php"><i class="fa-solid fa-car-side me-2"></i>Formulario VEH (Vehículos)</a></li><?php endif; ?>
                     <?php if ($canAccessAVI): ?><li><a class="dropdown-item" href="operacion_avi.php"><i class="fa-solid fa-coins me-2"></i>Formulario AVI (Activos Virtuales)</a></li><?php endif; ?>
                     <li><hr class="dropdown-divider"></li>
                     <li><a class="dropdown-item" href="#" onclick="abrirModalOperacion(); return false;"><i class="fa-solid fa-plus me-2"></i>Registro simplificado</a></li>
@@ -115,6 +122,13 @@ include 'templates/top_bar.php';
     <div class="alert alert-warning alert-dismissible fade show" role="alert">
         <i class="fa-solid fa-triangle-exclamation me-2"></i>
         <strong>Sin acceso al formulario DON.</strong> No tiene asignada la Fracción XIII (Donativos). Solicite al administrador que se la asigne.
+        <button type="button" class="btn-close" data-bs-dismiss="alert"></button>
+    </div>
+    <?php endif; ?>
+    <?php if (isset($_GET['error']) && $_GET['error'] === 'sin_permiso_veh'): ?>
+    <div class="alert alert-warning alert-dismissible fade show" role="alert">
+        <i class="fa-solid fa-triangle-exclamation me-2"></i>
+        <strong>Sin acceso al formulario VEH.</strong> No tiene asignada la Fracción VIII (Vehículos). Solicite al administrador que se la asigne.
         <button type="button" class="btn-close" data-bs-dismiss="alert"></button>
     </div>
     <?php endif; ?>
