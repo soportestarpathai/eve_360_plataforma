@@ -149,6 +149,15 @@ if (!function_exists('ensureFraccionesPLDColumn')) {
         $fracciones = getUserFraccionesPLD($pdo, $userId);
         return in_array('VIII', $fracciones);
     }
+
+    /**
+     * Verifica si el usuario tiene acceso al formulario MJR (requiere Fracción VI).
+     * Metales preciosos, piedras preciosas, joyas y relojes.
+     */
+    function userCanAccessMJR($pdo, $userId) {
+        $fracciones = getUserFraccionesPLD($pdo, $userId);
+        return in_array('VI', $fracciones);
+    }
 }
 
 if (!function_exists('canModifyPLD')) {

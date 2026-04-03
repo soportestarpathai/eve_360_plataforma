@@ -1,32 +1,62 @@
-# Archivos de configuración sensibles
+# ==============================
+# SOLO CÓDIGO DEL PROYECTO
+# ==============================
+
+# Configuración sensible/local
 .env
+.env.*
+!.env.example
 
-# Directorios de logs y caché
-logs/
-cache/
+# Dependencias generadas
+/vendor/
+/node_modules/
 
-# Archivos temporales
+# Runtime / datos locales
+/logs/
+/cache/
+/uploads/
+
+# Sesiones y QA temporal local
+/.tmp_sessions/*
+!/.tmp_sessions/.gitkeep
+/tmp_*
+/tmp-*
+
+# Artefactos temporales
 *.log
 *.cache
 *.tmp
+*.pid
+*.seed
+*.bak
+*.orig
+*.rej
 
-# Sistema operativo
-.DS_Store
-Thumbs.db
-
-# IDEs
+# IDE / OS
 .vscode/
 .idea/
 *.swp
 *.swo
+.DS_Store
+Thumbs.db
+ehthumbs.db
 
-# PHP
-vendor/
-composer.lock
+# Build / reportes
+/coverage/
+/.nyc_output/
+/dist/
+/build/
 
-# QA / sesiones locales (artefactos generados)
-.tmp_sessions/sess_qamtx-*
-.tmp_sessions/sess_*
-!.tmp_sessions/.gitkeep
-demo_spr_subfraccion*.xml
-comparativo_spr_subfraccion*.txt
+# Artefactos de ejemplo, pruebas manuales y documentación pesada
+/demo_*.xml
+/demo_*.txt
+/comparativo_*.txt
+/ejemplo*.xml
+/ejemplo*.txt
+/instructivo_*.xlsx
+/OBLIGACIONES*.docx
+/obligaciones.zip
+/REGLAS*.pdf
+/CPdescarga.txt
+/obligaciones_text.txt
+/tmp_reglas_kyc_extract.txt

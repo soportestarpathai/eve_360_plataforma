@@ -1,6 +1,6 @@
 <?php
 /**
- * API: Descargar XML de operación PLD (DIN, TSC, SPR)
+ * API: Descargar XML de operación PLD.
  */
 session_start();
 require_once __DIR__ . '/../config/db.php';
@@ -37,6 +37,7 @@ try {
         $prefijo = 'din_op';
         if (strpos($tipo, 'TSC') === 0) $prefijo = 'tsc_op';
         elseif (strpos($tipo, 'SPR') === 0) $prefijo = 'spr_op';
+        elseif (strpos($tipo, 'MJR') === 0 || strpos($tipo, 'VI:') === 0) $prefijo = 'mjr_op';
         $filename = $prefijo . $id_operacion . '.xml';
     }
 

@@ -83,7 +83,26 @@ if (!function_exists('getIdVulnerableFraccionVI')) {
      */
     function getIdVulnerableFraccionVI($pdo) {
         try {
-            $stmt = $pdo->prepare("SELECT id_vulnerable FROM cat_vulnerables WHERE fraccion = 'VI' AND (id_status = 1 OR id_status IS NULL) LIMIT 1");
+            $hasIdStatus = false;
+            try {
+                $q = $pdo->query("
+                    SELECT COUNT(*) AS c
+                    FROM INFORMATION_SCHEMA.COLUMNS
+                    WHERE TABLE_SCHEMA = DATABASE()
+                      AND TABLE_NAME = 'cat_vulnerables'
+                      AND COLUMN_NAME = 'id_status'
+                ");
+                $r = $q ? $q->fetch(PDO::FETCH_ASSOC) : null;
+                $hasIdStatus = ((int)($r['c'] ?? 0) > 0);
+            } catch (Exception $inner) {
+                $hasIdStatus = false;
+            }
+
+            if ($hasIdStatus) {
+                $stmt = $pdo->prepare("SELECT id_vulnerable FROM cat_vulnerables WHERE fraccion = 'VI' AND (id_status = 1 OR id_status IS NULL) LIMIT 1");
+            } else {
+                $stmt = $pdo->prepare("SELECT id_vulnerable FROM cat_vulnerables WHERE fraccion = 'VI' LIMIT 1");
+            }
             $stmt->execute();
             $row = $stmt->fetch(PDO::FETCH_ASSOC);
             return $row ? (int) $row['id_vulnerable'] : null;
