@@ -16,12 +16,23 @@ if (!checkHabilitadoPLD($pdo)) {
 $userId = $_SESSION['user_id'] ?? 0;
 $userFracciones = getUserFraccionesPLD($pdo, $userId);
 $canAccessDIN = userCanAccessDIN($pdo, $userId);
+$canAccessINM = function_exists('userCanAccessINM') ? userCanAccessINM($pdo, $userId) : false;
+$canAccessJYS = function_exists('userCanAccessJYS') ? userCanAccessJYS($pdo, $userId) : false;
+$canAccessCHV = function_exists('userCanAccessCHV') ? userCanAccessCHV($pdo, $userId) : false;
 $canAccessTSC = userCanAccessTSC($pdo, $userId);
 $canAccessSPR = userCanAccessSPR($pdo, $userId);
 $canAccessDON = function_exists('userCanAccessDON') ? userCanAccessDON($pdo, $userId) : false;
 $canAccessAVI = function_exists('userCanAccessAVI') ? userCanAccessAVI($pdo, $userId) : false;
 $canAccessVEH = function_exists('userCanAccessVEH') ? userCanAccessVEH($pdo, $userId) : false;
+$canAccessBLI = function_exists('userCanAccessBLI') ? userCanAccessBLI($pdo, $userId) : false;
+$canAccessTCV = function_exists('userCanAccessTCV') ? userCanAccessTCV($pdo, $userId) : false;
 $canAccessMJR = function_exists('userCanAccessMJR') ? userCanAccessMJR($pdo, $userId) : false;
+$canAccessOBA = function_exists('userCanAccessOBA') ? userCanAccessOBA($pdo, $userId) : false;
+$canAccessMPC = function_exists('userCanAccessMPC') ? userCanAccessMPC($pdo, $userId) : false;
+$canAccessADU = function_exists('userCanAccessADU') ? userCanAccessADU($pdo, $userId) : false;
+$canAccessARI = function_exists('userCanAccessARI') ? userCanAccessARI($pdo, $userId) : false;
+$canAccessFEP = function_exists('userCanAccessFEP') ? userCanAccessFEP($pdo, $userId) : false;
+$canAccessFES = function_exists('userCanAccessFES') ? userCanAccessFES($pdo, $userId) : false;
 
 $page_title = 'Transacciones PLD';
 include 'templates/header.php'; 
@@ -47,50 +58,116 @@ include 'templates/top_bar.php';
         </div>
         <div class="page-header-actions">
             <div class="btn-group shadow-sm">
-                <?php if ($canAccessDIN || $canAccessTSC || $canAccessSPR || $canAccessDON || $canAccessVEH || $canAccessAVI || $canAccessMJR): ?>
+                <?php if ($canAccessDIN || $canAccessINM || $canAccessJYS || $canAccessCHV || $canAccessTSC || $canAccessMPC || $canAccessSPR || $canAccessDON || $canAccessVEH || $canAccessBLI || $canAccessTCV || $canAccessAVI || $canAccessMJR || $canAccessOBA || $canAccessADU || $canAccessARI || $canAccessFEP || $canAccessFES): ?>
                 <?php if ($canAccessDIN): ?>
                 <a href="operacion_din.php" class="btn btn-primary">
-                    <i class="fa-solid fa-building me-2"></i>Registro DIN (V/V Bis)
+                    <i class="fa-solid fa-building me-2"></i>Registro DIN (Fracción V)
+                </a>
+                <?php endif; ?>
+                <?php if ($canAccessINM): ?>
+                <a href="operacion_inm.php" class="btn btn-<?= $canAccessDIN ? 'outline-primary' : 'primary' ?>">
+                    <i class="fa-solid fa-house-chimney me-2"></i>Aviso INM (Fracción V Bis)
+                </a>
+                <?php endif; ?>
+                <?php if ($canAccessJYS): ?>
+                <a href="operacion_jys.php" class="btn btn-<?= ($canAccessDIN || $canAccessINM) ? 'outline-primary' : 'primary' ?>">
+                    <i class="fa-solid fa-dice me-2"></i>Aviso JYS (Fracción I)
+                </a>
+                <?php endif; ?>
+                <?php if ($canAccessCHV): ?>
+                <a href="operacion_chv.php" class="btn btn-<?= ($canAccessDIN || $canAccessINM || $canAccessJYS) ? 'outline-primary' : 'primary' ?>">
+                    <i class="fa-solid fa-money-check-dollar me-2"></i>Aviso CHV (Fracción III)
                 </a>
                 <?php endif; ?>
                 <?php if ($canAccessTSC): ?>
-                <a href="operacion_tsc.php" class="btn btn-<?= $canAccessDIN ? 'outline-primary' : 'primary' ?>">
+                <a href="operacion_tsc.php" class="btn btn-<?= ($canAccessDIN || $canAccessJYS || $canAccessCHV) ? 'outline-primary' : 'primary' ?>">
                     <i class="fa-solid fa-credit-card me-2"></i>Aviso Fracción II (TSC/TPP/TDR)
                 </a>
                 <?php endif; ?>
+                <?php if ($canAccessMPC): ?>
+                <a href="operacion_mpc.php" class="btn btn-<?= ($canAccessDIN || $canAccessJYS || $canAccessCHV || $canAccessTSC) ? 'outline-primary' : 'primary' ?>">
+                    <i class="fa-solid fa-hand-holding-dollar me-2"></i>Aviso MPC (Fracción IV)
+                </a>
+                <?php endif; ?>
                 <?php if ($canAccessSPR): ?>
-                <a href="operacion_spr.php" class="btn btn-<?= ($canAccessDIN || $canAccessTSC) ? 'outline-primary' : 'primary' ?>">
+                <a href="operacion_spr.php" class="btn btn-<?= ($canAccessDIN || $canAccessJYS || $canAccessTSC || $canAccessMPC) ? 'outline-primary' : 'primary' ?>">
                     <i class="fa-solid fa-briefcase me-2"></i>Aviso SPR (Fracción XI)
                 </a>
                 <?php endif; ?>
                 <?php if ($canAccessDON): ?>
-                <a href="operacion_don.php" class="btn btn-<?= ($canAccessDIN || $canAccessTSC || $canAccessSPR) ? 'outline-primary' : 'primary' ?>">
+                <a href="operacion_don.php" class="btn btn-<?= ($canAccessDIN || $canAccessJYS || $canAccessTSC || $canAccessMPC || $canAccessSPR) ? 'outline-primary' : 'primary' ?>">
                     <i class="fa-solid fa-hand-holding-heart me-2"></i>Aviso DON (Fracción XIII)
                 </a>
                 <?php endif; ?>
                 <?php if ($canAccessVEH): ?>
-                <a href="operacion_veh.php" class="btn btn-<?= ($canAccessDIN || $canAccessTSC || $canAccessSPR || $canAccessDON) ? 'outline-primary' : 'primary' ?>">
+                <a href="operacion_veh.php" class="btn btn-<?= ($canAccessDIN || $canAccessJYS || $canAccessTSC || $canAccessMPC || $canAccessSPR || $canAccessDON) ? 'outline-primary' : 'primary' ?>">
                     <i class="fa-solid fa-car-side me-2"></i>Aviso VEH (Fracción VIII)
                 </a>
                 <?php endif; ?>
+                <?php if ($canAccessBLI): ?>
+                <a href="operacion_bli.php" class="btn btn-<?= ($canAccessDIN || $canAccessJYS || $canAccessTSC || $canAccessMPC || $canAccessSPR || $canAccessDON || $canAccessVEH) ? 'outline-primary' : 'primary' ?>">
+                    <i class="fa-solid fa-shield-halved me-2"></i>Aviso BLI (Fracción IX)
+                </a>
+                <?php endif; ?>
+                <?php if ($canAccessTCV): ?>
+                <a href="operacion_tcv.php" class="btn btn-<?= ($canAccessDIN || $canAccessJYS || $canAccessTSC || $canAccessMPC || $canAccessSPR || $canAccessDON || $canAccessVEH || $canAccessBLI) ? 'outline-primary' : 'primary' ?>">
+                    <i class="fa-solid fa-truck-ramp-box me-2"></i>Aviso TCV (Fracción X)
+                </a>
+                <?php endif; ?>
                 <?php if ($canAccessMJR): ?>
-                <a href="operacion_mjr.php" class="btn btn-<?= ($canAccessDIN || $canAccessTSC || $canAccessSPR || $canAccessDON || $canAccessVEH) ? 'outline-primary' : 'primary' ?>">
+                <a href="operacion_mjr.php" class="btn btn-<?= ($canAccessDIN || $canAccessJYS || $canAccessTSC || $canAccessMPC || $canAccessSPR || $canAccessDON || $canAccessVEH || $canAccessBLI || $canAccessTCV) ? 'outline-primary' : 'primary' ?>">
                     <i class="fa-solid fa-gem me-2"></i>Aviso MJR (Fracción VI)
                 </a>
                 <?php endif; ?>
+                <?php if ($canAccessOBA): ?>
+                <a href="operacion_oba.php" class="btn btn-<?= ($canAccessDIN || $canAccessJYS || $canAccessTSC || $canAccessMPC || $canAccessSPR || $canAccessDON || $canAccessVEH || $canAccessBLI || $canAccessMJR) ? 'outline-primary' : 'primary' ?>">
+                    <i class="fa-solid fa-palette me-2"></i>Aviso OBA (Fracción VII)
+                </a>
+                <?php endif; ?>
+                <?php if ($canAccessFEP): ?>
+                <a href="operacion_fep.php" class="btn btn-<?= ($canAccessDIN || $canAccessJYS || $canAccessTSC || $canAccessMPC || $canAccessSPR || $canAccessDON || $canAccessVEH || $canAccessBLI || $canAccessMJR || $canAccessOBA) ? 'outline-primary' : 'primary' ?>">
+                    <i class="fa-solid fa-scale-balanced me-2"></i>Aviso FEP (Fracción XII)
+                </a>
+                <?php endif; ?>
+                <?php if ($canAccessFES): ?>
+                <a href="operacion_fes.php" class="btn btn-<?= ($canAccessDIN || $canAccessJYS || $canAccessTSC || $canAccessMPC || $canAccessSPR || $canAccessDON || $canAccessVEH || $canAccessBLI || $canAccessMJR || $canAccessOBA || $canAccessFEP) ? 'outline-primary' : 'primary' ?>">
+                    <i class="fa-solid fa-landmark me-2"></i>Aviso FES (Fracción XII)
+                </a>
+                <?php endif; ?>
+                <?php if ($canAccessADU): ?>
+                <a href="operacion_adu.php" class="btn btn-<?= ($canAccessDIN || $canAccessJYS || $canAccessTSC || $canAccessMPC || $canAccessSPR || $canAccessDON || $canAccessVEH || $canAccessBLI || $canAccessMJR || $canAccessOBA || $canAccessFEP || $canAccessFES) ? 'outline-primary' : 'primary' ?>">
+                    <i class="fa-solid fa-plane-departure me-2"></i>Aviso ADU (Fracción XIV)
+                </a>
+                <?php endif; ?>
+                <?php if ($canAccessARI): ?>
+                <a href="operacion_ari.php" class="btn btn-<?= ($canAccessDIN || $canAccessJYS || $canAccessTSC || $canAccessMPC || $canAccessSPR || $canAccessDON || $canAccessVEH || $canAccessBLI || $canAccessMJR || $canAccessOBA || $canAccessADU) ? 'outline-primary' : 'primary' ?>">
+                    <i class="fa-solid fa-key me-2"></i>Aviso ARI (Fracción XV)
+                </a>
+                <?php endif; ?>
                 <?php if ($canAccessAVI): ?>
-                <a href="operacion_avi.php" class="btn btn-<?= ($canAccessDIN || $canAccessTSC || $canAccessSPR || $canAccessDON || $canAccessVEH || $canAccessMJR) ? 'outline-primary' : 'primary' ?>">
+                <a href="operacion_avi.php" class="btn btn-<?= ($canAccessDIN || $canAccessJYS || $canAccessTSC || $canAccessMPC || $canAccessSPR || $canAccessDON || $canAccessVEH || $canAccessBLI || $canAccessMJR || $canAccessOBA || $canAccessADU || $canAccessARI) ? 'outline-primary' : 'primary' ?>">
                     <i class="fa-solid fa-coins me-2"></i>Aviso AVI (Fracción XVI)
                 </a>
                 <?php endif; ?>
                 <button type="button" class="btn btn-outline-primary dropdown-toggle dropdown-toggle-split" data-bs-toggle="dropdown"></button>
                 <ul class="dropdown-menu dropdown-menu-end">
-                    <?php if ($canAccessDIN): ?><li><a class="dropdown-item" href="operacion_din.php"><i class="fa-solid fa-file-code me-2"></i>Formulario DIN (Desarrollo Inmobiliario)</a></li><?php endif; ?>
+                    <?php if ($canAccessDIN): ?><li><a class="dropdown-item" href="operacion_din.php"><i class="fa-solid fa-file-code me-2"></i>Formulario DIN (Fracción V)</a></li><?php endif; ?>
+                    <?php if ($canAccessINM): ?><li><a class="dropdown-item" href="operacion_inm.php"><i class="fa-solid fa-house-chimney me-2"></i>Formulario INM (Fracción V Bis)</a></li><?php endif; ?>
+                    <?php if ($canAccessJYS): ?><li><a class="dropdown-item" href="operacion_jys.php"><i class="fa-solid fa-dice me-2"></i>Formulario JYS (Juegos y Sorteos)</a></li><?php endif; ?>
+                    <?php if ($canAccessCHV): ?><li><a class="dropdown-item" href="operacion_chv.php"><i class="fa-solid fa-money-check-dollar me-2"></i>Formulario CHV (Cheques de viajero)</a></li><?php endif; ?>
                     <?php if ($canAccessTSC): ?><li><a class="dropdown-item" href="operacion_tsc.php"><i class="fa-solid fa-credit-card me-2"></i>Formulario Fracción II (TSC/TPP/TDR)</a></li><?php endif; ?>
+                    <?php if ($canAccessMPC): ?><li><a class="dropdown-item" href="operacion_mpc.php"><i class="fa-solid fa-hand-holding-dollar me-2"></i>Formulario MPC (Mutuo/Préstamos/Créditos)</a></li><?php endif; ?>
                     <?php if ($canAccessSPR): ?><li><a class="dropdown-item" href="operacion_spr.php"><i class="fa-solid fa-briefcase me-2"></i>Formulario SPR (Servicios Profesionales)</a></li><?php endif; ?>
                     <?php if ($canAccessDON): ?><li><a class="dropdown-item" href="operacion_don.php"><i class="fa-solid fa-hand-holding-heart me-2"></i>Formulario DON (Donativos)</a></li><?php endif; ?>
                     <?php if ($canAccessVEH): ?><li><a class="dropdown-item" href="operacion_veh.php"><i class="fa-solid fa-car-side me-2"></i>Formulario VEH (Vehículos)</a></li><?php endif; ?>
+                    <?php if ($canAccessBLI): ?><li><a class="dropdown-item" href="operacion_bli.php"><i class="fa-solid fa-shield-halved me-2"></i>Formulario BLI (Blindaje)</a></li><?php endif; ?>
+                    <?php if ($canAccessTCV): ?><li><a class="dropdown-item" href="operacion_tcv.php"><i class="fa-solid fa-truck-ramp-box me-2"></i>Formulario TCV (Traslado/Custodia)</a></li><?php endif; ?>
                     <?php if ($canAccessMJR): ?><li><a class="dropdown-item" href="operacion_mjr.php"><i class="fa-solid fa-gem me-2"></i>Formulario MJR (Metales y Joyas)</a></li><?php endif; ?>
+                    <?php if ($canAccessOBA): ?><li><a class="dropdown-item" href="operacion_oba.php"><i class="fa-solid fa-palette me-2"></i>Formulario OBA (Obras de arte)</a></li><?php endif; ?>
+                    <?php if ($canAccessFEP): ?><li><a class="dropdown-item" href="operacion_fep.php"><i class="fa-solid fa-scale-balanced me-2"></i>Formulario FEP (Fe pública)</a></li><?php endif; ?>
+                    <?php if ($canAccessFES): ?><li><a class="dropdown-item" href="operacion_fes.php"><i class="fa-solid fa-landmark me-2"></i>Formulario FES (Servidores públicos)</a></li><?php endif; ?>
+                    <?php if ($canAccessADU): ?><li><a class="dropdown-item" href="operacion_adu.php"><i class="fa-solid fa-plane-departure me-2"></i>Formulario ADU (Comercio exterior)</a></li><?php endif; ?>
+                    <?php if ($canAccessARI): ?><li><a class="dropdown-item" href="operacion_ari.php"><i class="fa-solid fa-key me-2"></i>Formulario ARI (Uso o goce de inmuebles)</a></li><?php endif; ?>
                     <?php if ($canAccessAVI): ?><li><a class="dropdown-item" href="operacion_avi.php"><i class="fa-solid fa-coins me-2"></i>Formulario AVI (Activos Virtuales)</a></li><?php endif; ?>
                     <li><hr class="dropdown-divider"></li>
                     <li><a class="dropdown-item" href="#" onclick="abrirModalOperacion(); return false;"><i class="fa-solid fa-plus me-2"></i>Registro simplificado</a></li>
@@ -107,7 +184,21 @@ include 'templates/top_bar.php';
     <?php if (isset($_GET['error']) && $_GET['error'] === 'sin_permiso_din'): ?>
     <div class="alert alert-warning alert-dismissible fade show" role="alert">
         <i class="fa-solid fa-triangle-exclamation me-2"></i>
-        <strong>Sin acceso al formulario DIN.</strong> No tiene asignadas las fracciones V o V Bis. Solicite al administrador que se las asigne.
+        <strong>Sin acceso al formulario DIN.</strong> No tiene asignada la Fracción V. Solicite al administrador que se la asigne.
+        <button type="button" class="btn-close" data-bs-dismiss="alert"></button>
+    </div>
+    <?php endif; ?>
+    <?php if (isset($_GET['error']) && $_GET['error'] === 'sin_permiso_inm'): ?>
+    <div class="alert alert-warning alert-dismissible fade show" role="alert">
+        <i class="fa-solid fa-triangle-exclamation me-2"></i>
+        <strong>Sin acceso al formulario INM.</strong> No tiene asignada la Fracción V Bis (Recepción de recursos para desarrollo inmobiliario). Solicite al administrador que se la asigne.
+        <button type="button" class="btn-close" data-bs-dismiss="alert"></button>
+    </div>
+    <?php endif; ?>
+    <?php if (isset($_GET['error']) && $_GET['error'] === 'sin_permiso_jys'): ?>
+    <div class="alert alert-warning alert-dismissible fade show" role="alert">
+        <i class="fa-solid fa-triangle-exclamation me-2"></i>
+        <strong>Sin acceso al formulario JYS.</strong> No tiene asignada la Fracción I (Juegos con apuesta, concursos o sorteos). Solicite al administrador que se la asigne.
         <button type="button" class="btn-close" data-bs-dismiss="alert"></button>
     </div>
     <?php endif; ?>
@@ -115,6 +206,20 @@ include 'templates/top_bar.php';
     <div class="alert alert-warning alert-dismissible fade show" role="alert">
         <i class="fa-solid fa-triangle-exclamation me-2"></i>
         <strong>Sin acceso al formulario de Fracción II.</strong> No tiene asignada la Fracción II (TSC/TPP/TDR). Solicite al administrador que se la asigne.
+        <button type="button" class="btn-close" data-bs-dismiss="alert"></button>
+    </div>
+    <?php endif; ?>
+    <?php if (isset($_GET['error']) && $_GET['error'] === 'sin_permiso_chv'): ?>
+    <div class="alert alert-warning alert-dismissible fade show" role="alert">
+        <i class="fa-solid fa-triangle-exclamation me-2"></i>
+        <strong>Sin acceso al formulario CHV.</strong> No tiene asignada la Fracción III (Cheques de viajero). Solicite al administrador que se la asigne.
+        <button type="button" class="btn-close" data-bs-dismiss="alert"></button>
+    </div>
+    <?php endif; ?>
+    <?php if (isset($_GET['error']) && $_GET['error'] === 'sin_permiso_mpc'): ?>
+    <div class="alert alert-warning alert-dismissible fade show" role="alert">
+        <i class="fa-solid fa-triangle-exclamation me-2"></i>
+        <strong>Sin acceso al formulario MPC.</strong> No tiene asignada la Fracción IV (Mutuo/Préstamos/Créditos). Solicite al administrador que se la asigne.
         <button type="button" class="btn-close" data-bs-dismiss="alert"></button>
     </div>
     <?php endif; ?>
@@ -139,6 +244,20 @@ include 'templates/top_bar.php';
         <button type="button" class="btn-close" data-bs-dismiss="alert"></button>
     </div>
     <?php endif; ?>
+    <?php if (isset($_GET['error']) && $_GET['error'] === 'sin_permiso_bli'): ?>
+    <div class="alert alert-warning alert-dismissible fade show" role="alert">
+        <i class="fa-solid fa-triangle-exclamation me-2"></i>
+        <strong>Sin acceso al formulario BLI.</strong> No tiene asignada la Fracción IX (Blindaje). Solicite al administrador que se la asigne.
+        <button type="button" class="btn-close" data-bs-dismiss="alert"></button>
+    </div>
+    <?php endif; ?>
+    <?php if (isset($_GET['error']) && $_GET['error'] === 'sin_permiso_tcv'): ?>
+    <div class="alert alert-warning alert-dismissible fade show" role="alert">
+        <i class="fa-solid fa-triangle-exclamation me-2"></i>
+        <strong>Sin acceso al formulario TCV.</strong> No tiene asignada la Fracción X (Traslado o custodia de dinero o valores). Solicite al administrador que se la asigne.
+        <button type="button" class="btn-close" data-bs-dismiss="alert"></button>
+    </div>
+    <?php endif; ?>
     <?php if (isset($_GET['error']) && $_GET['error'] === 'sin_permiso_mjr'): ?>
     <div class="alert alert-warning alert-dismissible fade show" role="alert">
         <i class="fa-solid fa-triangle-exclamation me-2"></i>
@@ -146,10 +265,45 @@ include 'templates/top_bar.php';
         <button type="button" class="btn-close" data-bs-dismiss="alert"></button>
     </div>
     <?php endif; ?>
+    <?php if (isset($_GET['error']) && $_GET['error'] === 'sin_permiso_oba'): ?>
+    <div class="alert alert-warning alert-dismissible fade show" role="alert">
+        <i class="fa-solid fa-triangle-exclamation me-2"></i>
+        <strong>Sin acceso al formulario OBA.</strong> No tiene asignada la Fracción VII (Obras de arte). Solicite al administrador que se la asigne.
+        <button type="button" class="btn-close" data-bs-dismiss="alert"></button>
+    </div>
+    <?php endif; ?>
     <?php if (isset($_GET['error']) && $_GET['error'] === 'sin_permiso_avi'): ?>
     <div class="alert alert-warning alert-dismissible fade show" role="alert">
         <i class="fa-solid fa-triangle-exclamation me-2"></i>
         <strong>Sin acceso al formulario AVI.</strong> No tiene asignada la Fracción XVI (Activos Virtuales). Solicite al administrador que se la asigne.
+        <button type="button" class="btn-close" data-bs-dismiss="alert"></button>
+    </div>
+    <?php endif; ?>
+    <?php if (isset($_GET['error']) && $_GET['error'] === 'sin_permiso_adu'): ?>
+    <div class="alert alert-warning alert-dismissible fade show" role="alert">
+        <i class="fa-solid fa-triangle-exclamation me-2"></i>
+        <strong>Sin acceso al formulario ADU.</strong> No tiene asignada la Fracción XIV (Comercio exterior). Solicite al administrador que se la asigne.
+        <button type="button" class="btn-close" data-bs-dismiss="alert"></button>
+    </div>
+    <?php endif; ?>
+    <?php if (isset($_GET['error']) && $_GET['error'] === 'sin_permiso_fep'): ?>
+    <div class="alert alert-warning alert-dismissible fade show" role="alert">
+        <i class="fa-solid fa-triangle-exclamation me-2"></i>
+        <strong>Sin acceso al formulario FEP.</strong> No tiene asignada la Fracción XII (Fe pública). Solicite al administrador que se la asigne.
+        <button type="button" class="btn-close" data-bs-dismiss="alert"></button>
+    </div>
+    <?php endif; ?>
+    <?php if (isset($_GET['error']) && $_GET['error'] === 'sin_permiso_fes'): ?>
+    <div class="alert alert-warning alert-dismissible fade show" role="alert">
+        <i class="fa-solid fa-triangle-exclamation me-2"></i>
+        <strong>Sin acceso al formulario FES.</strong> No tiene asignada la Fracción XII (Fe pública - Servidores Públicos). Solicite al administrador que se la asigne.
+        <button type="button" class="btn-close" data-bs-dismiss="alert"></button>
+    </div>
+    <?php endif; ?>
+    <?php if (isset($_GET['error']) && $_GET['error'] === 'sin_permiso_ari'): ?>
+    <div class="alert alert-warning alert-dismissible fade show" role="alert">
+        <i class="fa-solid fa-triangle-exclamation me-2"></i>
+        <strong>Sin acceso al formulario ARI.</strong> No tiene asignada la Fracción XV (Uso o goce de bienes inmuebles). Solicite al administrador que se la asigne.
         <button type="button" class="btn-close" data-bs-dismiss="alert"></button>
     </div>
     <?php endif; ?>
@@ -551,14 +705,14 @@ include 'templates/top_bar.php';
                                 <i class="fa-solid fa-info-circle ms-1 text-info" 
                                    data-bs-toggle="tooltip" 
                                    data-bs-placement="top" 
-                                   title="Fracción de actividad vulnerable según LFPIORPI (ej: V, V Bis, VI, XIII)"></i>
+                                   title="Fracción de actividad vulnerable según LFPIORPI (ej: I, V, V Bis, VI, XIII)"></i>
                             </label>
                             <select class="form-select" id="operacion_id_fraccion">
                                 <option value="">-- Seleccione Fracción --</option>
                             </select>
                             <small class="text-muted">
                                 <i class="fa-solid fa-lightbulb me-1"></i>
-                                Ejemplos: II (TSC), XI (SPR), XVI (AVI), V (Inmuebles), V Bis (Muebles), VI (Intermediación), XIII (Donativos)
+                                Ejemplos: I (JYS), II (TSC), IX (BLI), XI (SPR), XVI (AVI), V (Inmuebles), V Bis (Muebles), VI (Intermediación), XIII (Donativos)
                             </small>
                         </div>
                         <div class="col-md-6 mb-3">
@@ -712,6 +866,8 @@ include 'templates/top_bar.php';
 <script>
 const USER_FRACCIONES_PLD = <?= json_encode($userFracciones) ?>;
 const CAN_ACCESS_DIN = <?= $canAccessDIN ? 'true' : 'false' ?>;
+const CAN_ACCESS_INM = <?= $canAccessINM ? 'true' : 'false' ?>;
+const CAN_ACCESS_TCV = <?= $canAccessTCV ? 'true' : 'false' ?>;
 let clientesList = [];
 let fraccionesList = [];
 let puedeModificarPLD = false;

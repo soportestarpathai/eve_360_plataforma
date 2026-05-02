@@ -18,11 +18,14 @@ $php = PHP_BINARY ?: 'php';
 $baseDir = __DIR__;
 
 $suite = [
+    'jys' => 'qa_jys_e2e.php',
     'ii' => 'qa_fraccion_ii_e2e.php',
+    'mpc' => 'qa_mpc_e2e.php',
     'don' => 'qa_don_e2e.php',
     'avi' => 'qa_avi_e2e.php',
     'mjr' => 'qa_mjr_e2e.php',
     'veh' => 'qa_veh_e2e.php',
+    'bli' => 'qa_bli_e2e.php',
     'spr5' => 'qa_spr_subfraccion5_e2e.php',
     'sprall' => 'qa_spr_subfracciones_1_6_e2e.php',
 ];
@@ -102,4 +105,3 @@ echo "Duración total: {$totalMs} ms\n";
 echo "Fin: " . date('Y-m-d H:i:s') . "\n";
 
 exit($failed > 0 ? 1 : 0);
-

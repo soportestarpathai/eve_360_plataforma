@@ -71,7 +71,10 @@ try {
             'estatus' => $data['estatus'] ?? null,
             'fracciones' => $data['fracciones'] ?? null,
             'subfracciones_xi' => isset($data['subfracciones_xi']) ? $data['subfracciones_xi'] : null,
-            'subfracciones_ii' => isset($data['subfracciones_ii']) ? $data['subfracciones_ii'] : null
+            'subfracciones_ii' => isset($data['subfracciones_ii']) ? $data['subfracciones_ii'] : null,
+            'subfracciones_xii' => isset($data['subfracciones_xii']) ? $data['subfracciones_xii'] : null,
+            'subfracciones_xii_fes' => isset($data['subfracciones_xii_fes']) ? $data['subfracciones_xii_fes'] : null,
+            'subfracciones_xiv' => isset($data['subfracciones_xiv']) ? $data['subfracciones_xiv'] : null
         ];
         $confirmarCambios = isset($data['confirmar']) && $data['confirmar'] === true;
         $id_usuario = isset($data['id_usuario']) ? (int)$data['id_usuario'] : 0;

@@ -51,10 +51,8 @@ if (!function_exists('ensureFraccionesPLDColumn')) {
                 $decoded = json_decode($row['fracciones_activas'], true);
                 if (is_array($decoded)) $empresaFracciones = $decoded;
             }
-            // Compatibilidad: XII legado se interpreta como XI
             $empresaFracciones = array_map(function ($f) {
                 $s = trim((string)$f);
-                if ($s === 'XII') return 'XI';
                 return $s;
             }, $empresaFracciones);
             $empresaFracciones = array_values(array_filter($empresaFracciones, fn($f) => $f !== ''));
@@ -71,7 +69,6 @@ if (!function_exists('ensureFraccionesPLDColumn')) {
             if (!is_array($userFracciones)) return [];
             $userFracciones = array_map(function ($f) {
                 $s = trim((string)$f);
-                if ($s === 'XII') return 'XI';
                 return $s;
             }, $userFracciones);
             $userFracciones = array_values(array_filter($userFracciones, fn($f) => $f !== ''));
@@ -103,7 +100,16 @@ if (!function_exists('ensureFraccionesPLDColumn')) {
      */
     function userCanAccessDIN($pdo, $userId) {
         $fracciones = getUserFraccionesPLD($pdo, $userId);
-        return in_array('V', $fracciones) || in_array('V Bis', $fracciones);
+        return in_array('V', $fracciones);
+    }
+
+    /**
+     * Verifica si el usuario tiene acceso al formulario INM (requiere Fracción V Bis).
+     * Recepción de recursos para desarrollo inmobiliario para venta o renta.
+     */
+    function userCanAccessINM($pdo, $userId) {
+        $fracciones = getUserFraccionesPLD($pdo, $userId);
+        return in_array('V Bis', $fracciones);
     }
 
     /**
@@ -112,6 +118,24 @@ if (!function_exists('ensureFraccionesPLDColumn')) {
     function userCanAccessTSC($pdo, $userId) {
         $fracciones = getUserFraccionesPLD($pdo, $userId);
         return in_array('II', $fracciones);
+    }
+
+    /**
+     * Verifica si el usuario tiene acceso al formulario JYS (requiere Fracción I).
+     * Juegos con apuesta, concursos o sorteos.
+     */
+    function userCanAccessJYS($pdo, $userId) {
+        $fracciones = getUserFraccionesPLD($pdo, $userId);
+        return in_array('I', $fracciones);
+    }
+
+    /**
+     * Verifica si el usuario tiene acceso al formulario CHV (requiere Fracción III).
+     * Cheques de viajero.
+     */
+    function userCanAccessCHV($pdo, $userId) {
+        $fracciones = getUserFraccionesPLD($pdo, $userId);
+        return in_array('III', $fracciones);
     }
 
     /**
@@ -157,6 +181,78 @@ if (!function_exists('ensureFraccionesPLDColumn')) {
     function userCanAccessMJR($pdo, $userId) {
         $fracciones = getUserFraccionesPLD($pdo, $userId);
         return in_array('VI', $fracciones);
+    }
+
+    /**
+     * Verifica si el usuario tiene acceso al formulario OBA (requiere Fracción VII).
+     * Subasta o comercialización de obras de arte.
+     */
+    function userCanAccessOBA($pdo, $userId) {
+        $fracciones = getUserFraccionesPLD($pdo, $userId);
+        return in_array('VII', $fracciones);
+    }
+
+    /**
+     * Verifica si el usuario tiene acceso al formulario TCV (requiere Fracción X).
+     * Traslado o custodia de dinero o valores.
+     */
+    function userCanAccessTCV($pdo, $userId) {
+        $fracciones = getUserFraccionesPLD($pdo, $userId);
+        return in_array('X', $fracciones);
+    }
+
+    /**
+     * Verifica si el usuario tiene acceso al formulario MPC (requiere Fracción IV).
+     * Mutuo, garantía, préstamos o créditos.
+     */
+    function userCanAccessMPC($pdo, $userId) {
+        $fracciones = getUserFraccionesPLD($pdo, $userId);
+        return in_array('IV', $fracciones);
+    }
+
+    /**
+     * Verifica si el usuario tiene acceso al formulario BLI (requiere Fracción IX).
+     * Servicios de blindaje de vehículos terrestres e inmuebles.
+     */
+    function userCanAccessBLI($pdo, $userId) {
+        $fracciones = getUserFraccionesPLD($pdo, $userId);
+        return in_array('IX', $fracciones);
+    }
+
+    /**
+     * Verifica si el usuario tiene acceso al formulario ADU (requiere Fracción XIV).
+     * Servicios de comercio exterior.
+     */
+    function userCanAccessADU($pdo, $userId) {
+        $fracciones = getUserFraccionesPLD($pdo, $userId);
+        return in_array('XIV', $fracciones);
+    }
+
+    /**
+     * Verifica si el usuario tiene acceso al formulario ARI (requiere Fracción XV).
+     * Derechos personales de uso o goce de bienes inmuebles.
+     */
+    function userCanAccessARI($pdo, $userId) {
+        $fracciones = getUserFraccionesPLD($pdo, $userId);
+        return in_array('XV', $fracciones);
+    }
+
+    /**
+     * Verifica si el usuario tiene acceso al formulario FEP (requiere Fraccion XII).
+     * Fe publica - Notarios y Corredores Publicos.
+     */
+    function userCanAccessFEP($pdo, $userId) {
+        $fracciones = getUserFraccionesPLD($pdo, $userId);
+        return in_array('XII', $fracciones);
+    }
+
+    /**
+     * Verifica si el usuario tiene acceso al formulario FES (requiere Fraccion XII).
+     * Fe publica - Servidores Publicos.
+     */
+    function userCanAccessFES($pdo, $userId) {
+        $fracciones = getUserFraccionesPLD($pdo, $userId);
+        return in_array('XII', $fracciones);
     }
 }
 

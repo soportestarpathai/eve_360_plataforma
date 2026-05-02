@@ -60,7 +60,45 @@ if (!function_exists('getIdVulnerableFraccionVBis')) {
      */
     function getIdVulnerableFraccionVBis($pdo) {
         try {
-            $stmt = $pdo->prepare("SELECT id_vulnerable FROM cat_vulnerables WHERE fraccion = 'V Bis' AND (id_status = 1 OR id_status IS NULL) LIMIT 1");
+            $hasStatus = false;
+            try {
+                $cols = $pdo->query("SHOW COLUMNS FROM cat_vulnerables")->fetchAll(PDO::FETCH_COLUMN);
+                $hasStatus = in_array('id_status', $cols, true);
+            } catch (Exception $e) {
+                $hasStatus = false;
+            }
+            $activeSql = $hasStatus ? " AND (id_status = 1 OR id_status IS NULL)" : "";
+
+            $stmt = $pdo->prepare("SELECT id_vulnerable FROM cat_vulnerables WHERE fraccion = 'V Bis'{$activeSql} LIMIT 1");
+            $stmt->execute();
+            $row = $stmt->fetch(PDO::FETCH_ASSOC);
+            if ($row) {
+                return (int) $row['id_vulnerable'];
+            }
+
+            try {
+                $stmt = $pdo->prepare("
+                    INSERT INTO cat_vulnerables (nombre, fraccion, ruta_template, ruta_instructivo, umbral_acumulacion_uma, umbral_aviso_uma, umbral_expediente_uma)
+                    VALUES ('Recepción de recursos para desarrollo inmobiliario para venta o renta (INM)', 'V Bis', 'instructivo_inm.xlsx', 'instructivo_inm.xlsx', 8025.00, 8025.00, 0.00)
+                ");
+                $stmt->execute();
+                return (int) $pdo->lastInsertId();
+            } catch (Exception $insertError) {
+                error_log('getIdVulnerableFraccionVBis insert: ' . $insertError->getMessage());
+            }
+
+            $stmt = $pdo->prepare("
+                SELECT id_vulnerable
+                FROM cat_vulnerables
+                WHERE 1=1 {$activeSql}
+                  AND (
+                    nombre LIKE '%Recepci%n de recursos%'
+                    OR nombre LIKE '%desarrollo inmobiliario%'
+                    OR ruta_template LIKE '%instructivo_inm%'
+                    OR ruta_instructivo LIKE '%instructivo_inm%'
+                  )
+                LIMIT 1
+            ");
             $stmt->execute();
             $row = $stmt->fetch(PDO::FETCH_ASSOC);
             return $row ? (int) $row['id_vulnerable'] : null;

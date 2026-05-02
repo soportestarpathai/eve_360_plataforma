@@ -38,6 +38,18 @@ try {
     if ($chk2 && $chk2->fetchColumn() == 0) {
         $pdo->exec("ALTER TABLE config_empresa ADD COLUMN subfracciones_ii JSON DEFAULT NULL COMMENT 'Subfracciones II activas'");
     }
+    $chk2b = $pdo->query("SELECT COUNT(*) FROM INFORMATION_SCHEMA.COLUMNS WHERE TABLE_SCHEMA = DATABASE() AND TABLE_NAME = 'config_empresa' AND COLUMN_NAME = 'subfracciones_xii'");
+    if ($chk2b && $chk2b->fetchColumn() == 0) {
+        $pdo->exec("ALTER TABLE config_empresa ADD COLUMN subfracciones_xii JSON DEFAULT NULL COMMENT 'Subfracciones XII (FEP) activas'");
+    }
+    $chk2bf = $pdo->query("SELECT COUNT(*) FROM INFORMATION_SCHEMA.COLUMNS WHERE TABLE_SCHEMA = DATABASE() AND TABLE_NAME = 'config_empresa' AND COLUMN_NAME = 'subfracciones_xii_fes'");
+    if ($chk2bf && $chk2bf->fetchColumn() == 0) {
+        $pdo->exec("ALTER TABLE config_empresa ADD COLUMN subfracciones_xii_fes JSON DEFAULT NULL COMMENT 'Subfracciones XII (FES) activas'");
+    }
+    $chk2c = $pdo->query("SELECT COUNT(*) FROM INFORMATION_SCHEMA.COLUMNS WHERE TABLE_SCHEMA = DATABASE() AND TABLE_NAME = 'config_empresa' AND COLUMN_NAME = 'subfracciones_xiv'");
+    if ($chk2c && $chk2c->fetchColumn() == 0) {
+        $pdo->exec("ALTER TABLE config_empresa ADD COLUMN subfracciones_xiv JSON DEFAULT NULL COMMENT 'Subfracciones XIV (ADU) activas'");
+    }
     $chk3 = $pdo->query("SELECT COUNT(*) FROM INFORMATION_SCHEMA.COLUMNS WHERE TABLE_SCHEMA = DATABASE() AND TABLE_NAME = 'config_empresa_usuario' AND COLUMN_NAME = 'subfracciones_xi'");
     if ($chk3 && $chk3->fetchColumn() == 0) {
         $pdo->exec("ALTER TABLE config_empresa_usuario ADD COLUMN subfracciones_xi JSON DEFAULT NULL");
@@ -45,6 +57,18 @@ try {
     $chk4 = $pdo->query("SELECT COUNT(*) FROM INFORMATION_SCHEMA.COLUMNS WHERE TABLE_SCHEMA = DATABASE() AND TABLE_NAME = 'config_empresa_usuario' AND COLUMN_NAME = 'subfracciones_ii'");
     if ($chk4 && $chk4->fetchColumn() == 0) {
         $pdo->exec("ALTER TABLE config_empresa_usuario ADD COLUMN subfracciones_ii JSON DEFAULT NULL");
+    }
+    $chk5 = $pdo->query("SELECT COUNT(*) FROM INFORMATION_SCHEMA.COLUMNS WHERE TABLE_SCHEMA = DATABASE() AND TABLE_NAME = 'config_empresa_usuario' AND COLUMN_NAME = 'subfracciones_xii'");
+    if ($chk5 && $chk5->fetchColumn() == 0) {
+        $pdo->exec("ALTER TABLE config_empresa_usuario ADD COLUMN subfracciones_xii JSON DEFAULT NULL");
+    }
+    $chk5f = $pdo->query("SELECT COUNT(*) FROM INFORMATION_SCHEMA.COLUMNS WHERE TABLE_SCHEMA = DATABASE() AND TABLE_NAME = 'config_empresa_usuario' AND COLUMN_NAME = 'subfracciones_xii_fes'");
+    if ($chk5f && $chk5f->fetchColumn() == 0) {
+        $pdo->exec("ALTER TABLE config_empresa_usuario ADD COLUMN subfracciones_xii_fes JSON DEFAULT NULL");
+    }
+    $chk6 = $pdo->query("SELECT COUNT(*) FROM INFORMATION_SCHEMA.COLUMNS WHERE TABLE_SCHEMA = DATABASE() AND TABLE_NAME = 'config_empresa_usuario' AND COLUMN_NAME = 'subfracciones_xiv'");
+    if ($chk6 && $chk6->fetchColumn() == 0) {
+        $pdo->exec("ALTER TABLE config_empresa_usuario ADD COLUMN subfracciones_xiv JSON DEFAULT NULL");
     }
 } catch (Exception $e) { /* ignorar */ }
 
@@ -217,7 +241,7 @@ if ($id_usuario_seleccionado > 0) {
         $stmtU->execute([$id_usuario_seleccionado]);
         $configU = $stmtU->fetch(PDO::FETCH_ASSOC);
         if ($configU) {
-            foreach (['nombre_empresa','logo_url','color_primario','max_usuarios','max_busquedas_api','id_tipo_empresa','id_vulnerable','contrato_prefijo','contrato_siguiente','contrato_longitud','contrato_rellenar_ceros','folio_patron_pld','estatus_patron_pld','fecha_revalidacion_patron','fracciones_activas','subfracciones_xi','subfracciones_ii','no_habilitado_pld'] as $k) {
+            foreach (['nombre_empresa','logo_url','color_primario','max_usuarios','max_busquedas_api','id_tipo_empresa','id_vulnerable','contrato_prefijo','contrato_siguiente','contrato_longitud','contrato_rellenar_ceros','folio_patron_pld','estatus_patron_pld','fecha_revalidacion_patron','fracciones_activas','subfracciones_xi','subfracciones_ii','subfracciones_xii','subfracciones_xii_fes','subfracciones_xiv','no_habilitado_pld'] as $k) {
                 if (isset($configU[$k]) && $configU[$k] !== null) {
                     $config[$k] = $configU[$k];
                 }
@@ -720,7 +744,6 @@ $listaUsuarios = $stmtUsuarios->fetchAll(PDO::FETCH_ASSOC);
                                     }
                                     $fraccionesActivasConfig = array_values(array_unique(array_filter(array_map(function ($f) {
                                         $s = trim((string)$f);
-                                        if ($s === 'XII') return 'XI';
                                         return $s;
                                     }, $fraccionesActivasConfig))));
 
@@ -728,19 +751,17 @@ $listaUsuarios = $stmtUsuarios->fetchAll(PDO::FETCH_ASSOC);
                                     $fraccionesOpciones = [];
                                     foreach (($vulnerables ?? []) as $vuln) {
                                         $f = trim((string)($vuln['fraccion'] ?? ''));
-                                        if ($f === 'XII') $f = 'XI';
                                         if ($f !== '') $fraccionesOpciones[$f] = $f;
                                     }
                                     foreach ($fraccionesActivasConfig as $fCfg) {
                                         $f = trim((string)$fCfg);
-                                        if ($f === 'XII') $f = 'XI';
                                         if ($f !== '') $fraccionesOpciones[$f] = $f;
                                     }
 
                                     // Orden recomendado de fracciones implementadas.
                                     // Siempre incluirlas para evitar que desaparezcan del panel
                                     // cuando el catálogo venga incompleto temporalmente.
-                                    $ordenPreferido = ['II', 'V', 'V Bis', 'VI', 'VIII', 'XI', 'XIII', 'XVI'];
+                                    $ordenPreferido = ['I', 'II', 'III', 'IV', 'V', 'V Bis', 'VI', 'VII', 'VIII', 'IX', 'X', 'XI', 'XII', 'XIII', 'XIV', 'XV', 'XVI'];
                                     foreach ($ordenPreferido as $fo) {
                                         $fraccionesOpciones[$fo] = $fo;
                                     }
@@ -823,6 +844,78 @@ $listaUsuarios = $stmtUsuarios->fetchAll(PDO::FETCH_ASSOC);
                                         <?php endforeach; ?>
                                     </div>
                                     <small class="form-text text-muted d-block mt-2">Si no selecciona ninguna, se permitirán todas en el formulario de Fracción II.</small>
+                                </div>
+
+                                <div id="subfraccionesXiiSection" class="mb-3 mt-3 nested-card" style="display:none;">
+                                    <label class="form-label fw-bold"><i class="fa-solid fa-scale-balanced me-2"></i>Subfracciones XII (FEP)</label>
+                                    <p class="small text-muted mb-2">Seleccione las subfracciones de Fe Publica habilitadas para su empresa:</p>
+                                    <div class="row g-2">
+                                        <?php
+                                        require_once __DIR__ . '/../config/pld_fraccion_xii.php';
+                                        $subfraccionesXIIConfig = [];
+                                        if (!empty($config['subfracciones_xii'])) {
+                                            $dec = json_decode($config['subfracciones_xii'], true);
+                                            if (is_array($dec)) $subfraccionesXIIConfig = $dec;
+                                        }
+                                        $subfraccionesXIIDef = function_exists('getSubfraccionesXIIDefinition') ? getSubfraccionesXIIDefinition() : [];
+                                        foreach ($subfraccionesXIIDef as $clave => $etiqueta):
+                                            $chk = in_array($clave, $subfraccionesXIIConfig, true) ? ' checked' : '';
+                                        ?>
+                                        <div class="col-md-6"><div class="form-check">
+                                            <input class="form-check-input subfraccion-xii-check" type="checkbox" value="<?= htmlspecialchars($clave) ?>" id="subf_xii_<?= htmlspecialchars($clave) ?>"<?= $chk ?>>
+                                            <label class="form-check-label" for="subf_xii_<?= htmlspecialchars($clave) ?>"><?= htmlspecialchars($etiqueta) ?></label>
+                                        </div></div>
+                                        <?php endforeach; ?>
+                                    </div>
+                                    <small class="form-text text-muted d-block mt-2">Si no selecciona ninguna, se permitirán todas en el formulario FEP.</small>
+                                </div>
+
+                                <div id="subfraccionesXiiFesSection" class="mb-3 mt-3 nested-card" style="display:none;">
+                                    <label class="form-label fw-bold"><i class="fa-solid fa-landmark me-2"></i>Subfracciones XII (FES)</label>
+                                    <p class="small text-muted mb-2">Seleccione las subfracciones de Fe Publica - Servidores Publicos habilitadas para su empresa:</p>
+                                    <div class="row g-2">
+                                        <?php
+                                        require_once __DIR__ . '/../config/pld_fraccion_xii.php';
+                                        $subfraccionesXIIFESConfig = [];
+                                        if (!empty($config['subfracciones_xii_fes'])) {
+                                            $dec = json_decode($config['subfracciones_xii_fes'], true);
+                                            if (is_array($dec)) $subfraccionesXIIFESConfig = $dec;
+                                        }
+                                        $subfraccionesXIIFESDef = function_exists('getSubfraccionesXIIFESDefinition') ? getSubfraccionesXIIFESDefinition() : [];
+                                        foreach ($subfraccionesXIIFESDef as $clave => $etiqueta):
+                                            $chk = in_array($clave, $subfraccionesXIIFESConfig, true) ? ' checked' : '';
+                                        ?>
+                                        <div class="col-md-6"><div class="form-check">
+                                            <input class="form-check-input subfraccion-xii-fes-check" type="checkbox" value="<?= htmlspecialchars($clave) ?>" id="subf_xii_fes_<?= htmlspecialchars($clave) ?>"<?= $chk ?>>
+                                            <label class="form-check-label" for="subf_xii_fes_<?= htmlspecialchars($clave) ?>"><?= htmlspecialchars($etiqueta) ?></label>
+                                        </div></div>
+                                        <?php endforeach; ?>
+                                    </div>
+                                    <small class="form-text text-muted d-block mt-2">Si no selecciona ninguna, se permitirán todas en el formulario FES.</small>
+                                </div>
+
+                                <div id="subfraccionesXivSection" class="mb-3 mt-3 nested-card" style="display:none;">
+                                    <label class="form-label fw-bold"><i class="fa-solid fa-plane-departure me-2"></i>Subfracciones XIV (ADU)</label>
+                                    <p class="small text-muted mb-2">Seleccione las actividades vulnerables de Comercio Exterior habilitadas para su empresa:</p>
+                                    <div class="row g-2">
+                                        <?php
+                                        require_once __DIR__ . '/../config/pld_fraccion_xiv.php';
+                                        $subfraccionesXIVConfig = [];
+                                        if (!empty($config['subfracciones_xiv'])) {
+                                            $dec = json_decode($config['subfracciones_xiv'], true);
+                                            if (is_array($dec)) $subfraccionesXIVConfig = $dec;
+                                        }
+                                        $subfraccionesXIVDef = function_exists('getSubfraccionesXIVDefinition') ? getSubfraccionesXIVDefinition() : [];
+                                        foreach ($subfraccionesXIVDef as $clave => $etiqueta):
+                                            $chk = in_array($clave, $subfraccionesXIVConfig, true) ? ' checked' : '';
+                                        ?>
+                                        <div class="col-md-6"><div class="form-check">
+                                            <input class="form-check-input subfraccion-xiv-check" type="checkbox" value="<?= htmlspecialchars($clave) ?>" id="subf_xiv_<?= htmlspecialchars($clave) ?>"<?= $chk ?>>
+                                            <label class="form-check-label" for="subf_xiv_<?= htmlspecialchars($clave) ?>"><?= htmlspecialchars($clave . ' - ' . $etiqueta) ?></label>
+                                        </div></div>
+                                        <?php endforeach; ?>
+                                    </div>
+                                    <small class="form-text text-muted d-block mt-2">Si no selecciona ninguna, se permitirán todas en el formulario ADU.</small>
                                 </div>
                                 
                                 <div class="d-flex flex-wrap gap-2 mt-3">
@@ -1233,7 +1326,7 @@ $listaUsuarios = $stmtUsuarios->fetchAll(PDO::FETCH_ASSOC);
     function normalizeFraccionValue(fraccion) {
         const s = String(fraccion || '').trim();
         if (!s) return '';
-        return s === 'XII' ? 'XI' : s;
+        return s;
     }
 
     function getSelectedFraccionesActivas() {
@@ -1265,16 +1358,35 @@ $listaUsuarios = $stmtUsuarios->fetchAll(PDO::FETCH_ASSOC);
         const tieneII = fracciones.includes('II');
         sec.style.display = tieneII ? 'block' : 'none';
     }
+    function toggleSubfraccionesXII() {
+        const sec = document.getElementById('subfraccionesXiiSection');
+        const secFes = document.getElementById('subfraccionesXiiFesSection');
+        const fracciones = getSelectedFraccionesActivas();
+        const tieneXII = fracciones.includes('XII');
+        if (sec) sec.style.display = tieneXII ? 'block' : 'none';
+        if (secFes) secFes.style.display = tieneXII ? 'block' : 'none';
+    }
+    function toggleSubfraccionesXIV() {
+        const sec = document.getElementById('subfraccionesXivSection');
+        if (!sec) return;
+        const fracciones = getSelectedFraccionesActivas();
+        const tieneXIV = fracciones.includes('XIV');
+        sec.style.display = tieneXIV ? 'block' : 'none';
+    }
     (function initSubfraccionesXI() {
         const checks = document.querySelectorAll('.fraccion-activa-check');
         checks.forEach((cb) => cb.addEventListener('change', () => {
             syncFraccionesActivasHidden();
             toggleSubfraccionesXI();
             toggleSubfraccionesII();
+            toggleSubfraccionesXII();
+            toggleSubfraccionesXIV();
         }));
         syncFraccionesActivasHidden();
         toggleSubfraccionesXI();
         toggleSubfraccionesII();
+        toggleSubfraccionesXII();
+        toggleSubfraccionesXIV();
     })();
 
     function savePatronPLD() {
@@ -1290,6 +1402,15 @@ $listaUsuarios = $stmtUsuarios->fetchAll(PDO::FETCH_ASSOC);
         const subfraccionesIIChecked = [];
         document.querySelectorAll('.subfraccion-ii-check:checked').forEach(cb => subfraccionesIIChecked.push(cb.value));
         const subfraccionesII = document.getElementById('subfraccionesIiSection').style.display !== 'none' ? subfraccionesIIChecked : null;
+        const subfraccionesXIIChecked = [];
+        document.querySelectorAll('.subfraccion-xii-check:checked').forEach(cb => subfraccionesXIIChecked.push(cb.value));
+        const subfraccionesXII = document.getElementById('subfraccionesXiiSection').style.display !== 'none' ? subfraccionesXIIChecked : null;
+        const subfraccionesXIIFESChecked = [];
+        document.querySelectorAll('.subfraccion-xii-fes-check:checked').forEach(cb => subfraccionesXIIFESChecked.push(cb.value));
+        const subfraccionesXIIFES = document.getElementById('subfraccionesXiiFesSection').style.display !== 'none' ? subfraccionesXIIFESChecked : null;
+        const subfraccionesXIVChecked = [];
+        document.querySelectorAll('.subfraccion-xiv-check:checked').forEach(cb => subfraccionesXIVChecked.push(cb.value));
+        const subfraccionesXIV = document.getElementById('subfraccionesXivSection').style.display !== 'none' ? subfraccionesXIVChecked : null;
         
         fetch('../api/revalidate_patron_pld.php', {
             method: 'POST',
@@ -1300,6 +1421,9 @@ $listaUsuarios = $stmtUsuarios->fetchAll(PDO::FETCH_ASSOC);
                 fracciones: fracciones || null,
                 subfracciones_xi: subfracciones,
                 subfracciones_ii: subfraccionesII,
+                subfracciones_xii: subfraccionesXII,
+                subfracciones_xii_fes: subfraccionesXIIFES,
+                subfracciones_xiv: subfraccionesXIV,
                 confirmar: true,
                 id_usuario: window.idUsuarioConfig || 0
             })
@@ -1441,6 +1565,12 @@ $listaUsuarios = $stmtUsuarios->fetchAll(PDO::FETCH_ASSOC);
             document.querySelectorAll('.subfraccion-xi-check:checked').forEach(cb => subf.push(cb.value));
             const subfII = [];
             document.querySelectorAll('.subfraccion-ii-check:checked').forEach(cb => subfII.push(cb.value));
+            const subfXII = [];
+            document.querySelectorAll('.subfraccion-xii-check:checked').forEach(cb => subfXII.push(cb.value));
+            const subfXIIFES = [];
+            document.querySelectorAll('.subfraccion-xii-fes-check:checked').forEach(cb => subfXIIFES.push(cb.value));
+            const subfXIV = [];
+            document.querySelectorAll('.subfraccion-xiv-check:checked').forEach(cb => subfXIV.push(cb.value));
             
             fetch('../api/revalidate_patron_pld.php', {
                 method: 'POST',
@@ -1451,6 +1581,9 @@ $listaUsuarios = $stmtUsuarios->fetchAll(PDO::FETCH_ASSOC);
                     fracciones: fracciones || null,
                     subfracciones_xi: subf,
                     subfracciones_ii: subfII,
+                    subfracciones_xii: subfXII,
+                    subfracciones_xii_fes: subfXIIFES,
+                    subfracciones_xiv: subfXIV,
                     confirmar: false,
                     id_usuario: window.idUsuarioConfig || 0
                 })
@@ -1496,6 +1629,9 @@ $listaUsuarios = $stmtUsuarios->fetchAll(PDO::FETCH_ASSOC);
                                     fracciones: fracciones || null,
                                     subfracciones_xi: subf,
                                     subfracciones_ii: subfII,
+                                    subfracciones_xii: subfXII,
+                                    subfracciones_xii_fes: subfXIIFES,
+                                    subfracciones_xiv: subfXIV,
                                     confirmar: true,
                                     id_usuario: window.idUsuarioConfig || 0
                                 })

@@ -1,0 +1,135 @@
+EVE 360 - Ficha Tecnica Comercial PLD
+Fecha: 2026-04-30
+
+OBJETIVO
+Definir cobertura actual de fracciones PLD en plataforma, brecha contra universo de 16 fracciones (I a XVI) y evaluar si ya existe un MVP comercial.
+
+RESUMEN EJECUTIVO
+- Cobertura actual (fracciones numeradas I-XVI): 12 de 16 (75%).
+- Si se considera V Bis como actividad separada: 13 modulos operativos.
+- Fracciones con subfracciones implementadas: II (3) y XI (10).
+   - Estado general: MVP SI, con cobertura multi-fraccion relevante (Inmobiliario, Tarjetas, Cheques de Viajero, Mutuo/Prestamos, Obras de Arte, Servicios Profesionales, Donativos, Activos Virtuales, Vehiculos, Blindaje, Metales/Joyeria y Juegos).
+
+FRACCIONES IMPLEMENTADAS (OPERATIVAS)
+1) I - JYS (Juegos con apuesta, concursos o sorteos)
+   - Formulario: operacion_jys.php
+   - Registro aviso/XML: api/registrar_aviso_jys.php
+   - XSD helper/catalogos: config/jys_xml_helper.php, config/jys_catalogos.php
+
+2) II - Tarjetas (suite completa con subfracciones)
+   - Formulario: operacion_tsc.php
+   - Registro aviso/XML: api/registrar_aviso_tsc.php
+   - Subfracciones:
+     a) TSC - servicio_credito
+     b) TPP - prepago_cupones
+     c) TDR - devolucion_recompensas
+   - Definicion: config/pld_fraccion_ii.php
+   - Helpers XML: config/tsc_xml_helper.php, config/tpp_xml_helper.php, config/tdr_xml_helper.php
+
+3) III - CHV (Cheques de viajero)
+   - Formulario: operacion_chv.php
+   - Registro aviso/XML: api/registrar_aviso_chv.php
+   - Definicion: config/pld_fraccion_iii.php
+   - Helper XML/catalogos: config/chv_xml_helper.php, config/chv_catalogos.php
+   - Nota: catalogos tipo_operacion/tipo_alerta sujetos a confirmacion final con XSD/XML oficial.
+
+4) IV - MPC (Mutuo, prestamo, credito o garantia)
+   - Formulario: operacion_mpc.php
+   - Registro aviso/XML: api/registrar_aviso_mpc.php
+   - Definicion: config/pld_fraccion_iv.php
+   - Helper XML/catalogos: config/mpc_xml_helper.php, config/mpc_catalogos.php
+
+5) V - Inmobiliario (DIN)
+   - Formulario: operacion_din.php
+   - Registro transaccional/XML: api/registrar_operacion_din.php
+   - Helper XML/catalogos: config/din_xml_helper.php, config/din_catalogos.php
+
+6) V Bis - Recepcion de recursos para desarrollo inmobiliario
+   - Compartido dentro del flujo DIN
+   - Reglas: config/pld_fraccion_v_bis.php
+
+7) VI - MJR (Metales, piedras preciosas, joyas y relojes)
+   - Formulario: operacion_mjr.php
+   - Registro aviso/XML: api/registrar_aviso_mjr.php
+   - Helper XML/catalogos: config/mjr_xml_helper.php, config/mjr_catalogos.php
+
+8) VII - OBA (Obras de arte)
+   - Formulario: operacion_oba.php
+   - Registro aviso/XML: api/registrar_aviso_oba.php
+   - Definicion: config/pld_fraccion_vii.php
+   - Helper XML/catalogos: config/oba_xml_helper.php, config/oba_catalogos.php
+   - QA: tools/qa_oba_e2e.php
+
+9) VIII - VEH (Vehiculos)
+   - Formulario: operacion_veh.php
+   - Registro aviso/XML: api/registrar_aviso_veh.php
+   - Helper XML/catalogos: config/veh_xml_helper.php, config/veh_catalogos.php
+
+10) IX - BLI (Servicios de blindaje de autos o inmuebles)
+   - Formulario: operacion_bli.php
+   - Registro aviso/XML: api/registrar_aviso_bli.php
+   - Definicion: config/pld_fraccion_ix.php
+   - Helper XML/catalogos: config/bli_xml_helper.php, config/bli_catalogos.php
+
+11) XI - SPR (Servicios profesionales)
+   - Formulario: operacion_spr.php
+   - Registro aviso/XML: api/registrar_aviso_spr.php
+   - Subfracciones XI implementadas (10):
+     1. Compraventa de inmuebles
+     2. Cesion de derechos sobre inmuebles
+     3. Administracion de recursos
+     4. Constitucion de personas morales
+     5. Organizacion de aportaciones
+     6. Fusion
+     7. Escision
+     8. Administracion de personas morales
+     9. Constitucion de fideicomiso
+     10. Compra/venta de entidades mercantiles
+   - Definicion/catalogo: config/spr_catalogos.php y control en config/pld_fraccion_xi.php
+
+12) XIII - DON (Donativos)
+   - Formulario: operacion_don.php
+   - Registro aviso/XML: api/registrar_aviso_don.php
+   - Helper XML/catalogos: config/don_xml_helper.php, config/don_catalogos.php
+
+13) XVI - AVI (Activos virtuales)
+   - Formulario: operacion_avi.php
+   - Registro aviso/XML: api/registrar_aviso_avi.php
+   - Helper XML/catalogos: config/avi_xml_helper.php, config/avi_catalogos.php
+
+FRACCIONES FALTANTES (PARA COMPLETAR 16)
+- X - TCV
+- XII - FEP
+- XIV - ADU
+- XV - ARI
+
+SUBFRACCIONES IMPLEMENTADAS
+- Fraccion II: 3 subfracciones (TSC/TPP/TDR) con seleccion en admin y permisos por usuario.
+- Fraccion XI: 10 subfracciones con seleccion en admin y permisos por usuario.
+- Resto de fracciones: sin subfraccion formal en el estado actual (o no aplica por definicion vigente del modulo).
+
+VALIDACION ADMIN/USUARIO (ESTADO)
+- Config global de fracciones activas en admin/config.php.
+- Asignacion por usuario en admin/users.php.
+- Bloqueo de desasignacion si hay historial operativo en fraccion/subfraccion.
+- Permisos de acceso por fraccion en config/pld_permisos.php.
+
+EVALUACION MVP
+SI, ya existe MVP comercial:
+- Cubre 75% de fracciones numeradas I-XVI (12/16).
+- Cubre 13 modulos si se incluye V Bis como actividad separada.
+- Incluye fracciones de alta demanda operativa (V/VBis, II, III, IV, VI, VIII, IX, XI, XIII, XVI, I).
+
+RIESGO/IMPACTO COMERCIAL
+- Fortalezas:
+  - Cobertura amplia de casos frecuentes.
+  - XML y catalogos especializados en la mayoria de modulos implementados.
+  - Control admin-usuario y trazabilidad de permisos.
+- Brecha:
+  - 4 fracciones aun no incorporadas limitan cobertura total de mercado regulado.
+
+RECOMENDACION COMERCIAL
+Fase 1 (MVP vendible): comercializar como "PLD Multi-fraccion v1" con 12 fracciones numeradas + V Bis.
+Fase 2 (cierre de cobertura): construir X, XII, XIV, XV para llegar a suite 16/16.
+
+FIN
